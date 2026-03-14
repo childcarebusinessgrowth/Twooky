@@ -1,0 +1,24 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00718d"/>
+      <stop offset="1" stop-color="#ce1053"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg3)"/>
+  <ellipse cx="1320" cy="140" rx="210" ry="130" fill="#b7e7f2" fill-opacity="0.25"/>
+  <ellipse cx="220" cy="760" rx="240" ry="150" fill="#d9f2f8" fill-opacity="0.2"/>
+  <rect x="230" y="140" width="1140" height="620" rx="36" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="300" y="220" width="520" height="56" rx="16" fill="#d6eef5"/>
+  <text x="332" y="256" fill="#005466" font-family="Arial, sans-serif" font-size="30" font-weight="700">First Week in Care</text>
+  <rect x="300" y="320" width="680" height="28" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="366" width="720" height="28" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="412" width="640" height="28" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="458" width="590" height="28" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="544" width="250" height="62" rx="18" fill="#00718d"/>
+  <text x="338" y="583" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="28" font-weight="700">Transition Tips</text>
+  <circle cx="1130" cy="380" r="102" fill="#c6ebf4"/>
+  <circle cx="1096" cy="365" r="28" fill="#ce1053"/>
+  <circle cx="1164" cy="365" r="28" fill="#ce1053"/>
+  <path d="M1076 425C1098 451 1140 451 1162 425" stroke="#005466" stroke-width="14" stroke-linecap="round"/>
+</svg>

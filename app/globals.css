@@ -1,0 +1,149 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.985 0.002 90);
+  --foreground: oklch(0.25 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.02 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.02 250);
+  --primary: #00718d;
+  --primary-foreground: #ffffff;
+  --secondary: #ce1053;
+  --secondary-foreground: #ffffff;
+  --muted: oklch(0.96 0.005 90);
+  --muted-foreground: oklch(0.45 0.02 250);
+  --accent: oklch(0.92 0.02 90);
+  --accent-foreground: oklch(0.25 0.02 250);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.90 0.01 90);
+  --input: oklch(0.95 0.005 90);
+  --ring: #00718d;
+  --chart-1: #00718d;
+  --chart-2: #ce1053;
+  --chart-3: oklch(0.75 0.12 80);
+  --chart-4: oklch(0.60 0.18 30);
+  --chart-5: oklch(0.70 0.15 320);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.985 0.002 90);
+  --sidebar-foreground: oklch(0.25 0.02 250);
+  --sidebar-primary: #00718d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: oklch(0.92 0.02 90);
+  --sidebar-accent-foreground: oklch(0.25 0.02 250);
+  --sidebar-border: oklch(0.90 0.01 90);
+  --sidebar-ring: #00718d;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #00718d;
+  --primary-foreground: #ffffff;
+  --secondary: #ce1053;
+  --secondary-foreground: #ffffff;
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: #00718d;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: #ce1053;
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #00718d;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: #00718d;
+}
+
+@theme inline {
+  --font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --font-mono: var(--font-inter), 'Inter', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@theme {
+  /* Re-map legacy utility palettes to the new brand family for full-site consistency. */
+  --color-sky-50: color-mix(in oklab, var(--primary) 8%, white);
+  --color-sky-100: color-mix(in oklab, var(--primary) 14%, white);
+  --color-sky-200: color-mix(in oklab, var(--primary) 24%, white);
+  --color-sky-300: color-mix(in oklab, var(--primary) 36%, white);
+  --color-sky-400: color-mix(in oklab, var(--primary) 52%, white);
+  --color-sky-500: var(--primary);
+  --color-sky-600: color-mix(in oklab, var(--primary) 88%, black);
+  --color-sky-700: color-mix(in oklab, var(--primary) 76%, black);
+  --color-sky-800: color-mix(in oklab, var(--primary) 66%, black);
+
+  --color-emerald-50: color-mix(in oklab, var(--secondary) 8%, white);
+  --color-emerald-100: color-mix(in oklab, var(--secondary) 14%, white);
+  --color-emerald-200: color-mix(in oklab, var(--secondary) 24%, white);
+  --color-emerald-300: color-mix(in oklab, var(--secondary) 36%, white);
+  --color-emerald-400: color-mix(in oklab, var(--secondary) 52%, white);
+  --color-emerald-500: var(--secondary);
+  --color-emerald-600: color-mix(in oklab, var(--secondary) 88%, black);
+  --color-emerald-700: color-mix(in oklab, var(--secondary) 76%, black);
+  --color-emerald-800: color-mix(in oklab, var(--secondary) 66%, black);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

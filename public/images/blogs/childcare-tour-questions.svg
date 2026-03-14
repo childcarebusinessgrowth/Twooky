@@ -1,0 +1,25 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00718d"/>
+      <stop offset="1" stop-color="#ce1053"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg2)"/>
+  <circle cx="220" cy="180" r="130" fill="#9ddbea" fill-opacity="0.23"/>
+  <circle cx="1390" cy="760" r="180" fill="#b7e7f2" fill-opacity="0.2"/>
+  <rect x="220" y="130" width="1160" height="640" rx="36" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="300" y="220" width="540" height="58" rx="16" fill="#d6eef5"/>
+  <text x="332" y="258" fill="#00718d" font-family="Arial, sans-serif" font-size="32" font-weight="700">Childcare Tour Questions</text>
+  <rect x="300" y="320" width="660" height="26" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="364" width="620" height="26" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="408" width="680" height="26" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="452" width="640" height="26" rx="10" fill="#e8f6fa"/>
+  <rect x="300" y="496" width="600" height="26" rx="10" fill="#e8f6fa"/>
+  <rect x="1040" y="250" width="260" height="410" rx="24" fill="#f2fbfd"/>
+  <circle cx="1170" cy="360" r="88" fill="#c6ebf4"/>
+  <rect x="1112" y="332" width="116" height="20" rx="10" fill="#ce1053"/>
+  <rect x="1112" y="370" width="90" height="20" rx="10" fill="#ce1053"/>
+  <rect x="1096" y="470" width="148" height="54" rx="14" fill="#00718d"/>
+  <text x="1134" y="505" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="24" font-weight="700">Ask</text>
+</svg>
