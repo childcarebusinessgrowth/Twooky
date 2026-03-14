@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Mail, Lock, Eye, EyeOff, UserRound } from "lucide-react"
@@ -15,7 +15,7 @@ import { getSupabaseClient } from "@/lib/supabaseClient"
 const ROLE_UNRESOLVED_MESSAGE =
   "Your account is signed in, but we could not determine your role. Please contact support to finish account setup."
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const getSafeNextPath = (): string | null => {
@@ -197,5 +197,32 @@ export default function LoginPage() {
         </p>
       </CardContent>
     </Card>
+  )
+}
+
+function LoginFallback() {
+  return (
+    <Card className="w-full max-w-md shadow-lg border-border/50 bg-card/95 backdrop-blur-sm">
+      <CardHeader className="text-center pb-3">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <UserRound className="h-5 w-5" />
+        </div>
+        <CardTitle className="text-2xl font-bold tracking-tight">Welcome Back</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
+          Sign in to continue exploring trusted early learning providers.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-2 flex justify-center py-8">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginForm />
+    </Suspense>
   )
 }
