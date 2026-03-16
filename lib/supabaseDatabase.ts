@@ -827,7 +827,77 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      get_guest_inquiry_message_decrypted: {
+        Args: { p_guest_inquiry_id: string }
+        Returns: string | null
+      }
+      create_guest_inquiry: {
+        Args: {
+          p_provider_slug: string
+          p_child_dob: string
+          p_ideal_start_date: string
+          p_message_plain: string
+          p_first_name: string
+          p_last_name: string
+          p_email: string
+          p_telephone: string
+          p_consent_to_contact?: boolean
+        }
+        Returns: string
+      }
+      create_inquiry: {
+        Args: {
+          p_provider_profile_id: string
+          p_inquiry_subject: string | null
+          p_message_plain: string
+          p_consent_to_contact?: boolean
+        }
+        Returns: string
+      }
+      add_inquiry_reply: {
+        Args: { p_inquiry_id: string; p_message_plain: string }
+        Returns: string
+      }
+      get_inquiry_thread: {
+        Args: { p_inquiry_id: string }
+        Returns: {
+          message_order: number
+          sender_type: string
+          sender_profile_id: string
+          body_decrypted: string | null
+          created_at: string
+        }[]
+      }
+      get_inquiry_meta_secure: {
+        Args: { p_inquiry_id: string }
+        Returns: {
+          id: string
+          inquiry_subject: string | null
+          provider_business_name: string | null
+          provider_slug: string | null
+          parent_display_name: string | null
+          parent_email: string | null
+          created_at: string
+          updated_at: string
+          lead_status: string | null
+        }[]
+      }
+      get_provider_inquiry_previews: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          parent_profile_id: string
+          inquiry_subject: string | null
+          created_at: string
+          updated_at: string
+          parent_display_name: string | null
+          parent_email: string | null
+          lead_status: string | null
+          child_age_group: string | null
+        }[]
+      }
+    }
     Enums: {
       app_role: "parent" | "provider" | "admin"
     }
