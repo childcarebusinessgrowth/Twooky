@@ -7,6 +7,12 @@ type GooglePlaceDetailsResponse = {
     rating?: number
     user_ratings_total?: number
     url?: string
+    geometry?: {
+      location?: {
+        lat?: number
+        lng?: number
+      }
+    }
   }
 }
 
@@ -14,6 +20,8 @@ export type GooglePlaceReviewSummary = {
   rating: number
   reviewCount: number
   reviewsUrl: string
+  latitude?: number
+  longitude?: number
 }
 
 /**
@@ -29,7 +37,7 @@ export async function fetchGooglePlaceReviewSummary(
 
   const query = new URLSearchParams({
     placeid: trimmedPlaceId,
-    fields: "rating,user_ratings_total,url",
+    fields: "rating,user_ratings_total,url,geometry/location",
     key: apiKey,
   })
 
@@ -49,6 +57,8 @@ export async function fetchGooglePlaceReviewSummary(
   const rating = payload.result?.rating
   const reviewCount = payload.result?.user_ratings_total
   const reviewsUrl = payload.result?.url
+  const latitude = payload.result?.geometry?.location?.lat
+  const longitude = payload.result?.geometry?.location?.lng
 
   if (
     typeof rating !== "number" ||
@@ -65,5 +75,7 @@ export async function fetchGooglePlaceReviewSummary(
     rating,
     reviewCount,
     reviewsUrl,
+    ...(typeof latitude === "number" && Number.isFinite(latitude) ? { latitude } : {}),
+    ...(typeof longitude === "number" && Number.isFinite(longitude) ? { longitude } : {}),
   }
 }

@@ -1,5 +1,6 @@
 "use server"
 
+import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
@@ -7,6 +8,8 @@ import { assertServerRole } from "@/lib/authzServer"
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const LISTINGS_PATH = "/admin/listings"
 const DEFAULT_PAGE_SIZE = 10
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"])
 
 export type ListingStatus = "active" | "pending" | "inactive"
 
@@ -32,6 +35,32 @@ function sanitizeSearchTermForFilter(value: string): string {
     .replace(/[,%()]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
+}
+
+function sanitizeFilename(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+}
+
+async function ensureProviderPhotosBucket() {
+  const supabase = getSupabaseAdminClient()
+  const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+  if (listError) throw new Error(listError.message)
+
+  const exists = buckets?.some((bucket) => bucket.name === PROVIDER_PHOTOS_BUCKET)
+  if (exists) return
+
+  const { error: createError } = await supabase.storage.createBucket(PROVIDER_PHOTOS_BUCKET, {
+    public: true,
+    fileSizeLimit: `${MAX_IMAGE_SIZE_BYTES}`,
+    allowedMimeTypes: Array.from(ALLOWED_IMAGE_TYPES),
+  })
+  if (createError && !createError.message.toLowerCase().includes("already")) {
+    throw new Error(createError.message)
+  }
 }
 
 export type GetAdminListingsOptions = {
@@ -238,6 +267,8 @@ export type AdminListingDetail = {
     total_capacity: number | null
     country_id: string | null
     city_id: string | null
+    country_name: string | null
+    city_name: string | null
     virtual_tour_url: string | null
     virtual_tour_urls: string[] | null
     listing_status: string
@@ -266,6 +297,23 @@ export async function getAdminListingDetail(
     return null
   }
 
+  const [{ data: countryRow }, { data: cityRow }] = await Promise.all([
+    profile.country_id
+      ? supabase
+          .from("countries")
+          .select("name")
+          .eq("id", profile.country_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    profile.city_id
+      ? supabase
+          .from("cities")
+          .select("name")
+          .eq("id", profile.city_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+
   const { data: photoRows } = await supabase
     .from("provider_photos")
     .select("id, storage_path, caption, is_primary, sort_order")
@@ -285,6 +333,8 @@ export async function getAdminListingDetail(
   return {
     profile: {
       ...profile,
+      country_name: countryRow?.name ?? null,
+      city_name: cityRow?.name ?? null,
       listing_status: profile.listing_status ?? "pending",
       featured: profile.featured ?? false,
     },
@@ -388,6 +438,93 @@ export async function deleteListing(profileId: string): Promise<{ error?: string
   revalidatePath(LISTINGS_PATH)
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
   return {}
+}
+
+export async function addListingPhotos(
+  profileId: string,
+  formData: FormData
+): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+
+  const photos = formData
+    .getAll("photos")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+
+  if (photos.length === 0) {
+    return { ok: false, error: "Please select at least one photo." }
+  }
+
+  for (const photo of photos) {
+    if (!ALLOWED_IMAGE_TYPES.has(photo.type)) {
+      return { ok: false, error: "Only PNG, JPG, and WebP photos are supported." }
+    }
+    if (photo.size > MAX_IMAGE_SIZE_BYTES) {
+      return { ok: false, error: "Each photo must be 10MB or less." }
+    }
+  }
+
+  const { data: profileRow, error: profileError } = await supabase
+    .from("provider_profiles")
+    .select("profile_id")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+  if (profileError) return { ok: false, error: profileError.message }
+  if (!profileRow) return { ok: false, error: "Listing not found." }
+
+  const { data: existingPhotos, error: existingPhotosError } = await supabase
+    .from("provider_photos")
+    .select("id, is_primary, sort_order")
+    .eq("provider_profile_id", profileId)
+  if (existingPhotosError) return { ok: false, error: existingPhotosError.message }
+
+  const hasPrimary = (existingPhotos ?? []).some((row) => row.is_primary)
+  const maxSortOrder = (existingPhotos ?? []).reduce((max, row) => Math.max(max, row.sort_order ?? -1), -1)
+  let nextSortOrder = maxSortOrder + 1
+
+  const uploadedPaths: string[] = []
+
+  try {
+    await ensureProviderPhotosBucket()
+
+    for (let i = 0; i < photos.length; i += 1) {
+      const photo = photos[i]
+      const safeName = sanitizeFilename(photo.name || "image")
+      const storagePath = `${profileId}/${randomUUID()}-${safeName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from(PROVIDER_PHOTOS_BUCKET)
+        .upload(storagePath, photo, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: photo.type,
+        })
+      if (uploadError) throw new Error(uploadError.message)
+      uploadedPaths.push(storagePath)
+
+      const { error: insertPhotoError } = await supabase.from("provider_photos").insert({
+        provider_profile_id: profileId,
+        storage_path: storagePath,
+        caption: null,
+        is_primary: !hasPrimary && i === 0,
+        sort_order: nextSortOrder,
+      })
+      if (insertPhotoError) throw new Error(insertPhotoError.message)
+      nextSortOrder += 1
+    }
+  } catch (error) {
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from(PROVIDER_PHOTOS_BUCKET).remove(uploadedPaths)
+    }
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Failed to upload photos.",
+    }
+  }
+
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  return { ok: true, added: photos.length }
 }
 
 /** Returns countries from the database (directory's countries table) for the location filter. */

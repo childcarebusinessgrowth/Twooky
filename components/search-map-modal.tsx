@@ -30,9 +30,17 @@ function isFiniteNumber(value: number | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value)
 }
 
+function hasValidCoordinates(latitude: number | undefined, longitude: number | undefined): boolean {
+  if (!isFiniteNumber(latitude) || !isFiniteNumber(longitude)) return false
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false
+  // We use 0/0 as "missing coordinate" fallback in some server mappings.
+  if (latitude === 0 && longitude === 0) return false
+  return true
+}
+
 function fallbackCenterFromProviders(providers: ProviderCardData[]): { lat: number; lng: number } {
   const withCoords = providers.filter(
-    (provider) => isFiniteNumber(provider.latitude) && isFiniteNumber(provider.longitude),
+    (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
   )
   if (withCoords.length === 0) {
     return { lat: 39.8283, lng: -98.5795 }
@@ -74,7 +82,7 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
   const mapProviders = useMemo(
     () =>
       providers.filter(
-        (provider) => isFiniteNumber(provider.latitude) && isFiniteNumber(provider.longitude),
+        (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
       ),
     [providers],
   )
@@ -236,7 +244,7 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
   const mapProviders = useMemo(
     () =>
       providers.filter(
-        (provider) => isFiniteNumber(provider.latitude) && isFiniteNumber(provider.longitude),
+        (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
       ),
     [providers],
   )

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getAdminListingDetail } from "../actions"
 import { ListingDetailActions } from "./ListingDetailActions"
+import { ListingPhotoUploader } from "./ListingPhotoUploader"
 
 type PageProps = {
   params: Promise<{ profileId: string }>
@@ -107,8 +108,8 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
             }
           />
           <Field label="Google Place ID" value={profile.google_place_id} />
-          <Field label="Country ID" value={profile.country_id} />
-          <Field label="City ID" value={profile.city_id} />
+          <Field label="Country" value={profile.country_name} />
+          <Field label="Directory city" value={profile.city_name} />
         </Section>
 
         <Section title="Program">
@@ -153,13 +154,12 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
         </Section>
 
         <Section title="Virtual tour">
-          <Field label="URL" value={profile.virtual_tour_url} />
           <Field
-            label="URLs"
+            label={profile.virtual_tour_urls?.length ? "URLs" : "URL"}
             value={
               profile.virtual_tour_urls?.length
                 ? profile.virtual_tour_urls.join(", ")
-                : null
+                : profile.virtual_tour_url
             }
           />
         </Section>
@@ -175,7 +175,10 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Photos ({photos.length})</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="text-base">Photos ({photos.length})</CardTitle>
+            <ListingPhotoUploader profileId={profile.profile_id} />
+          </div>
         </CardHeader>
         <CardContent>
           {photos.length === 0 ? (

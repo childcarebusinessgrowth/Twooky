@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
+import { fetchGooglePlaceReviewSummary } from "./google-place-reviews"
+import { geocodeAddressToCoordinates } from "./geocode-server"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -10,6 +12,9 @@ export type ActiveProviderRow = {
   business_name: string | null
   city: string | null
   address: string | null
+  latitude: number | null
+  longitude: number | null
+  google_place_id: string | null
   description: string | null
   provider_types: string[] | null
   age_groups_served: string[] | null
@@ -57,10 +62,13 @@ function toProviderTypeIds(values: string[] | null): ProviderTypeId[] {
 export async function getActiveProvidersFromDb(
   supabase: SupabaseClient
 ): Promise<ActiveProviderRow[]> {
+  const googleApiKey =
+    process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
   const { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, featured"
+      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, featured"
     )
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
@@ -94,16 +102,70 @@ export async function getActiveProvidersFromDb(
     reviewStatsByProfile[row.provider_profile_id] = cur
   })
 
+  const googleSummaryByProfile: Record<
+    string,
+    { rating: number; reviewCount: number; latitude?: number; longitude?: number } | null
+  > = {}
+  const geocodeByAddress = new Map<string, Promise<{ lat: number; lng: number } | null>>()
+
+  const getGeocodedCoords = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+    const normalizedAddress = address.trim()
+    if (!normalizedAddress || !googleApiKey?.trim()) return null
+
+    const existing = geocodeByAddress.get(normalizedAddress)
+    if (existing) return existing
+
+    const pending = geocodeAddressToCoordinates(normalizedAddress, googleApiKey)
+    geocodeByAddress.set(normalizedAddress, pending)
+    return pending
+  }
+
+  const coordsByProfile: Record<string, { lat: number; lng: number } | null> = {}
+  await Promise.all(
+    profiles.map(async (profile) => {
+      const summary = await fetchGooglePlaceReviewSummary(profile.google_place_id, googleApiKey)
+      googleSummaryByProfile[profile.profile_id] = summary
+
+      if (
+        typeof summary?.latitude === "number" &&
+        Number.isFinite(summary.latitude) &&
+        typeof summary?.longitude === "number" &&
+        Number.isFinite(summary.longitude)
+      ) {
+        coordsByProfile[profile.profile_id] = {
+          lat: summary.latitude,
+          lng: summary.longitude,
+        }
+        return
+      }
+
+      const geocodeInput = [profile.address, profile.city].filter(Boolean).join(", ")
+      if (!geocodeInput.trim()) {
+        coordsByProfile[profile.profile_id] = null
+        return
+      }
+
+      coordsByProfile[profile.profile_id] = await getGeocodedCoords(geocodeInput)
+    })
+  )
+
   return profiles.map((p) => {
     const stats = reviewStatsByProfile[p.profile_id]
-    const count = stats?.count ?? 0
-    const avgRating = stats && count > 0 ? stats.sum / count : null
+    const platformCount = stats?.count ?? 0
+    const platformAvgRating = stats && platformCount > 0 ? stats.sum / platformCount : null
+    const googleSummary = googleSummaryByProfile[p.profile_id]
+    const count = googleSummary?.reviewCount ?? platformCount
+    const avgRating = googleSummary?.rating ?? platformAvgRating
+
     return {
       profile_id: p.profile_id,
       provider_slug: p.provider_slug,
       business_name: p.business_name,
       city: p.city,
       address: p.address,
+      latitude: coordsByProfile[p.profile_id]?.lat ?? null,
+      longitude: coordsByProfile[p.profile_id]?.lng ?? null,
+      google_place_id: p.google_place_id,
       description: p.description,
       provider_types: p.provider_types,
       age_groups_served: p.age_groups_served,
@@ -324,8 +386,8 @@ export function activeProviderRowToCardData(
     programTypes: languagesParsed,
     shortDescription: (row.description ?? "").slice(0, 200),
     image,
-    latitude: 0,
-    longitude: 0,
+    latitude: row.latitude ?? 0,
+    longitude: row.longitude ?? 0,
     address: row.address ?? "",
     featured: row.featured ?? false,
   }
