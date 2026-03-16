@@ -717,6 +717,30 @@ export interface Database {
         }
         Relationships: []
       }
+      parent_profiles: {
+        Row: {
+          profile_id: string
+          child_age_group: string | null
+          phone: string | null
+          preferred_start_date: string | null
+          created_at: string
+        }
+        Insert: {
+          profile_id: string
+          child_age_group?: string | null
+          phone?: string | null
+          preferred_start_date?: string | null
+          created_at?: string
+        }
+        Update: {
+          profile_id?: string
+          child_age_group?: string | null
+          phone?: string | null
+          preferred_start_date?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       parent_reviews: {
         Row: {
           id: string
