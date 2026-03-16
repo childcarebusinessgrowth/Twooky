@@ -32,11 +32,13 @@ create table if not exists public.profiles (
   -- Optional denormalized location fields for parent accounts
   country_name text,
   city_name text,
+  is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
 create index if not exists profiles_role_idx on public.profiles (role);
+create index if not exists profiles_is_active_idx on public.profiles (is_active);
 
 
 -- Keep updated_at in sync
@@ -418,6 +420,8 @@ where not exists (
 create table if not exists public.parent_profiles (
   profile_id uuid primary key references public.profiles(id) on delete cascade,
   child_age_group text,
+  phone text,
+  preferred_start_date date,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
@@ -438,6 +442,61 @@ alter table if exists public.provider_profiles
 alter table if exists public.provider_profiles
   add column if not exists provider_slug text;
 
+-- Business (additional)
+alter table if exists public.provider_profiles
+  add column if not exists description text;
+alter table if exists public.provider_profiles
+  add column if not exists website text;
+alter table if exists public.provider_profiles
+  add column if not exists address text;
+
+-- Program
+alter table if exists public.provider_profiles
+  add column if not exists provider_types text[];
+alter table if exists public.provider_profiles
+  add column if not exists age_groups_served text[];
+alter table if exists public.provider_profiles
+  add column if not exists curriculum_type text;
+alter table if exists public.provider_profiles
+  add column if not exists languages_spoken text;
+alter table if exists public.provider_profiles
+  add column if not exists amenities text[];
+
+-- Operating
+alter table if exists public.provider_profiles
+  add column if not exists opening_time text;
+alter table if exists public.provider_profiles
+  add column if not exists closing_time text;
+alter table if exists public.provider_profiles
+  add column if not exists monthly_tuition_from integer;
+alter table if exists public.provider_profiles
+  add column if not exists monthly_tuition_to integer;
+alter table if exists public.provider_profiles
+  add column if not exists total_capacity integer;
+
+-- Listing visibility for admin (active = shown on directory, pending = new, inactive = hidden)
+alter table if exists public.provider_profiles
+  add column if not exists listing_status text not null default 'pending';
+alter table if exists public.provider_profiles
+  add column if not exists featured boolean not null default false;
+
+alter table if exists public.provider_profiles
+  add column if not exists country_id uuid references public.countries(id) on delete restrict;
+alter table if exists public.provider_profiles
+  add column if not exists city_id uuid references public.cities(id) on delete restrict;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_listing_status_allowed'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_listing_status_allowed
+      check (listing_status in ('active', 'pending', 'inactive'));
+  end if;
+end $$;
+
 update public.provider_profiles
 set provider_slug = lower(
   regexp_replace(
@@ -453,6 +512,45 @@ where provider_slug is null
 create unique index if not exists provider_profiles_provider_slug_unique_idx
   on public.provider_profiles (provider_slug)
   where provider_slug is not null;
+
+-- ============================================================================
+-- 4b. Provider photos (facility gallery, captions, primary)
+-- ============================================================================
+create table if not exists public.provider_photos (
+  id uuid primary key default gen_random_uuid(),
+  provider_profile_id uuid not null references public.provider_profiles(profile_id) on delete cascade,
+  storage_path text not null,
+  caption text,
+  is_primary boolean not null default false,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
+create unique index if not exists provider_photos_one_primary_per_provider_idx
+  on public.provider_photos (provider_profile_id)
+  where (is_primary = true);
+
+create index if not exists provider_photos_provider_profile_idx
+  on public.provider_photos (provider_profile_id);
+
+alter table public.provider_photos enable row level security;
+
+drop policy if exists "Provider photos are viewable by everyone" on public.provider_photos;
+create policy "Provider photos are viewable by everyone"
+  on public.provider_photos
+  for select
+  using (true);
+
+drop policy if exists "Provider photos writable by owner" on public.provider_photos;
+create policy "Provider photos writable by owner"
+  on public.provider_photos
+  for all
+  using (provider_profile_id = auth.uid())
+  with check (provider_profile_id = auth.uid());
+
+-- Storage: create bucket "provider-photos" in Supabase Dashboard (public read).
+-- Optional: add Storage policy so only provider can upload under folder = auth.uid();
+-- If not set, the app uses the admin client to upload and enforces path = profile_id/...
 
 -- ============================================================================
 -- 5. Blogs table for admin CMS and public articles
@@ -539,6 +637,20 @@ values
   )
 on conflict (key) do nothing;
 
+insert into public.compliance_policies (key, value, description)
+select
+  'pii_encryption_key',
+  coalesce(
+    nullif(current_setting('app.settings.pii_encryption_key', true), ''),
+    encode(gen_random_bytes(32), 'hex')
+  ),
+  'Fallback symmetric key for inquiry PII encryption when app.settings.pii_encryption_key is not set.'
+where not exists (
+  select 1
+  from public.compliance_policies
+  where key = 'pii_encryption_key'
+);
+
 create or replace function public.get_compliance_setting(setting_key text, fallback_value text)
 returns text as $$
 declare
@@ -565,6 +677,30 @@ exception
 end;
 $$ language plpgsql stable security definer;
 
+create or replace function public.get_pii_encryption_key()
+returns text as $$
+declare
+  key_value text;
+begin
+  select nullif(value, '')
+  into key_value
+  from public.compliance_policies
+  where key = 'pii_encryption_key';
+
+  if key_value is not null then
+    return key_value;
+  end if;
+
+  key_value := nullif(current_setting('app.settings.pii_encryption_key', true), '');
+
+  if key_value is null then
+    raise exception 'Missing encryption key. Set app.settings.pii_encryption_key or compliance_policies.pii_encryption_key.';
+  end if;
+
+  return key_value;
+end;
+$$ language plpgsql stable security definer;
+
 -- ============================================================================
 -- 7. Inquiries table with explicit consent and retention controls
 --    Message is stored encrypted using pgcrypto.
@@ -572,7 +708,7 @@ $$ language plpgsql stable security definer;
 create table if not exists public.inquiries (
   id uuid primary key default gen_random_uuid(),
   parent_profile_id uuid not null references public.profiles(id) on delete cascade,
-  provider_profile_id uuid not null references public.profiles(id) on delete cascade,
+  provider_profile_id uuid not null references public.provider_profiles(profile_id) on delete cascade,
   inquiry_subject text,
   inquiry_message_encrypted bytea not null,
   inquiry_message_search_hash text,
@@ -602,14 +738,11 @@ begin
     return null;
   end if;
 
-  key_value := current_setting('app.settings.pii_encryption_key', true);
-  if key_value is null or length(key_value) = 0 then
-    raise exception 'Missing database setting app.settings.pii_encryption_key';
-  end if;
+  key_value := public.get_pii_encryption_key();
 
   return pgp_sym_encrypt(plain_text, key_value, 'cipher-algo=aes256');
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public, extensions;
 
 create or replace function public.decrypt_sensitive_text(cipher_value bytea)
 returns text as $$
@@ -620,14 +753,11 @@ begin
     return null;
   end if;
 
-  key_value := current_setting('app.settings.pii_encryption_key', true);
-  if key_value is null or length(key_value) = 0 then
-    raise exception 'Missing database setting app.settings.pii_encryption_key';
-  end if;
+  key_value := public.get_pii_encryption_key();
 
   return pgp_sym_decrypt(cipher_value, key_value);
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public, extensions;
 
 create or replace function public.handle_inquiries_before_write()
 returns trigger as $$
@@ -681,6 +811,367 @@ begin
 end;
 $$ language plpgsql security definer;
 
+-- ============================================================================
+-- 7a. Inquiry messages (thread replies; first message stays in inquiries)
+-- ============================================================================
+create table if not exists public.inquiry_messages (
+  id uuid primary key default gen_random_uuid(),
+  inquiry_id uuid not null references public.inquiries(id) on delete cascade,
+  sender_type text not null check (sender_type in ('parent', 'provider')),
+  sender_profile_id uuid not null references public.profiles(id) on delete cascade,
+  message_encrypted bytea not null,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
+create index if not exists inquiry_messages_inquiry_id_idx on public.inquiry_messages (inquiry_id);
+create index if not exists inquiry_messages_created_at_idx on public.inquiry_messages (inquiry_id, created_at);
+
+alter table public.inquiry_messages enable row level security;
+
+drop policy if exists "Inquiry messages readable by participants and admin" on public.inquiry_messages;
+create policy "Inquiry messages readable by participants and admin"
+  on public.inquiry_messages
+  for select
+  using (
+    exists (
+      select 1 from public.inquiries i
+      where i.id = inquiry_messages.inquiry_id
+        and (i.parent_profile_id = auth.uid() or i.provider_profile_id = auth.uid() or public.is_current_user_admin())
+    )
+  );
+
+drop policy if exists "Inquiry messages insertable by participants" on public.inquiry_messages;
+create policy "Inquiry messages insertable by participants"
+  on public.inquiry_messages
+  for insert
+  with check (
+    sender_profile_id = auth.uid()
+    and exists (
+      select 1 from public.inquiries i
+      where i.id = inquiry_messages.inquiry_id
+        and (i.parent_profile_id = auth.uid() or i.provider_profile_id = auth.uid())
+    )
+  );
+
+create or replace function public.create_inquiry(
+  p_provider_profile_id uuid,
+  p_inquiry_subject text,
+  p_message_plain text,
+  p_consent_to_contact boolean default true
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_parent_id uuid;
+  v_encrypted bytea;
+  v_inquiry_id uuid;
+  v_retention_days integer;
+  v_consent_version text;
+begin
+  if p_consent_to_contact is not true then
+    raise exception 'Consent is required to create an inquiry.';
+  end if;
+
+  v_parent_id := auth.uid();
+  if v_parent_id is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  if not exists (select 1 from public.profiles where id = v_parent_id and role = 'parent') then
+    raise exception 'Only parents can create inquiries.';
+  end if;
+
+  if p_message_plain is null or length(trim(p_message_plain)) = 0 then
+    raise exception 'Message cannot be empty.';
+  end if;
+
+  v_encrypted := public.encrypt_sensitive_text(trim(p_message_plain));
+  v_retention_days := public.get_inquiry_retention_days();
+  v_consent_version := public.get_compliance_setting('consent_version', 'v1');
+
+  insert into public.inquiries (
+    parent_profile_id,
+    provider_profile_id,
+    inquiry_subject,
+    inquiry_message_encrypted,
+    consent_to_contact,
+    consent_version,
+    consented_at,
+    retention_until
+  ) values (
+    v_parent_id,
+    p_provider_profile_id,
+    nullif(trim(p_inquiry_subject), ''),
+    v_encrypted,
+    true,
+    v_consent_version,
+    timezone('utc'::text, now()),
+    timezone('utc'::text, now()) + make_interval(days => v_retention_days)
+  )
+  returning id into v_inquiry_id;
+
+  return v_inquiry_id;
+end;
+$$;
+
+create or replace function public.add_inquiry_reply(
+  p_inquiry_id uuid,
+  p_message_plain text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sender_id uuid;
+  v_sender_type text;
+  v_encrypted bytea;
+  v_reply_id uuid;
+  v_parent_id uuid;
+  v_provider_id uuid;
+begin
+  v_sender_id := auth.uid();
+  if v_sender_id is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  select i.parent_profile_id, i.provider_profile_id
+  into v_parent_id, v_provider_id
+  from public.inquiries i
+  where i.id = p_inquiry_id and i.deleted_at is null;
+
+  if v_parent_id is null then
+    raise exception 'Inquiry not found.';
+  end if;
+
+  if v_sender_id <> v_parent_id and v_sender_id <> v_provider_id then
+    raise exception 'You are not a participant in this inquiry.';
+  end if;
+
+  if p_message_plain is null or length(trim(p_message_plain)) = 0 then
+    raise exception 'Message cannot be empty.';
+  end if;
+
+  v_sender_type := case when v_sender_id = v_parent_id then 'parent' else 'provider' end;
+  v_encrypted := public.encrypt_sensitive_text(trim(p_message_plain));
+
+  insert into public.inquiry_messages (inquiry_id, sender_type, sender_profile_id, message_encrypted)
+  values (p_inquiry_id, v_sender_type, v_sender_id, v_encrypted)
+  returning id into v_reply_id;
+
+  update public.inquiries set updated_at = timezone('utc'::text, now()) where id = p_inquiry_id;
+
+  return v_reply_id;
+end;
+$$;
+
+create or replace function public.get_inquiry_thread(p_inquiry_id uuid)
+returns table (
+  message_order int,
+  sender_type text,
+  sender_profile_id uuid,
+  body_decrypted text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid;
+  v_parent_id uuid;
+  v_provider_id uuid;
+begin
+  v_uid := auth.uid();
+  if v_uid is null then
+    return;
+  end if;
+
+  select i.parent_profile_id, i.provider_profile_id
+  into v_parent_id, v_provider_id
+  from public.inquiries i
+  where i.id = p_inquiry_id and i.deleted_at is null;
+
+  if v_parent_id is null or (v_uid <> v_parent_id and v_uid <> v_provider_id and not public.is_current_user_admin()) then
+    return;
+  end if;
+
+  return query
+  select
+    1::int as message_order,
+    'parent'::text as sender_type,
+    i.parent_profile_id as sender_profile_id,
+    public.decrypt_sensitive_text(i.inquiry_message_encrypted) as body_decrypted,
+    i.created_at as created_at
+  from public.inquiries i
+  where i.id = p_inquiry_id;
+
+  return query
+  select
+    (2 + row_number() over (order by im.created_at))::int as message_order,
+    im.sender_type,
+    im.sender_profile_id,
+    public.decrypt_sensitive_text(im.message_encrypted) as body_decrypted,
+    im.created_at
+  from public.inquiry_messages im
+  where im.inquiry_id = p_inquiry_id
+  order by im.created_at;
+end;
+$$;
+
+-- ============================================================================
+-- 7a2. Guest inquiries (non-logged-in parents; provider can view, cannot reply)
+-- ============================================================================
+create table if not exists public.guest_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  provider_profile_id uuid not null references public.provider_profiles(profile_id) on delete cascade,
+  child_dob date,
+  ideal_start_date date,
+  message_encrypted bytea not null,
+  first_name text not null,
+  last_name text not null,
+  email text not null,
+  telephone text not null,
+  consent_to_contact boolean not null,
+  consent_version text not null,
+  consented_at timestamptz not null,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  constraint guest_inquiries_consent_required check (consent_to_contact = true)
+);
+
+create index if not exists guest_inquiries_provider_profile_idx on public.guest_inquiries (provider_profile_id);
+create index if not exists guest_inquiries_created_at_idx on public.guest_inquiries (created_at desc);
+
+alter table public.guest_inquiries enable row level security;
+
+drop policy if exists "Guest inquiries readable by provider and admin" on public.guest_inquiries;
+create policy "Guest inquiries readable by provider and admin"
+  on public.guest_inquiries
+  for select
+  using (
+    provider_profile_id = auth.uid()
+    or public.is_current_user_admin()
+  );
+
+create or replace function public.create_guest_inquiry(
+  p_provider_slug text,
+  p_child_dob date,
+  p_ideal_start_date date,
+  p_message_plain text,
+  p_first_name text,
+  p_last_name text,
+  p_email text,
+  p_telephone text,
+  p_consent_to_contact boolean default true
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_provider_profile_id uuid;
+  v_encrypted bytea;
+  v_guest_id uuid;
+  v_consent_version text;
+begin
+  if p_consent_to_contact is not true then
+    raise exception 'Consent is required to submit an inquiry.';
+  end if;
+
+  if p_message_plain is null or length(trim(p_message_plain)) = 0 then
+    raise exception 'Message cannot be empty.';
+  end if;
+
+  if p_first_name is null or length(trim(p_first_name)) = 0 then
+    raise exception 'First name is required.';
+  end if;
+
+  if p_last_name is null or length(trim(p_last_name)) = 0 then
+    raise exception 'Last name is required.';
+  end if;
+
+  if p_email is null or length(trim(p_email)) = 0 then
+    raise exception 'Email is required.';
+  end if;
+
+  if p_telephone is null or length(trim(p_telephone)) = 0 then
+    raise exception 'Telephone is required.';
+  end if;
+
+  select profile_id into v_provider_profile_id
+  from public.provider_profiles
+  where provider_slug = p_provider_slug
+  limit 1;
+
+  if v_provider_profile_id is null then
+    raise exception 'Provider not found.';
+  end if;
+
+  v_encrypted := public.encrypt_sensitive_text(trim(p_message_plain));
+  v_consent_version := public.get_compliance_setting('consent_version', 'v1');
+
+  insert into public.guest_inquiries (
+    provider_profile_id,
+    child_dob,
+    ideal_start_date,
+    message_encrypted,
+    first_name,
+    last_name,
+    email,
+    telephone,
+    consent_to_contact,
+    consent_version,
+    consented_at
+  ) values (
+    v_provider_profile_id,
+    p_child_dob,
+    p_ideal_start_date,
+    v_encrypted,
+    trim(p_first_name),
+    trim(p_last_name),
+    trim(lower(p_email)),
+    trim(p_telephone),
+    true,
+    v_consent_version,
+    timezone('utc'::text, now())
+  )
+  returning id into v_guest_id;
+
+  return v_guest_id;
+end;
+$$;
+
+create or replace function public.get_guest_inquiry_message_decrypted(p_guest_inquiry_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_provider_id uuid;
+  v_encrypted bytea;
+begin
+  select gi.provider_profile_id, gi.message_encrypted
+  into v_provider_id, v_encrypted
+  from public.guest_inquiries gi
+  where gi.id = p_guest_inquiry_id;
+
+  if v_provider_id is null then
+    return null;
+  end if;
+
+  if auth.uid() <> v_provider_id and not public.is_current_user_admin() then
+    return null;
+  end if;
+
+  return public.decrypt_sensitive_text(v_encrypted);
+end;
+$$;
 
 -- ============================================================================
 -- 7b. Parent favorites and parent reviews (provider_profiles-linked)
@@ -698,16 +1189,18 @@ create index if not exists parent_favorites_provider_idx on public.parent_favori
 
 create table if not exists public.parent_reviews (
   id uuid primary key default gen_random_uuid(),
-  parent_profile_id uuid not null references public.profiles(id) on delete cascade,
+  parent_profile_id uuid references public.profiles(id) on delete set null,
   provider_profile_id uuid not null references public.provider_profiles(profile_id) on delete cascade,
   rating smallint not null,
   review_text text not null,
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now()),
-  constraint parent_reviews_rating_range check (rating >= 1 and rating <= 5),
-  constraint parent_reviews_unique_parent_provider unique (parent_profile_id, provider_profile_id)
+  constraint parent_reviews_rating_range check (rating >= 1 and rating <= 5)
 );
 
+create unique index if not exists parent_reviews_unique_parent_provider
+  on public.parent_reviews (parent_profile_id, provider_profile_id)
+  where parent_profile_id is not null;
 create index if not exists parent_reviews_parent_idx on public.parent_reviews (parent_profile_id);
 create index if not exists parent_reviews_provider_idx on public.parent_reviews (provider_profile_id);
 
@@ -724,6 +1217,48 @@ create trigger parent_reviews_set_updated_at
 before update on public.parent_reviews
 for each row execute function public.handle_parent_reviews_updated_at();
 
+-- Provider reply on reviews (nullable)
+alter table public.parent_reviews
+  add column if not exists provider_reply_text text,
+  add column if not exists provider_replied_at timestamptz;
+
+-- ============================================================================
+-- 7c. Review reports (provider reports a parent review)
+-- ============================================================================
+create table if not exists public.review_reports (
+  id uuid primary key default gen_random_uuid(),
+  review_id uuid not null references public.parent_reviews(id) on delete cascade,
+  reporter_profile_id uuid not null references public.profiles(id) on delete cascade,
+  reason text not null,
+  details text,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  constraint review_reports_unique_reporter_review unique (review_id, reporter_profile_id)
+);
+
+create index if not exists review_reports_review_idx on public.review_reports (review_id);
+create index if not exists review_reports_reporter_idx on public.review_reports (reporter_profile_id);
+
+-- ============================================================================
+-- 7d. Contact messages (site contact form submissions)
+-- ============================================================================
+create table if not exists public.contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  phone text,
+  message text not null,
+  consent_to_contact boolean not null,
+  consent_version text not null,
+  consented_at timestamptz not null default timezone('utc'::text, now()),
+  handled_status text not null default 'new',
+  admin_note text,
+  retention_until timestamptz,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  constraint contact_messages_handled_status_check check (handled_status in ('new', 'in_progress', 'contacted', 'resolved'))
+);
+
+create index if not exists contact_messages_created_at_idx on public.contact_messages (created_at desc);
+create index if not exists contact_messages_handled_status_idx on public.contact_messages (handled_status);
 
 -- ============================================================================
 -- 8. RLS policies
@@ -735,6 +1270,8 @@ alter table public.compliance_policies enable row level security;
 alter table public.inquiries enable row level security;
 alter table public.parent_favorites enable row level security;
 alter table public.parent_reviews enable row level security;
+alter table public.review_reports enable row level security;
+alter table public.contact_messages enable row level security;
 
 -- Helper to get auth.uid() as uuid safely
 create or replace function public.current_user_id()
@@ -878,11 +1415,37 @@ create policy "Parent reviews updatable by parent owner"
   using (parent_profile_id = auth.uid())
   with check (parent_profile_id = auth.uid());
 
+drop policy if exists "Parent reviews updatable by provider for reply" on public.parent_reviews;
+create policy "Parent reviews updatable by provider for reply"
+  on public.parent_reviews
+  for update
+  using (provider_profile_id = auth.uid())
+  with check (provider_profile_id = auth.uid());
+
 drop policy if exists "Parent reviews deletable by parent owner" on public.parent_reviews;
 create policy "Parent reviews deletable by parent owner"
   on public.parent_reviews
   for delete
   using (parent_profile_id = auth.uid());
+
+-- Review reports: provider can insert own report; admin can read
+drop policy if exists "Review reports insertable by reporter" on public.review_reports;
+create policy "Review reports insertable by reporter"
+  on public.review_reports
+  for insert
+  with check (reporter_profile_id = auth.uid());
+
+drop policy if exists "Review reports readable by admin" on public.review_reports;
+create policy "Review reports readable by admin"
+  on public.review_reports
+  for select
+  using (public.is_current_user_admin());
+
+drop policy if exists "Admins can read contact messages" on public.contact_messages;
+create policy "Admins can read contact messages"
+  on public.contact_messages
+  for select
+  using (public.is_current_user_admin());
 
 
 -- ============================================================================

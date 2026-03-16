@@ -13,7 +13,17 @@ type AuthContextValue = {
     email: string,
     password: string,
     role: "parent" | "provider" | "admin",
-    profile: { fullName?: string; businessName?: string; countryName?: string; cityName?: string },
+    profile: {
+      fullName?: string
+      businessName?: string
+      phone?: string
+      countryName?: string
+      cityName?: string
+      childAgeGroup?: string
+      countryId?: string
+      cityId?: string
+      customCityName?: string
+    },
   ) => Promise<{ error?: string }>
   signOut: () => Promise<{ error?: string }>
 }
@@ -122,8 +132,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role,
           fullName: profile.fullName,
           businessName: profile.businessName,
+          phone: profile.phone,
           countryName: profile.countryName,
           cityName: profile.cityName,
+          childAgeGroup: profile.childAgeGroup,
+          countryId: profile.countryId,
+          cityId: profile.cityId,
+          customCityName: profile.customCityName,
         }),
       })
 

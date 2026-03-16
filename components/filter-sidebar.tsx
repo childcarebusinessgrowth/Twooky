@@ -21,6 +21,8 @@ export type SearchFilterOptions = {
   languages: FilterOption[]
   curriculum: FilterOption[]
   features: FilterOption[]
+  /** Slug-to-name map for resolving program param; used internally by search page */
+  programTypesBySlug?: Record<string, string>
 }
 
 interface FilterSidebarProps {

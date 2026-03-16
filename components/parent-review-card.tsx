@@ -7,6 +7,7 @@ import { Star } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { updateReview, deleteReview } from "@/lib/parent-engagement"
 import type { ParentReviewRow } from "@/lib/parent-engagement"
@@ -38,6 +39,7 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
   const [text, setText] = useState(review.review_text)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const providerName = review.provider_business_name ?? "Provider"
   const providerHref = review.provider_slug
@@ -67,8 +69,7 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
     router.refresh()
   }
 
-  const handleDelete = async () => {
-    if (!confirm("Delete this review? This cannot be undone.")) return
+  const handleDeleteConfirm = async () => {
     setLoading(true)
     const { error: err } = await deleteReview(
       getSupabaseClient(),
@@ -76,7 +77,10 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
       parentProfileId
     )
     setLoading(false)
-    if (!err) router.refresh()
+    if (!err) {
+      setDeleteDialogOpen(false)
+      router.refresh()
+    }
   }
 
   return (
@@ -178,7 +182,7 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
                 size="sm"
                 variant="ghost"
                 className="rounded-full text-xs text-muted-foreground hover:text-destructive"
-                onClick={() => void handleDelete()}
+                onClick={() => setDeleteDialogOpen(true)}
                 disabled={loading}
               >
                 Delete review
@@ -187,6 +191,16 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
           </>
         )}
       </CardContent>
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete review?"
+        description="This cannot be undone."
+        itemName={providerName}
+        variant="delete"
+        onConfirm={handleDeleteConfirm}
+      />
     </Card>
   )
 }

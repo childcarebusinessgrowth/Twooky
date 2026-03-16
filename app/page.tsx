@@ -5,7 +5,12 @@ import { SearchBar } from "@/components/search-bar"
 import { ProviderCard } from "@/components/provider-card"
 import { ProgramCard } from "@/components/program-card"
 import { Button } from "@/components/ui/button"
-import { providers, programs } from "@/lib/mock-data"
+import { providers } from "@/lib/mock-data"
+import {
+  getActiveProgramTypes,
+  getAgeGroupsById,
+  programTypeToCardShape,
+} from "@/lib/program-types"
 import { getRecentPublishedBlogs } from "@/lib/blogs"
 import { getPopularLocations } from "@/lib/popular-locations"
 
@@ -41,7 +46,13 @@ const heroStats = [
 
 export default async function HomePage() {
   const featuredProviders = providers.slice(0, 3)
-  const displayPrograms = programs.slice(0, 6)
+  const [programRows, ageGroupsById] = await Promise.all([
+    getActiveProgramTypes(),
+    getAgeGroupsById(),
+  ])
+  const displayPrograms = programRows
+    .slice(0, 6)
+    .map((row) => programTypeToCardShape(row, ageGroupsById))
   const featuredBlogs = await getRecentPublishedBlogs(3)
   const popularLocations = await getPopularLocations()
 

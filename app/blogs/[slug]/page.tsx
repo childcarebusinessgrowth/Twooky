@@ -128,7 +128,7 @@ export default async function BlogPage({ params }: BlogPageProps) {
       <section className="py-10 md:py-14">
         <div className="mx-auto max-w-3xl px-4 lg:px-0">
           <article
-            className="prose prose-sm md:prose-base lg:prose-lg max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-a:text-primary"
+            className="prose prose-sm md:prose-base lg:prose-lg max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground [&_h1]:text-3xl [&_h1]:md:text-4xl [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:mt-8 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:md:text-3xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-4 [&_blockquote]:py-1 [&_blockquote]:my-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_img]:max-w-full [&_img]:h-auto [&_a]:text-blue-600 [&_a]:underline [&_a]:decoration-blue-600/40 [&_a:hover]:text-blue-700 [&_a:hover]:decoration-blue-600"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
 

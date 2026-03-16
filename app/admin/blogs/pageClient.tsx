@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarDays, Clock3, Newspaper, Save, Send, Trash2, Eye, Upload, Sparkles } from "lucide-react"
+import { CalendarDays, Clock3, Newspaper, Save, Send, Trash2, Eye, Upload, Sparkles, X } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { BlogEditor } from "@/components/blog-editor"
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { useToast } from "@/hooks/use-toast"
 import { createBlog, deleteBlog, publishBlog, unpublishBlog, updateBlog, uploadBlogImage, type BlogInput } from "./actions"
 
 type BlogRecord = {
@@ -127,6 +129,7 @@ type Props = {
 
 export function AdminBlogsPageClient({ initialBlogs }: Props) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState<"manage" | "editor">("manage")
   const [search, setSearch] = useState("")
@@ -136,6 +139,7 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
   const [editorSlugTouched, setEditorSlugTouched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const blogs = useMemo(() => initialBlogs, [initialBlogs])
   const selectedBlog = useMemo(
@@ -156,19 +160,6 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
     })
   }, [blogs, search])
 
-  const internalLinkOptions = useMemo(
-    () => [
-      { label: "Blog index", href: "/blogs" },
-      { label: "Home", href: "/" },
-      { label: "Search", href: "/search" },
-      ...blogs.map((blog) => ({
-        label: `Blog: ${blog.title}`,
-        href: `/blogs/${blog.slug}`,
-      })),
-    ],
-    [blogs],
-  )
-
   const handleRefresh = () => {
     router.refresh()
   }
@@ -186,6 +177,7 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
       try {
         await action()
         setNotice(successMessage)
+        toast({ title: successMessage, variant: "success" })
         handleRefresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.")
@@ -214,6 +206,7 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
           }))
         }
         setNotice("Image uploaded.")
+        toast({ title: "Image uploaded.", variant: "success" })
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to upload image.")
       }
@@ -235,17 +228,23 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
     )
   }
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelectedClick = () => {
     if (!selectedBlog) return
-    if (!window.confirm(`Delete "${selectedBlog.title}"? This cannot be undone.`)) {
-      return
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteBlogConfirm = async () => {
+    if (!selectedBlog) return
+    setError(null)
+    try {
+      await deleteBlog(selectedBlog.id)
+      setNotice("Blog deleted.")
+      toast({ title: "Blog deleted.", variant: "success" })
+      setDeleteDialogOpen(false)
+      handleRefresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete blog.")
     }
-    runAction(
-      async () => {
-        await deleteBlog(selectedBlog.id)
-      },
-      "Blog deleted.",
-    )
   }
 
   const handleTogglePublish = () => {
@@ -299,8 +298,18 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
 
       {(notice || error) && (
         <Card className={error ? "border-destructive/40 bg-destructive/5" : "border-emerald-500/30 bg-emerald-500/5"}>
-          <CardContent className={error ? "py-3 text-sm text-destructive" : "py-3 text-sm text-emerald-700 dark:text-emerald-300"}>
+          <CardContent className={error ? "py-3 pr-10 text-sm text-destructive relative" : "py-3 pr-10 text-sm text-emerald-700 dark:text-emerald-300 relative"}>
             {error ?? notice}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+              aria-label="Dismiss"
+              onClick={() => { setNotice(null); setError(null) }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -438,7 +447,6 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                             }))
                           }
                           onUploadImage={uploadInlineImage}
-                          internalLinkOptions={internalLinkOptions}
                           disabled={isPending}
                         />
                       </div>
@@ -508,35 +516,59 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Label htmlFor="manage-cover-upload" className="sr-only">
-                          Upload cover image
-                        </Label>
-                        <input
-                          id="manage-cover-upload"
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          className="hidden"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0]
-                            if (file) {
-                              void uploadCover(file, "manage")
-                            }
-                            event.target.value = ""
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const input = document.getElementById("manage-cover-upload") as HTMLInputElement | null
-                            input?.click()
-                          }}
-                          disabled={isPending}
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload cover image
-                        </Button>
+                      <div className="space-y-2">
+                        {manageForm.coverImageUrl ? (
+                          <div className="flex flex-wrap items-center gap-3">
+                            <div className="relative h-24 w-40 overflow-hidden rounded-md border border-border bg-muted group">
+                              <img
+                                src={manageForm.coverImageUrl}
+                                alt={manageForm.coverImageAlt || "Cover preview"}
+                                className="h-full w-full object-cover"
+                              />
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="absolute right-1 top-1 h-6 w-6 rounded-full opacity-90 hover:opacity-100 shadow-sm"
+                                aria-label="Remove cover image"
+                                onClick={() => setManageForm((prev) => ({ ...prev, coverImageUrl: "", coverImageAlt: "" }))}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Cover image uploaded</p>
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Label htmlFor="manage-cover-upload" className="sr-only">
+                            {manageForm.coverImageUrl ? "Change cover image" : "Upload cover image"}
+                          </Label>
+                          <input
+                            id="manage-cover-upload"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            className="hidden"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              if (file) {
+                                void uploadCover(file, "manage")
+                              }
+                              event.target.value = ""
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const input = document.getElementById("manage-cover-upload") as HTMLInputElement | null
+                              input?.click()
+                            }}
+                            disabled={isPending}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {manageForm.coverImageUrl ? "Change cover image" : "Upload cover image"}
+                          </Button>
+                        </div>
                       </div>
 
                       <Separator />
@@ -552,7 +584,7 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                             {selectedBlog.status === "published" ? "Unpublish" : "Publish"}
                           </Button>
                         </div>
-                        <Button variant="destructive" onClick={handleDeleteSelected} disabled={isPending}>
+                        <Button variant="destructive" onClick={handleDeleteSelectedClick} disabled={isPending}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete blog
                         </Button>
@@ -650,7 +682,6 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                   value={editorForm.contentHtml}
                   onChange={(html) => setEditorForm((prev) => ({ ...prev, contentHtml: html }))}
                   onUploadImage={uploadInlineImage}
-                  internalLinkOptions={internalLinkOptions}
                   disabled={isPending}
                 />
               </div>
@@ -702,41 +733,65 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <Label htmlFor="editor-cover-upload" className="sr-only">
-                  Upload cover image
-                </Label>
-                <input
-                  id="editor-cover-upload"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) {
-                      void uploadCover(file, "editor")
-                    }
-                    event.target.value = ""
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const input = document.getElementById("editor-cover-upload") as HTMLInputElement | null
-                    input?.click()
-                  }}
-                  disabled={isPending}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload cover image
-                </Button>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={editorForm.featured}
-                    onCheckedChange={(checked) => setEditorForm((prev) => ({ ...prev, featured: checked }))}
+              <div className="space-y-2">
+                {editorForm.coverImageUrl ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative h-24 w-40 overflow-hidden rounded-md border border-border bg-muted group">
+                      <img
+                        src={editorForm.coverImageUrl}
+                        alt={editorForm.coverImageAlt || "Cover preview"}
+                        className="h-full w-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="absolute right-1 top-1 h-6 w-6 rounded-full opacity-90 hover:opacity-100 shadow-sm"
+                        aria-label="Remove cover image"
+                        onClick={() => setEditorForm((prev) => ({ ...prev, coverImageUrl: "", coverImageAlt: "" }))}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Cover image uploaded</p>
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Label htmlFor="editor-cover-upload" className="sr-only">
+                    {editorForm.coverImageUrl ? "Change cover image" : "Upload cover image"}
+                  </Label>
+                  <input
+                    id="editor-cover-upload"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      if (file) {
+                        void uploadCover(file, "editor")
+                      }
+                      event.target.value = ""
+                    }}
                   />
-                  <Label>Featured post</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const input = document.getElementById("editor-cover-upload") as HTMLInputElement | null
+                      input?.click()
+                    }}
+                    disabled={isPending}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {editorForm.coverImageUrl ? "Change cover image" : "Upload cover image"}
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={editorForm.featured}
+                      onCheckedChange={(checked) => setEditorForm((prev) => ({ ...prev, featured: checked }))}
+                    />
+                    <Label>Featured post</Label>
+                  </div>
                 </div>
               </div>
 
@@ -765,6 +820,18 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {selectedBlog && (
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete blog?"
+          description="This post will be permanently removed."
+          itemName={selectedBlog.title}
+          variant="delete"
+          onConfirm={handleDeleteBlogConfirm}
+        />
+      )}
     </div>
   )
 }

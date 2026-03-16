@@ -16,6 +16,14 @@ export function ReviewCard({ review, showProvider = true }: ReviewCardProps) {
     month: 'long',
     day: 'numeric'
   })
+  const hasProviderReply = Boolean(review.providerReplyText?.trim())
+  const formattedReplyDate = review.providerRepliedAt
+    ? new Date(review.providerRepliedAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null
 
   return (
     <Card className="transition-all duration-300 hover:shadow-md">
@@ -60,6 +68,22 @@ export function ReviewCard({ review, showProvider = true }: ReviewCardProps) {
                 {review.text}
               </p>
             </div>
+
+            {hasProviderReply && (
+              <div className="mt-4 rounded-lg border border-primary/15 bg-primary/5 p-4">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {review.providerName} Reply
+                  </p>
+                  {formattedReplyDate && (
+                    <p className="text-xs text-muted-foreground">{formattedReplyDate}</p>
+                  )}
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {review.providerReplyText}
+                </p>
+              </div>
+            )}
 
             <p className="text-sm text-muted-foreground mt-3">
               {formattedDate}

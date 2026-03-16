@@ -19,12 +19,14 @@ import {
   CheckCircle2,
   BarChart3,
   MessageCircle,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/AuthProvider"
 import type { CountryOption, CityOption } from "@/lib/location-directory"
 
@@ -37,14 +39,19 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [childAgeGroup, setChildAgeGroup] = useState<string>("")
   const [fullName, setFullName] = useState("")
   const [businessName, setBusinessName] = useState("")
+  const [phone, setPhone] = useState("")
   const [countries, setCountries] = useState<CountryOption[]>([])
   const [cities, setCities] = useState<CityOption[]>([])
   const [selectedCountryId, setSelectedCountryId] = useState<string>("")
   const [selectedCityId, setSelectedCityId] = useState<string>("")
   const [manualCountryName, setManualCountryName] = useState("")
   const [manualCityName, setManualCityName] = useState("")
+  const [providerCityNotListed, setProviderCityNotListed] = useState(false)
+  const [providerCustomCityName, setProviderCustomCityName] = useState("")
+  const [cityValidationError, setCityValidationError] = useState<string | null>(null)
   const [locationLoadError, setLocationLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { signUpWithEmail, authError } = useAuth()
@@ -73,7 +80,7 @@ export default function SignupPage() {
       }
     }
 
-    if (step === "parent") {
+    if (step === "parent" || step === "provider") {
       void loadCountries()
     }
   }, [step])
@@ -103,7 +110,7 @@ export default function SignupPage() {
       }
     }
 
-    if (step === "parent") {
+    if (step === "parent" || step === "provider") {
       void loadCities(selectedCountryId)
     }
   }, [step, selectedCountryId])
@@ -122,6 +129,7 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+    let validatedCanonicalCityName: string | undefined
     if (!email || !email.includes("@")) {
       setError("Please enter a valid email address.")
       return
@@ -137,6 +145,11 @@ export default function SignupPage() {
         return
       }
 
+      if (!childAgeGroup) {
+        setError("Please select your child's age group.")
+        return
+      }
+
       const canUseManualLocation = !!locationLoadError || countries.length === 0
       if (canUseManualLocation) {
         if (!manualCountryName.trim() || !manualCityName.trim()) {
@@ -149,13 +162,49 @@ export default function SignupPage() {
       }
     }
 
-    if (step === "provider" && !businessName.trim()) {
-      setError("Please enter your business name.")
-      return
+    if (step === "provider") {
+      if (!businessName.trim()) {
+        setError("Please enter your business name.")
+        return
+      }
+      if (!selectedCountryId) {
+        setError("Please select your country.")
+        return
+      }
+      if (!providerCityNotListed && !selectedCityId) {
+        setError("Please select your city.")
+        return
+      }
+    if (providerCityNotListed) {
+      if (!providerCustomCityName.trim()) {
+        setError("Please enter your city name.")
+        return
+      }
+      setCityValidationError(null)
+      const validateRes = await fetch("/api/locations/validate-city", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          countryId: selectedCountryId,
+          cityName: providerCustomCityName.trim(),
+        }),
+      })
+      const validateData = (await validateRes.json()) as {
+        valid?: boolean
+        canonicalName?: string
+        error?: string
+      }
+      if (!validateRes.ok || !validateData.valid) {
+        setError(validateData.error ?? "We couldn't verify that city. Please check the name and country.")
+        return
+      }
+      validatedCanonicalCityName = validateData.canonicalName
+    }
     }
 
     setIsLoading(true)
     setError(null)
+    setCityValidationError(null)
 
     const role = step === "provider" ? "provider" : "parent"
 
@@ -164,13 +213,32 @@ export default function SignupPage() {
     const manualCountry = manualCountryName.trim()
     const manualCity = manualCityName.trim()
     const resolvedCountryName = selectedCountry?.name ?? (manualCountry || undefined)
-    const resolvedCityName = selectedCity?.name ?? (manualCity || undefined)
+    const resolvedCityName =
+      step === "parent"
+        ? (selectedCity?.name ?? (manualCity || undefined))
+        : providerCityNotListed
+          ? (validatedCanonicalCityName ?? providerCustomCityName.trim())
+          : (selectedCity?.name ?? undefined)
+
+    const providerLocation =
+      step === "provider"
+        ? {
+            countryId: selectedCountryId,
+            cityId: providerCityNotListed ? undefined : selectedCityId,
+            customCityName: providerCityNotListed
+              ? ((validatedCanonicalCityName ?? providerCustomCityName.trim()) || undefined)
+              : undefined,
+          }
+        : undefined
 
     const { error } = await signUpWithEmail(email, password, role, {
       fullName,
       businessName,
+      phone: step === "provider" ? phone.trim() : undefined,
       countryName: resolvedCountryName,
       cityName: resolvedCityName,
+      childAgeGroup: step === "parent" ? childAgeGroup : undefined,
+      ...providerLocation,
     })
 
     setIsLoading(false)
@@ -532,10 +600,13 @@ export default function SignupPage() {
                   </Field>
 
                   <Field>
-                    <FieldLabel>Child Age (Optional)</FieldLabel>
+                    <FieldLabel>Child Age</FieldLabel>
                     <div className="relative">
                       <Baby className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Select>
+                      <Select
+                        value={childAgeGroup}
+                        onValueChange={(value) => setChildAgeGroup(value)}
+                      >
                         <SelectTrigger className="pl-10">
                           <SelectValue placeholder="Select age group" />
                         </SelectTrigger>
@@ -616,6 +687,8 @@ export default function SignupPage() {
                         type="tel"
                         placeholder="(555) 123-4567"
                         className="pl-10"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                         required
                       />
                     </div>
@@ -624,20 +697,107 @@ export default function SignupPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field>
-                    <FieldLabel>City / Location</FieldLabel>
+                    <FieldLabel>Country</FieldLabel>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="text"
-                        placeholder="San Francisco, CA"
-                        className="pl-10"
-                        required
-                      />
+                      <Select
+                        value={selectedCountryId}
+                        onValueChange={(value) => {
+                          setSelectedCountryId(value)
+                          setSelectedCityId("")
+                          setProviderCityNotListed(false)
+                        }}
+                      >
+                        <SelectTrigger className="pl-10">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map((country) => (
+                            <SelectItem key={country.id} value={country.id}>
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </Field>
 
-                  <div className="hidden md:block" />
+                  {!providerCityNotListed ? (
+                    <Field>
+                      <FieldLabel>City</FieldLabel>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Select
+                          value={selectedCityId}
+                          onValueChange={(value) => setSelectedCityId(value)}
+                          disabled={!selectedCountryId || cities.length === 0}
+                        >
+                          <SelectTrigger className="pl-10">
+                            <SelectValue
+                              placeholder={
+                                selectedCountryId
+                                  ? cities.length === 0
+                                    ? "No cities listed"
+                                    : "Select city"
+                                  : "Select a country first"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cities.map((city) => (
+                              <SelectItem key={city.id} value={city.id}>
+                                {city.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </Field>
+                  ) : (
+                    <Field>
+                      <FieldLabel>City name</FieldLabel>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="e.g. Ras Al Khaimah"
+                          className="pl-10"
+                          value={providerCustomCityName}
+                          onChange={(e) => {
+                            setProviderCustomCityName(e.target.value)
+                            setCityValidationError(null)
+                          }}
+                        />
+                      </div>
+                    </Field>
+                  )}
                 </div>
+
+                {selectedCountryId && (
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:underline"
+                      onClick={() => {
+                        setProviderCityNotListed(!providerCityNotListed)
+                        if (!providerCityNotListed) {
+                          setSelectedCityId("")
+                        } else {
+                          setProviderCustomCityName("")
+                        }
+                        setCityValidationError(null)
+                      }}
+                    >
+                      {providerCityNotListed ? "Choose from list instead" : "My city isn't listed"}
+                    </button>
+                  </div>
+                )}
+                {(locationLoadError && step === "provider") && (
+                  <p className="text-xs text-muted-foreground">{locationLoadError}</p>
+                )}
+                {cityValidationError && (
+                  <p className="text-xs text-destructive">{cityValidationError}</p>
+                )}
               </>
             )}
 
@@ -648,9 +808,12 @@ export default function SignupPage() {
         </form>
 
         {(error || authError) && (
-          <p className="mt-4 text-sm text-destructive text-center">
-            {error ?? authError}
-          </p>
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="size-4" />
+            <AlertDescription className="text-center">
+              {error ?? authError}
+            </AlertDescription>
+          </Alert>
         )}
 
         <p className="text-center text-xs text-muted-foreground mt-6">

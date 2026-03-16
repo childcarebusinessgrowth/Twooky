@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { useToast } from "@/hooks/use-toast"
 import { createCountry, updateCountry, deleteCountry, createCity, updateCity, deleteCity } from "./actions"
 
 type Country = {
@@ -99,6 +101,7 @@ const emptyCityForm: CityFormState = {
 
 export function AdminLocationsClient({ initialCountries, initialCities }: AdminLocationsClientProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
 
   const [countries] = useState<Country[]>(initialCountries)
@@ -112,6 +115,10 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
   const [cityForm, setCityForm] = useState<CityFormState>(emptyCityForm)
   const [selectedCountryId, setSelectedCountryId] = useState<string | "all">("all")
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<
+    { type: "country"; country: Country } | { type: "city"; city: City } | null
+  >(null)
 
   const filteredCities = useMemo(() => {
     if (selectedCountryId === "all") return cities
@@ -155,6 +162,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
             sortOrder,
             isActive: countryForm.isActive,
           })
+          toast({ title: "Country updated", variant: "success" })
         } else {
           await createCountry({
             code: countryForm.code,
@@ -162,6 +170,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
             sortOrder,
             isActive: countryForm.isActive,
           })
+          toast({ title: "Country added", variant: "success" })
         }
         setCountryDialogOpen(false)
         setError(null)
@@ -173,20 +182,35 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
     })
   }
 
-  const handleDeleteCountry = (country: Country) => {
-    if (!confirm(`Delete country "${country.name}"? Cities attached to it must be handled separately.`)) {
-      return
-    }
+  const handleDeleteCountryClick = (country: Country) => {
+    setDeleteTarget({ type: "country", country })
+    setDeleteDialogOpen(true)
+  }
 
-    startTransition(async () => {
-      try {
-        await deleteCountry(country.id)
-        router.refresh()
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to delete country"
-        setError(message)
+  const handleDeleteCityClick = (city: City) => {
+    setDeleteTarget({ type: "city", city })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setError(null)
+    try {
+      if (deleteTarget.type === "country") {
+        await deleteCountry(deleteTarget.country.id)
+        toast({ title: "Country removed", variant: "success" })
+      } else {
+        await deleteCity(deleteTarget.city.id)
+        toast({ title: "City removed", variant: "success" })
       }
-    })
+      setDeleteDialogOpen(false)
+      setDeleteTarget(null)
+      router.refresh()
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : deleteTarget.type === "country" ? "Failed to delete country" : "Failed to delete city"
+      setError(message)
+    }
   }
 
   const handleOpenCreateCity = () => {
@@ -246,8 +270,10 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
 
         if (editingCity) {
           await updateCity(editingCity.id, payload)
+          toast({ title: "City updated", variant: "success" })
         } else {
           await createCity(payload)
+          toast({ title: "City added", variant: "success" })
         }
 
         setCityDialogOpen(false)
@@ -260,21 +286,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
     })
   }
 
-  const handleDeleteCity = (city: City) => {
-    if (!confirm(`Delete city "${city.name}"?`)) {
-      return
-    }
-
-    startTransition(async () => {
-      try {
-        await deleteCity(city.id)
-        router.refresh()
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to delete city"
-        setError(message)
-      }
-    })
-  }
 
   return (
     <div className="space-y-6">
@@ -354,7 +365,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive"
-                          onClick={() => handleDeleteCountry(country)}
+                          onClick={() => handleDeleteCountryClick(country)}
                           disabled={isPending}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -468,7 +479,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive"
-                            onClick={() => handleDeleteCity(city)}
+                            onClick={() => handleDeleteCityClick(city)}
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -679,6 +690,25 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open)
+            if (!open) setDeleteTarget(null)
+          }}
+          title={deleteTarget.type === "country" ? "Delete country?" : "Delete city?"}
+          description={
+            deleteTarget.type === "country"
+              ? "Cities attached to it must be handled separately."
+              : "This city will be removed from the list."
+          }
+          itemName={deleteTarget.type === "country" ? deleteTarget.country.name : deleteTarget.city.name}
+          variant="delete"
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
     </div>
   )
 }

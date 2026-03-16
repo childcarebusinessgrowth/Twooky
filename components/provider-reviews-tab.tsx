@@ -14,6 +14,8 @@ type Review = {
   rating: number
   text: string
   date: string
+  providerReplyText: string | null
+  providerRepliedAt: string | null
 }
 
 function mapToReview(row: PublicReviewRow, providerName: string, providerSlug: string): Review {
@@ -25,6 +27,8 @@ function mapToReview(row: PublicReviewRow, providerName: string, providerSlug: s
     rating: row.rating,
     text: row.review_text,
     date: row.created_at,
+    providerReplyText: row.provider_reply_text,
+    providerRepliedAt: row.provider_replied_at,
   }
 }
 

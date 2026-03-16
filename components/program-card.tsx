@@ -1,44 +1,15 @@
 import Link from "next/link"
-import { 
-  Baby, 
-  Footprints, 
-  GraduationCap, 
-  Blocks, 
-  Home, 
-  Backpack,
-  Heart,
-  ArrowRight
-} from "lucide-react"
+import { Baby, ArrowRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import type { Program } from "@/lib/mock-data"
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Baby,
-  Footprints,
-  GraduationCap,
-  Blocks,
-  Home,
-  Backpack,
-  Heart
-}
-
-const ageGroupLabelMap: Record<string, string> = {
-  "infant-care": "6 weeks - 12 months",
-  "toddler-care": "1-2 years",
-  preschool: "3-5 years",
-  montessori: "Mixed age groups",
-  "home-daycare": "Small group care",
-  "after-school": "5-12 years",
-  "special-needs": "Inclusive support"
-}
+import { iconMap, type ProgramCardData } from "@/lib/program-types"
 
 interface ProgramCardProps {
-  program: Program
+  program: ProgramCardData
   compact?: boolean
 }
 
 export function ProgramCard({ program, compact = false }: ProgramCardProps) {
-  const Icon = iconMap[program.icon] || Baby
+  const Icon = iconMap[program.icon] ?? Baby
 
   if (compact) {
     return (
@@ -51,7 +22,7 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
                 <Icon className="relative h-7 w-7 text-primary" />
               </div>
               <span className="inline-flex shrink-0 items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] font-medium text-primary/80">
-                {ageGroupLabelMap[program.slug] ?? "All ages"}
+                {program.ageGroupLabel}
               </span>
             </div>
 

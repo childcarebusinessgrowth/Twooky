@@ -1,0 +1,402 @@
+"use server"
+
+import { revalidatePath } from "next/cache"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { assertServerRole } from "@/lib/authzServer"
+
+const PROVIDER_PHOTOS_BUCKET = "provider-photos"
+const LISTINGS_PATH = "/admin/listings"
+const DEFAULT_PAGE_SIZE = 10
+
+export type ListingStatus = "active" | "pending" | "inactive"
+
+export type AdminListingRow = {
+  profile_id: string
+  provider_slug: string | null
+  business_name: string | null
+  phone: string | null
+  city: string | null
+  address: string | null
+  listing_status: string
+  featured: boolean
+  created_at: string
+  review_count: number
+  rating: number | null
+  primary_photo_url: string | null
+}
+
+const MAX_IDS_FOR_FILTER = 2000
+
+function sanitizeSearchTermForFilter(value: string): string {
+  return value
+    .replace(/[,%()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+export type GetAdminListingsOptions = {
+  page?: number
+  pageSize?: number
+  status?: ListingStatus | "all"
+  search?: string
+  countryId?: string
+  featured?: "all" | "yes" | "no"
+  minRating?: number
+  minReviews?: number
+  reviewsFilter?: "all" | "none"
+}
+
+export type AdminListingCountry = { id: string; name: string }
+
+export async function getAdminListings(
+  options: GetAdminListingsOptions = {}
+): Promise<{ listings: AdminListingRow[]; total: number }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const page = Math.max(1, options.page ?? 1)
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE
+  const useRatingReviewsFilter =
+    options.minRating != null ||
+    options.minReviews != null ||
+    options.reviewsFilter === "none"
+
+  const selectOpts = useRatingReviewsFilter ? {} : { count: "exact" as const }
+  let query = supabase
+    .from("provider_profiles")
+    .select("profile_id, provider_slug, business_name, phone, city, address, listing_status, featured, created_at", selectOpts)
+    .order("created_at", { ascending: false })
+
+  if (options.status && options.status !== "all") {
+    query = query.eq("listing_status", options.status)
+  }
+  if (options.search?.trim()) {
+    const q = sanitizeSearchTermForFilter(options.search)
+    if (q) {
+      query = query.or(`business_name.ilike.%${q}%,provider_slug.ilike.%${q}%`)
+    }
+  }
+  if (options.countryId?.trim()) {
+    const { data: citiesInCountry } = await supabase
+      .from("cities")
+      .select("name")
+      .eq("country_id", options.countryId.trim())
+      .eq("is_active", true)
+    const cityNames = (citiesInCountry ?? []).map((r) => r.name).filter(Boolean)
+    if (cityNames.length > 0) {
+      query = query.in("city", cityNames)
+    } else {
+      query = query.eq("city", "__no_match__")
+    }
+  }
+  if (options.featured === "yes") {
+    query = query.eq("featured", true)
+  } else if (options.featured === "no") {
+    query = query.eq("featured", false)
+  }
+
+  let profileIds: string[]
+  let allRows: { profile_id: string; provider_slug: string | null; business_name: string | null; phone: string | null; city: string | null; address: string | null; listing_status: string; featured: boolean; created_at: string }[]
+
+  if (useRatingReviewsFilter) {
+    const { data: allData, error } = await query.limit(MAX_IDS_FOR_FILTER)
+    if (error) throw new Error(error.message)
+    allRows = allData ?? []
+    profileIds = allRows.map((r) => r.profile_id)
+  } else {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+    const { data: rows, count, error } = await query.range(from, to)
+    if (error) throw new Error(error.message)
+    allRows = rows ?? []
+    profileIds = allRows.map((r) => r.profile_id)
+    const total = count ?? 0
+    if (profileIds.length === 0) {
+      return { listings: [], total }
+    }
+    const [reviewsResult, photosResult] = await Promise.all([
+      supabase.from("parent_reviews").select("provider_profile_id, rating").in("provider_profile_id", profileIds),
+      supabase.from("provider_photos").select("provider_profile_id, storage_path").in("provider_profile_id", profileIds).eq("is_primary", true),
+    ])
+    const reviewCountByProfile: Record<string, { count: number; sum: number }> = {}
+    for (const id of profileIds) reviewCountByProfile[id] = { count: 0, sum: 0 }
+    for (const r of reviewsResult.data ?? []) {
+      const cur = reviewCountByProfile[r.provider_profile_id]
+      if (cur) { cur.count += 1; cur.sum += r.rating }
+    }
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+    const primaryPhotoByProfile: Record<string, string> = {}
+    for (const p of photosResult.data ?? []) {
+      if (!primaryPhotoByProfile[p.provider_profile_id])
+        primaryPhotoByProfile[p.provider_profile_id] = `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${p.storage_path}`
+    }
+    const listings: AdminListingRow[] = allRows.map((row) => {
+      const rev = reviewCountByProfile[row.profile_id]
+      const reviewCount = rev?.count ?? 0
+      const rating = reviewCount > 0 && rev ? Math.round((rev.sum / reviewCount) * 10) / 10 : null
+      return {
+        ...row,
+        listing_status: row.listing_status ?? "pending",
+        featured: row.featured ?? false,
+        review_count: reviewCount,
+        rating,
+        primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
+      }
+    })
+    return { listings, total }
+  }
+
+  if (profileIds.length === 0) return { listings: [], total: 0 }
+
+  const { data: reviewsData } = await supabase
+    .from("parent_reviews")
+    .select("provider_profile_id, rating")
+    .in("provider_profile_id", profileIds)
+
+  const reviewCountByProfile: Record<string, { count: number; sum: number }> = {}
+  for (const id of profileIds) reviewCountByProfile[id] = { count: 0, sum: 0 }
+  for (const r of reviewsData ?? []) {
+    const cur = reviewCountByProfile[r.provider_profile_id]
+    if (cur) { cur.count += 1; cur.sum += r.rating }
+  }
+
+  let filteredIds = profileIds.filter((id) => {
+    const rev = reviewCountByProfile[id]
+    const count = rev?.count ?? 0
+    const avgRating = count > 0 && rev ? rev.sum / count : null
+    if (options.reviewsFilter === "none") return count === 0
+    if (options.minReviews != null && count < options.minReviews) return false
+    if (options.minRating != null) {
+      if (count === 0 || avgRating == null) return false
+      return avgRating >= options.minRating
+    }
+    return true
+  })
+
+  const total = filteredIds.length
+  const idsForPage = filteredIds.slice((page - 1) * pageSize, page * pageSize)
+  if (idsForPage.length === 0) return { listings: [], total }
+
+  const rowsForPage = allRows.filter((r) => idsForPage.includes(r.profile_id))
+  const orderByPage = idsForPage.map((id) => rowsForPage.find((r) => r.profile_id === id)!)
+  const orderedRows = orderByPage.filter(Boolean)
+
+  const [photosResult] = await Promise.all([
+    supabase.from("provider_photos").select("provider_profile_id, storage_path").in("provider_profile_id", idsForPage).eq("is_primary", true),
+  ])
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const primaryPhotoByProfile: Record<string, string> = {}
+  for (const p of photosResult.data ?? []) {
+    if (!primaryPhotoByProfile[p.provider_profile_id])
+      primaryPhotoByProfile[p.provider_profile_id] = `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${p.storage_path}`
+  }
+
+  const listings: AdminListingRow[] = orderedRows.map((row) => {
+    const rev = reviewCountByProfile[row.profile_id]
+    const reviewCount = rev?.count ?? 0
+    const rating = reviewCount > 0 && rev ? Math.round((rev.sum / reviewCount) * 10) / 10 : null
+    return {
+      ...row,
+      listing_status: row.listing_status ?? "pending",
+      featured: row.featured ?? false,
+      review_count: reviewCount,
+      rating,
+      primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
+    }
+  })
+
+  return { listings, total }
+}
+
+export type AdminListingDetailPhoto = {
+  id: string
+  url: string
+  caption: string | null
+  is_primary: boolean
+  sort_order: number
+}
+
+export type AdminListingDetail = {
+  profile: {
+    profile_id: string
+    provider_slug: string | null
+    business_name: string | null
+    phone: string | null
+    city: string | null
+    address: string | null
+    website: string | null
+    description: string | null
+    provider_types: string[] | null
+    age_groups_served: string[] | null
+    curriculum_type: string | null
+    languages_spoken: string | null
+    amenities: string[] | null
+    opening_time: string | null
+    closing_time: string | null
+    monthly_tuition_from: number | null
+    monthly_tuition_to: number | null
+    total_capacity: number | null
+    virtual_tour_url: string | null
+    virtual_tour_urls: string[] | null
+    listing_status: string
+    featured: boolean
+    created_at: string
+  }
+  photos: AdminListingDetailPhoto[]
+}
+
+export async function getAdminListingDetail(
+  profileId: string
+): Promise<AdminListingDetail | null> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+
+  const { data: profile, error: profileError } = await supabase
+    .from("provider_profiles")
+    .select(
+      "profile_id, provider_slug, business_name, phone, city, address, website, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, virtual_tour_url, virtual_tour_urls, listing_status, featured, created_at"
+    )
+    .eq("profile_id", profileId)
+    .single()
+
+  if (profileError || !profile) {
+    return null
+  }
+
+  const { data: photoRows } = await supabase
+    .from("provider_photos")
+    .select("id, storage_path, caption, is_primary, sort_order")
+    .eq("provider_profile_id", profileId)
+    .order("is_primary", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+
+  const photos: AdminListingDetailPhoto[] = (photoRows ?? []).map((row) => ({
+    id: row.id,
+    url: `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${row.storage_path}`,
+    caption: row.caption,
+    is_primary: row.is_primary,
+    sort_order: row.sort_order,
+  }))
+
+  return {
+    profile: {
+      ...profile,
+      listing_status: profile.listing_status ?? "pending",
+      featured: profile.featured ?? false,
+    },
+    photos,
+  }
+}
+
+export async function updateListingStatus(
+  profileId: string,
+  status: ListingStatus
+): Promise<{ error?: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("provider_profiles")
+    .update({ listing_status: status })
+    .eq("profile_id", profileId)
+    .select("provider_slug")
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (status === "active") {
+    await supabase.from("provider_notifications").insert({
+      provider_profile_id: profileId,
+      type: "listing_confirmed",
+      title: "Your listing is live",
+      message: "Your provider profile has been approved and is now visible on the directory.",
+      href: "/dashboard/provider",
+    })
+  }
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/dashboard/provider/listing")
+  revalidatePath("/search")
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
+  return {}
+}
+
+export async function updateListingFeatured(
+  profileId: string,
+  featured: boolean
+): Promise<{ error?: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const { error } = await supabase
+    .from("provider_profiles")
+    .update({ featured })
+    .eq("profile_id", profileId)
+  if (error) return { error: error.message }
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  return {}
+}
+
+/** Delete all objects in the provider-photos bucket under the given profile id prefix. */
+async function deleteProviderPhotoStorage(profileId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient()
+  const bucket = supabase.storage.from(PROVIDER_PHOTOS_BUCKET)
+  const paths: string[] = []
+  let offset = 0
+  const pageSize = 1000
+  while (true) {
+    const { data, error } = await bucket.list(profileId, { limit: pageSize, offset })
+    if (error) {
+      if (error.message?.toLowerCase().includes("not found") || error.message?.toLowerCase().includes("not exist")) {
+        return
+      }
+      throw new Error(error.message)
+    }
+    const items = data ?? []
+    for (const item of items) {
+      const fullPath = item.name ? `${profileId}/${item.name}` : profileId
+      paths.push(fullPath)
+    }
+    if (items.length < pageSize) break
+    offset += pageSize
+  }
+  if (paths.length === 0) return
+  for (let i = 0; i < paths.length; i += 1000) {
+    const batch = paths.slice(i, i + 1000)
+    const { error } = await bucket.remove(batch)
+    if (error) throw new Error(error.message)
+  }
+}
+
+export async function deleteListing(profileId: string): Promise<{ error?: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  try {
+    await deleteProviderPhotoStorage(profileId)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to delete provider photos from storage" }
+  }
+  const { error } = await supabase
+    .from("provider_profiles")
+    .delete()
+    .eq("profile_id", profileId)
+  if (error) return { error: error.message }
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  return {}
+}
+
+/** Returns countries from the database (directory's countries table) for the location filter. */
+export async function getAdminListingCountries(): Promise<AdminListingCountry[]> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("countries")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true })
+  if (error) return []
+  return (data ?? []).map((r) => ({ id: r.id, name: r.name })).filter((c) => c.name)
+}

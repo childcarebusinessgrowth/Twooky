@@ -39,6 +39,26 @@ export async function getCountriesForSignup(): Promise<CountryOption[]> {
   }))
 }
 
+export async function getCountryById(countryId: string): Promise<CountryOption | null> {
+  if (!countryId) return null
+
+  const supabase = getSupabaseAdminClient()
+
+  const { data, error } = await supabase
+    .from("countries")
+    .select("id, code, name")
+    .eq("id", countryId)
+    .eq("is_active", true)
+    .maybeSingle()
+
+  if (error || !data) {
+    console.error("[location-directory] Failed to load country by id", countryId, error?.message)
+    return null
+  }
+
+  return { id: data.id, code: data.code, name: data.name }
+}
+
 export async function getCitiesForSignupByCountry(countryId: string): Promise<CityOption[]> {
   if (!countryId) return []
 
@@ -63,7 +83,7 @@ export async function getCitiesForSignupByCountry(countryId: string): Promise<Ci
     return []
   }
 
-  return data.map((row) => ({
+  const mapped = data.map((row) => ({
     id: row.id,
     countryId: row.country_id,
     name: row.name,
@@ -71,5 +91,13 @@ export async function getCitiesForSignupByCountry(countryId: string): Promise<Ci
     searchCountryCode: row.search_country_code,
     searchCitySlug: row.search_city_slug,
   }))
+
+  const seenNames = new Set<string>()
+  return mapped.filter((city) => {
+    const key = city.name.trim().toLowerCase()
+    if (seenNames.has(key)) return false
+    seenNames.add(key)
+    return true
+  })
 }
 

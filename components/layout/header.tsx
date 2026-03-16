@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Menu, X, Baby, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -41,14 +40,12 @@ function resolveDashboardHref(role: unknown): string {
 }
 
 export function Header() {
-  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
   const [isAuthResolved, setIsAuthResolved] = useState(false)
   const [isServerAuthenticated, setIsServerAuthenticated] = useState(false)
-  const [isSigningOut, setIsSigningOut] = useState(false)
   const [dashboardHref, setDashboardHref] = useState("/dashboard/parent")
-  const { user, loading, signOut } = useAuth()
+  const { user, loading } = useAuth()
 
   const roleFromAppMetadata = user?.app_metadata?.role
   const roleFromUserMetadata = user?.user_metadata?.role
@@ -104,19 +101,8 @@ export function Header() {
   }, [loading, role, user])
 
   const showDashboardAction = !loading && isAuthResolved && isServerAuthenticated
-  const hideSignOutForRole = role === "parent" || role === "provider" || role === "admin"
-  const showSignOut = showDashboardAction && !hideSignOutForRole
-
-  const handleSignOut = async () => {
-    if (isSigningOut) return
-    setIsSigningOut(true)
-    const { error } = await signOut()
-    setIsSigningOut(false)
-    if (!error) {
-      router.replace("/login")
-      router.refresh()
-    }
-  }
+  const isAdmin = showDashboardAction && dashboardHref === "/admin"
+  const isParent = showDashboardAction && dashboardHref === "/dashboard/parent"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
@@ -181,25 +167,33 @@ export function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden lg:flex lg:items-center lg:gap-3">
-          {showDashboardAction ? (
+          {isAdmin ? (
+            <Button variant="secondary" size="sm" asChild>
+              <Link href={dashboardHref}>Dashboard</Link>
+            </Button>
+          ) : isParent ? (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={dashboardHref}>Dashboard</Link>
+            </Button>
+          ) : showDashboardAction ? (
             <>
               <Button variant="ghost" size="sm" asChild>
                 <Link href={dashboardHref}>Dashboard</Link>
               </Button>
-              {showSignOut && (
-                <Button variant="ghost" size="sm" onClick={handleSignOut} disabled={isSigningOut}>
-                  {isSigningOut ? "Signing Out..." : "Sign Out"}
-                </Button>
-              )}
+              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+                <Link href="/claim-listing" className="text-inherit">Claim Your Listing</Link>
+              </Button>
             </>
           ) : (
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/login">Sign In</Link>
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
+              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+                <Link href="/claim-listing" className="text-inherit">Claim Your Listing</Link>
+              </Button>
+            </>
           )}
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-            <Link href="/claim-listing" className="text-inherit">Claim Your Listing</Link>
-          </Button>
         </div>
 
         {/* Mobile Menu Button */}
@@ -252,33 +246,33 @@ export function Header() {
             ))}
           </div>
           <div className="flex flex-col gap-2 pt-4 border-t border-border">
-            {showDashboardAction ? (
+            {isAdmin ? (
+              <Button variant="secondary" className="justify-start" asChild>
+                <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+              </Button>
+            ) : isParent ? (
+              <Button variant="ghost" className="justify-start" asChild>
+                <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+              </Button>
+            ) : showDashboardAction ? (
               <>
                 <Button variant="ghost" className="justify-start" asChild>
                   <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
                 </Button>
-                {showSignOut && (
-                  <Button
-                    variant="ghost"
-                    className="justify-start"
-                    onClick={async () => {
-                      await handleSignOut()
-                      setMobileMenuOpen(false)
-                    }}
-                    disabled={isSigningOut}
-                  >
-                    {isSigningOut ? "Signing Out..." : "Sign Out"}
-                  </Button>
-                )}
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+                  <Link href="/claim-listing" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>Claim Your Listing</Link>
+                </Button>
               </>
             ) : (
-              <Button variant="ghost" className="justify-start" asChild>
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
-              </Button>
+              <>
+                <Button variant="ghost" className="justify-start" asChild>
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+                </Button>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+                  <Link href="/claim-listing" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>Claim Your Listing</Link>
+                </Button>
+              </>
             )}
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-              <Link href="/claim-listing" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>Claim Your Listing</Link>
-            </Button>
           </div>
         </div>
       </div>

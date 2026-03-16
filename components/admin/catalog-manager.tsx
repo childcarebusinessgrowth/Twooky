@@ -25,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 export type CatalogItem = {
   id: string
@@ -93,8 +95,12 @@ export function CatalogManager({
   secondaryField,
 }: CatalogManagerProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
+  const capitalizedLabel = singularLabel[0].toUpperCase() + singularLabel.slice(1)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<CatalogItem | null>(null)
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
@@ -122,12 +128,15 @@ export function CatalogManager({
     setDialogOpen(true)
   }
 
-  const runAction = (action: () => Promise<void>) => {
+  const runAction = (action: () => Promise<void>, successMessage?: string) => {
     setError(null)
     startTransition(async () => {
       try {
         await action()
         setDialogOpen(false)
+        if (successMessage) {
+          toast({ title: successMessage, variant: "success" })
+        }
         router.refresh()
       } catch (err) {
         const message = err instanceof Error ? err.message : `Failed to save ${singularLabel}.`
@@ -150,23 +159,36 @@ export function CatalogManager({
       secondaryValue: hasSecondaryField ? form.secondaryValue.trim() || null : null,
     }
 
-    runAction(async () => {
-      if (editingItem) {
-        await updateItem(editingItem.id, payload)
-      } else {
-        await createItem(payload)
-      }
-    })
+    runAction(
+      async () => {
+        if (editingItem) {
+          await updateItem(editingItem.id, payload)
+        } else {
+          await createItem(payload)
+        }
+      },
+      editingItem ? `${capitalizedLabel} updated.` : `${capitalizedLabel} added.`
+    )
   }
 
-  const handleDelete = (item: CatalogItem) => {
-    if (!confirm(`Delete ${singularLabel} "${item.name}"?`)) {
-      return
-    }
+  const handleDeleteClick = (item: CatalogItem) => {
+    setItemToDelete(item)
+    setDeleteDialogOpen(true)
+  }
 
-    runAction(async () => {
-      await deleteItem(item.id)
-    })
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return
+    setError(null)
+    try {
+      await deleteItem(itemToDelete.id)
+      setDeleteDialogOpen(false)
+      setItemToDelete(null)
+      toast({ title: `${capitalizedLabel} removed.`, variant: "success" })
+      router.refresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : `Failed to delete ${singularLabel}.`
+      setError(message)
+    }
   }
 
   return (
@@ -238,7 +260,7 @@ export function CatalogManager({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive"
-                      onClick={() => handleDelete(item)}
+                      onClick={() => handleDeleteClick(item)}
                       disabled={isPending}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -324,6 +346,16 @@ export function CatalogManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={`Delete ${singularLabel}?`}
+        description="This will remove it from the list."
+        itemName={itemToDelete?.name}
+        variant="delete"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }

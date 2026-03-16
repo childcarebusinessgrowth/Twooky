@@ -105,8 +105,28 @@ export async function getRecentPublishedBlogs(limit = 3): Promise<PublishedBlog[
   return (data ?? []).map((row) => mapBlog(row as BlogRow))
 }
 
+/** Normalize protocol-less URLs so they pass allowedSchemes and work as external links. */
+function normalizeLinkHref(href: string): string {
+  const t = href.trim()
+  if (!t) return t
+  if (/^(https?:\/\/|mailto:|tel:|#|\/)/i.test(t)) return t
+  return `https://${t}`
+}
+
+/** Preprocess HTML so anchor hrefs without a scheme get https:// before sanitizer runs (scheme check can run before transformTags). */
+function preprocessLinkHrefs(html: string): string {
+  return html.replace(
+    /<a\s+([^>]*?)href=["']([^"']*)["']/gi,
+    (_match, before: string, href: string) => {
+      const normalized = normalizeLinkHref(href)
+      return `<a ${before}href="${normalized}"`
+    },
+  )
+}
+
 export function sanitizeBlogHtml(html: string): string {
-  return sanitizeHtml(html, {
+  const withAbsoluteLinks = preprocessLinkHrefs(html)
+  return sanitizeHtml(withAbsoluteLinks, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
       "h1",
       "h2",
@@ -114,6 +134,10 @@ export function sanitizeBlogHtml(html: string): string {
       "h4",
       "h5",
       "h6",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
       "img",
       "figure",
       "figcaption",
@@ -131,7 +155,14 @@ export function sanitizeBlogHtml(html: string): string {
       img: ["http", "https", "data"],
     },
     transformTags: {
-      a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }, true),
+      a(tagName, attribs) {
+        const href = attribs.href
+        if (href && typeof href === "string") {
+          attribs = { ...attribs, href: normalizeLinkHref(href) }
+        }
+        attribs.rel = "noopener noreferrer"
+        return { tagName, attribs }
+      },
     },
   })
 }

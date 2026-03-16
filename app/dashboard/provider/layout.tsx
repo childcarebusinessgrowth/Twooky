@@ -1,13 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { 
   LayoutDashboard, 
   FileEdit, 
   Star, 
   MessageSquare, 
   Image, 
+  HelpCircle,
   BarChart3, 
   CreditCard, 
   Settings,
@@ -16,8 +17,10 @@ import {
   Search,
   ChevronDown,
   Menu,
+  ArrowRight,
+  CheckCircle,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -33,6 +36,7 @@ import { cn } from "@/lib/utils"
 import { RequireAuth } from "@/components/RequireAuth"
 import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
+import type { ProviderNotificationItem } from "@/app/api/provider/notifications/route"
 
 const sidebarItems = [
   { label: "Overview", href: "/dashboard/provider", icon: LayoutDashboard },
@@ -40,36 +44,10 @@ const sidebarItems = [
   { label: "Reviews", href: "/dashboard/provider/reviews", icon: Star },
   { label: "Inquiries", href: "/dashboard/provider/inquiries", icon: MessageSquare },
   { label: "Photos", href: "/dashboard/provider/photos", icon: Image },
+  { label: "FAQs", href: "/dashboard/provider/faqs", icon: HelpCircle },
   { label: "Analytics", href: "/dashboard/provider/analytics", icon: BarChart3 },
   { label: "Subscription", href: "/dashboard/provider/subscription", icon: CreditCard },
   { label: "Settings", href: "/dashboard/provider/settings", icon: Settings },
-]
-
-const notificationItems = [
-  {
-    id: 1,
-    type: "inquiry" as const,
-    title: "New inquiry from Sarah Johnson",
-    message: "Interested in your toddler program...",
-    time: "Today, 2:30 PM",
-    href: "/dashboard/provider/inquiries",
-  },
-  {
-    id: 2,
-    type: "inquiry" as const,
-    title: "New inquiry from Michael Chen",
-    message: "Looking for preschool starting September...",
-    time: "Today, 11:15 AM",
-    href: "/dashboard/provider/inquiries",
-  },
-  {
-    id: 3,
-    type: "review" as const,
-    title: "New 5★ review from Emily Williams",
-    message: "“We absolutely love Sunshine Daycare...”",
-    time: "Yesterday",
-    href: "/dashboard/provider/reviews",
-  },
 ]
 
 function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
@@ -106,9 +84,100 @@ export default function ProviderDashboardLayout({
   children: React.ReactNode
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [notifications, setNotifications] = useState<ProviderNotificationItem[]>([])
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
+  const [publicProfileHref, setPublicProfileHref] = useState("/dashboard/provider/listing")
   const router = useRouter()
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "provider")
+
+  // Only count provider_notifications (e.g. listing_confirmed) as unread; inquiries/reviews have no persisted read state
+  const unreadCount = notifications.filter(
+    (n) => n.type === "listing_confirmed" && !n.readAt
+  ).length
+
+  async function markNotificationsRead(ids: string[]) {
+    if (ids.length === 0) return
+    try {
+      const res = await fetch("/api/provider/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+      if (!res.ok) return
+      const now = new Date().toISOString()
+      setNotifications((prev) =>
+        prev.map((n) => (ids.includes(n.id) ? { ...n, readAt: now } : n))
+      )
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchNotifications() {
+      try {
+        const res = await fetch("/api/provider/notifications")
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (!cancelled && Array.isArray(data.notifications))
+          setNotifications(data.notifications)
+      } catch {
+        if (!cancelled) setNotifications([])
+      } finally {
+        if (!cancelled) setNotificationsLoading(false)
+      }
+    }
+    fetchNotifications()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (pathname === "/dashboard/provider/search") {
+      const q = searchParams.get("q") ?? ""
+      setSearchQuery(q)
+    } else {
+      setSearchQuery("")
+    }
+  }, [pathname, searchParams])
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = (e.currentTarget.querySelector('input[name="search"]') as HTMLInputElement | null)
+      ?.value?.trim()
+    if (q) {
+      router.push(`/dashboard/provider/search?q=${encodeURIComponent(q)}`)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchPublicProfileHref() {
+      try {
+        const res = await fetch("/api/provider/public-profile", { cache: "no-store" })
+        if (!res.ok || cancelled) return
+        const data = (await res.json().catch(() => ({}))) as { href?: string | null }
+        if (!cancelled && data.href) {
+          setPublicProfileHref(data.href)
+        }
+      } catch {
+        // keep fallback
+      }
+    }
+
+    void fetchPublicProfileHref()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSignOut = async () => {
     await signOut()
@@ -176,15 +245,19 @@ export default function ProviderDashboardLayout({
           </Sheet>
 
           {/* Search */}
-          <div className="flex-1 max-w-md">
+          <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search..." 
+              <Input
+                name="search"
+                type="search"
+                placeholder="Search inquiries and reviews..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-muted/50 border-0 focus-visible:ring-1"
               />
             </div>
-          </div>
+          </form>
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-2">
@@ -193,44 +266,125 @@ export default function ProviderDashboardLayout({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
+                  )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium text-foreground">Notifications</p>
-                  <p className="text-xs text-muted-foreground">Latest inquiries and reviews</p>
+              <DropdownMenuContent align="end" className="w-96 p-0 overflow-hidden">
+                {/* Header */}
+                <div className="px-4 pt-4 pb-3 bg-muted/40 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                      <Bell className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Notifications</p>
+                      <p className="text-xs text-muted-foreground">Latest inquiries and reviews</p>
+                    </div>
+                  </div>
                 </div>
-                <DropdownMenuSeparator />
-                {notificationItems.map((item) => (
-                  <DropdownMenuItem key={item.id} asChild>
-                    <Link href={item.href} className="flex flex-col items-start gap-0.5">
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {item.type === "inquiry" ? "Inquiry" : "Review"}
-                      </span>
-                      <span className="text-sm font-medium text-foreground truncate w-full">
-                        {item.title}
-                      </span>
-                      <span className="text-xs text-muted-foreground truncate w-full">
-                        {item.message}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground mt-0.5">
-                        {item.time}
-                      </span>
+                {/* Notification list */}
+                <div className="max-h-[320px] overflow-y-auto">
+                  {notificationsLoading ? (
+                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      Loading…
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      No new inquiries or reviews
+                    </div>
+                  ) : (
+                    <>
+                      {notifications.map((item) => (
+                        <DropdownMenuItem key={item.id} asChild className="p-0 focus:bg-accent/50">
+                          <Link
+                            href={item.href}
+                            onClick={() => markNotificationsRead([item.id])}
+                            className={cn(
+                              "group flex gap-3 px-4 py-3 rounded-none border-b border-border/60 last:border-0 outline-none hover:bg-accent/50 focus:bg-accent/50",
+                              item.readAt && "opacity-75"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                                item.type === "inquiry"
+                                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                  : item.type === "listing_confirmed"
+                                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              )}
+                            >
+                              {item.type === "inquiry" ? (
+                                <MessageSquare className="h-5 w-5" />
+                              ) : item.type === "listing_confirmed" ? (
+                                <CheckCircle className="h-5 w-5" />
+                              ) : (
+                                <Star className="h-5 w-5 fill-current" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                              <span
+                                className={cn(
+                                  "text-[10px] font-semibold uppercase tracking-wider",
+                                  item.type === "inquiry"
+                                    ? "text-blue-600 dark:text-blue-400"
+                                    : item.type === "listing_confirmed"
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-amber-600 dark:text-amber-400"
+                                )}
+                              >
+                                {item.type === "inquiry" ? "Inquiry" : item.type === "listing_confirmed" ? "Listing confirmed" : "Review"}
+                              </span>
+                              <p className="text-sm font-medium text-foreground mt-0.5 truncate">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                {item.message}
+                              </p>
+                              <span className="text-[11px] text-muted-foreground mt-1.5 block">
+                                {item.time}
+                              </span>
+                            </div>
+                            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </div>
+                {/* Footer: mark all read + links */}
+                <div className="border-t border-border bg-muted/30 px-2 py-2 flex flex-col gap-0.5">
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-muted-foreground hover:text-foreground"
+                      onClick={() => markNotificationsRead(notifications.map((n) => n.id))}
+                    >
+                      Mark all as read
+                    </Button>
+                  )}
+                  <DropdownMenuItem asChild className="rounded-md py-2.5">
+                    <Link
+                      href="/dashboard/provider/inquiries"
+                      className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
+                    >
+                      <MessageSquare className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                      View all inquiries
                     </Link>
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/provider/inquiries" className="text-sm">
-                    View all inquiries
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/provider/reviews" className="text-sm">
-                    View all reviews
-                  </Link>
-                </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md py-2.5">
+                    <Link
+                      href="/dashboard/provider/reviews"
+                      className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
+                    >
+                      <Star className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                      View all reviews
+                    </Link>
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -255,7 +409,9 @@ export default function ProviderDashboardLayout({
                   <Link href="/dashboard/provider/settings">Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/providers/sunshine-learning-center">View Public Profile</Link>
+                  <Link href={publicProfileHref} target="_blank" rel="noopener noreferrer">
+                    View Public Profile
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => void handleSignOut()} className="text-destructive">

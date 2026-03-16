@@ -6,20 +6,175 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useState } from "react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { useAuth } from "@/components/AuthProvider"
+import { getSupabaseClient } from "@/lib/supabaseClient"
+
+type AgeGroupOption = { value: string; label: string }
+
+type ProfileData = {
+  displayName: string
+  email: string
+}
+
+type ParentProfileData = {
+  childAgeGroup: string
+  phone: string
+  preferredStartDate: string
+}
+
+const emptyProfile: ProfileData = { displayName: "", email: "" }
+const emptyParentProfile: ParentProfileData = {
+  childAgeGroup: "",
+  phone: "",
+  preferredStartDate: "",
+}
 
 export default function ParentSettingsPage() {
+  const { toast } = useToast()
+  const { user } = useAuth()
   const [saving, setSaving] = useState(false)
-  const [saveNotice, setSaveNotice] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState<ProfileData>(emptyProfile)
+  const [parentProfile, setParentProfile] = useState<ParentProfileData>(emptyParentProfile)
+  const [ageGroupOptions, setAgeGroupOptions] = useState<AgeGroupOption[]>([])
 
-  const handleSave = (event: React.FormEvent) => {
+  const loadData = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseClient()
+    const [profileRes, parentRes, ageGroupsRes] = await Promise.all([
+      supabase.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle(),
+      supabase.from("parent_profiles").select("child_age_group, phone, preferred_start_date").eq("profile_id", user.id).maybeSingle(),
+      supabase.from("age_groups").select("name, age_range").eq("is_active", true).order("sort_order", { ascending: true }),
+    ])
+    if (ageGroupsRes.data) {
+      const rows = ageGroupsRes.data as { name: string; age_range?: string | null }[]
+      setAgeGroupOptions(
+        rows.map((r) => ({
+          value: r.name,
+          label: r.age_range ? `${r.name} (${r.age_range})` : r.name,
+        })),
+      )
+    }
+    if (profileRes.data) {
+      setProfile({
+        displayName: profileRes.data.display_name ?? "",
+        email: profileRes.data.email ?? "",
+      })
+    }
+    if (parentRes.data) {
+      const row = parentRes.data as { child_age_group?: string | null; phone?: string | null; preferred_start_date?: string | null }
+      const dateVal = row.preferred_start_date
+      setParentProfile({
+        childAgeGroup: row.child_age_group ?? "",
+        phone: row.phone ?? "",
+        preferredStartDate: dateVal ? (typeof dateVal === "string" ? dateVal.slice(0, 10) : "") : "",
+      })
+    }
+    setLoading(false)
+  }, [user?.id])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
+
+  const childAgeOptions = useMemo(() => {
+    const current = parentProfile.childAgeGroup.trim()
+    if (!current) return ageGroupOptions
+    const inList = ageGroupOptions.some((o) => o.value.toLowerCase() === current.toLowerCase())
+    if (inList) return ageGroupOptions
+    return [{ value: current, label: current }, ...ageGroupOptions]
+  }, [ageGroupOptions, parentProfile.childAgeGroup])
+
+  const childAgeSelectValue = useMemo(() => {
+    const saved = parentProfile.childAgeGroup.trim()
+    if (!saved) return undefined
+    const match = ageGroupOptions.find((o) => o.value.toLowerCase() === saved.toLowerCase())
+    if (match) return match.value
+    const signupSlugToName: Record<string, string> = {
+      prek: "Pre-K",
+      school: "School Age",
+    }
+    const canonical = signupSlugToName[saved.toLowerCase()] ?? saved
+    const canonicalMatch = ageGroupOptions.find((o) => o.value === canonical)
+    return canonicalMatch ? canonicalMatch.value : saved
+  }, [ageGroupOptions, parentProfile.childAgeGroup])
+
+  const handleSave = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (!user?.id) return
     setSaving(true)
-    const timeout = setTimeout(() => {
+    const supabase = getSupabaseClient()
+    const preferredDate =
+      parentProfile.preferredStartDate?.trim() &&
+      /^\d{4}-\d{2}-\d{2}$/.test(parentProfile.preferredStartDate.trim())
+        ? parentProfile.preferredStartDate.trim()
+        : null
+
+    try {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ display_name: profile.displayName?.trim() || null })
+        .eq("id", user.id)
+
+      if (profileError) {
+        toast({ title: "Could not update profile", description: profileError.message, variant: "destructive" })
+        setSaving(false)
+        return
+      }
+
+      const { error: parentError } = await supabase.from("parent_profiles").upsert(
+        {
+          profile_id: user.id,
+          child_age_group: parentProfile.childAgeGroup?.trim() || null,
+          phone: parentProfile.phone?.trim() || null,
+          preferred_start_date: preferredDate,
+        },
+        { onConflict: "profile_id" },
+      )
+
+      if (parentError) {
+        toast({ title: "Could not update child information", description: parentError.message, variant: "destructive" })
+        setSaving(false)
+        return
+      }
+
+      await loadData()
+      toast({
+        title: "Settings saved",
+        description: "Name, phone, child age, and preferred start date have been saved.",
+        variant: "success",
+      })
+    } catch (e) {
+      toast({ title: "Something went wrong", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" })
+    } finally {
       setSaving(false)
-      setSaveNotice("Settings persistence is coming soon. Your edits are only kept for this session.")
-      clearTimeout(timeout)
-    }, 800)
+    }
+  }
+
+  if (loading) {
+    return (
+      <RequireAuth>
+        <div className="space-y-6 lg:space-y-8">
+          <div className="h-8 w-64 animate-pulse rounded bg-muted" />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr),minmax(0,1.1fr)]">
+            <div className="h-48 animate-pulse rounded-3xl bg-muted" />
+            <div className="h-48 animate-pulse rounded-3xl bg-muted" />
+          </div>
+        </div>
+      </RequireAuth>
+    )
   }
 
   return (
@@ -37,7 +192,7 @@ export default function ParentSettingsPage() {
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr),minmax(0,1.1fr)]">
           {/* Profile information */}
-          <Card className="rounded-3xl border border-border/60 bg-card shadow-sm">
+          <Card className="rounded-3xl border border-border/60 border-l-4 border-l-primary/60 bg-card shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-foreground">
                 Profile information
@@ -54,8 +209,9 @@ export default function ParentSettingsPage() {
                   </Label>
                   <Input
                     id="full-name"
-                    placeholder="Sarah Anderson"
-                    defaultValue="Sarah Anderson"
+                    placeholder="Your name"
+                    value={profile.displayName}
+                    onChange={(e) => setProfile((p) => ({ ...p, displayName: e.target.value }))}
                     className="h-9 rounded-xl border-border/60 bg-muted/40"
                   />
                 </div>
@@ -66,7 +222,8 @@ export default function ParentSettingsPage() {
                   <Input
                     id="phone"
                     placeholder="(555) 123-4567"
-                    defaultValue="(555) 123-4567"
+                    value={parentProfile.phone}
+                    onChange={(e) => setParentProfile((p) => ({ ...p, phone: e.target.value }))}
                     className="h-9 rounded-xl border-border/60 bg-muted/40"
                   />
                 </div>
@@ -78,22 +235,23 @@ export default function ParentSettingsPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
-                  defaultValue="sarah.anderson@example.com"
-                  className="h-9 rounded-xl border-border/60 bg-muted/40"
+                  value={profile.email}
+                  readOnly
+                  className="h-9 rounded-xl border-border/60 bg-muted/40 read-only:opacity-80"
                 />
+                <p className="text-[11px] text-muted-foreground">Email cannot be changed here.</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Child information */}
-          <Card className="rounded-3xl border border-border/60 bg-card shadow-sm">
+          <Card className="rounded-3xl border border-border/60 border-l-4 border-l-secondary/60 bg-card shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-foreground">
                 Child information
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                We use this to personalize recommendations and availability.
+                The age you gave when you signed up is shown below. You can edit it here—we use it to personalize recommendations and availability.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -101,12 +259,21 @@ export default function ParentSettingsPage() {
                 <Label htmlFor="child-age" className="text-xs font-medium text-foreground">
                   Child age
                 </Label>
-                <Input
-                  id="child-age"
-                  placeholder="2 and 4 years"
-                  defaultValue="2 and 4 years"
-                  className="h-9 rounded-xl border-border/60 bg-muted/40"
-                />
+                <Select
+                  value={childAgeSelectValue}
+                  onValueChange={(value) => setParentProfile((p) => ({ ...p, childAgeGroup: value }))}
+                >
+                  <SelectTrigger id="child-age" className="h-9 w-full rounded-xl border-border/60 bg-muted/40">
+                    <SelectValue placeholder="Select age group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {childAgeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="preferred-start" className="text-xs font-medium text-foreground">
@@ -115,7 +282,8 @@ export default function ParentSettingsPage() {
                 <Input
                   id="preferred-start"
                   type="date"
-                  defaultValue="2026-08-15"
+                  value={parentProfile.preferredStartDate}
+                  onChange={(e) => setParentProfile((p) => ({ ...p, preferredStartDate: e.target.value }))}
                   className="h-9 rounded-xl border-border/60 bg-muted/40"
                 />
               </div>
@@ -178,14 +346,10 @@ export default function ParentSettingsPage() {
             className="rounded-full"
             disabled={saving}
           >
-            {saving ? "Saving..." : "Save (preview only)"}
+            {saving ? "Saving..." : "Save changes"}
           </Button>
         </div>
-        {saveNotice && (
-          <p className="text-xs text-muted-foreground text-right">{saveNotice}</p>
-        )}
       </form>
     </RequireAuth>
   )
 }
-

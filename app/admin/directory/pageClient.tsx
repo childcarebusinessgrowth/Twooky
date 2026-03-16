@@ -155,7 +155,10 @@ export function AdminDirectoryPageClient({
         </TabsContent>
 
         <TabsContent value="program-types" className="space-y-4 mt-4">
-          <AdminProgramTypesPageClient initialProgramTypes={initialProgramTypes} />
+          <AdminProgramTypesPageClient
+            initialProgramTypes={initialProgramTypes}
+            initialAgeGroups={initialAgeGroups}
+          />
         </TabsContent>
 
         <TabsContent value="languages" className="space-y-4 mt-4">

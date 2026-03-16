@@ -1,9 +1,81 @@
 "use client"
 
 import { useState } from "react"
+import { useToast } from "@/hooks/use-toast"
+
+const inputClass =
+  "w-full rounded-md border border-input bg-background/80 px-3 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent transition"
 
 export default function ContactPage() {
+  const { toast } = useToast()
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [message, setMessage] = useState("")
   const [consentChecked, setConsentChecked] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmedName = name.trim()
+    const trimmedEmail = email.trim()
+    const trimmedMessage = message.trim()
+    if (!trimmedName) {
+      toast({ title: "Name is required", variant: "destructive" })
+      return
+    }
+    if (!trimmedEmail) {
+      toast({ title: "Email is required", variant: "destructive" })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      toast({ title: "Please enter a valid email address", variant: "destructive" })
+      return
+    }
+    if (!trimmedMessage) {
+      toast({ title: "Message is required", variant: "destructive" })
+      return
+    }
+    if (!consentChecked) {
+      toast({ title: "You must consent to data processing to submit", variant: "destructive" })
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          phone: phone.trim() || undefined,
+          message: trimmedMessage,
+          consentChecked: true,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast({
+          title: "Something went wrong",
+          description: (data.error as string) || "Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Message sent",
+        description: "We'll get back to you within 1 business day.",
+        variant: "success",
+      })
+      setName("")
+      setEmail("")
+      setPhone("")
+      setMessage("")
+      setConsentChecked(false)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-16 bg-background">
@@ -47,7 +119,7 @@ export default function ContactPage() {
 
           {/* Right side: form */}
           <div className="border-t md:border-t-0 md:border-l border-border bg-card px-6 sm:px-8 md:px-10 py-8 md:py-10">
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-1.5">
                 <label htmlFor="name" className="text-xs font-medium tracking-wide text-foreground">
                   Name
@@ -55,8 +127,11 @@ export default function ContactPage() {
                 <input
                   id="name"
                   type="text"
-                  className="w-full rounded-md border border-input bg-background/80 px-3 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent transition"
+                  className={inputClass}
                   placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -67,8 +142,11 @@ export default function ContactPage() {
                 <input
                   id="email"
                   type="email"
-                  className="w-full rounded-md border border-input bg-background/80 px-3 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent transition"
+                  className={inputClass}
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -79,8 +157,11 @@ export default function ContactPage() {
                 <input
                   id="phone"
                   type="tel"
-                  className="w-full rounded-md border border-input bg-background/80 px-3 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent transition"
+                  className={inputClass}
                   placeholder="+44 20 7946 0123"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -90,8 +171,11 @@ export default function ContactPage() {
                 </label>
                 <textarea
                   id="message"
-                  className="w-full min-h-[120px] resize-y rounded-md border border-input bg-background/80 px-3 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent transition"
+                  className={`${inputClass} min-h-[120px] resize-y`}
                   placeholder="How can we help?"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -118,10 +202,10 @@ export default function ContactPage() {
 
               <button
                 type="submit"
-                disabled={!consentChecked}
-                className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
+                disabled={!consentChecked || isSubmitting}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition disabled:opacity-50 disabled:pointer-events-none"
               >
-                Submit
+                {isSubmitting ? "Sending…" : "Submit"}
               </button>
             </form>
           </div>

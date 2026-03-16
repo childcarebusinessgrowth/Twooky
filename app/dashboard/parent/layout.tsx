@@ -10,9 +10,9 @@ import {
   Scale,
   Settings,
   Baby,
-  Bell,
   ChevronDown,
   Menu,
+  Search,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -55,8 +55,8 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
               isActive
-                ? "bg-primary/90 text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-primary/90 hover:bg-primary/10"
             )}
           >
             <item.icon className="h-5 w-5" />
@@ -74,6 +74,7 @@ export default function ParentDashboardLayout({
   children: React.ReactNode
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "parent")
@@ -82,6 +83,14 @@ export default function ParentDashboardLayout({
     await signOut()
     router.replace("/login")
     router.refresh()
+  }
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchQuery.trim()
+    if (!trimmed) return
+    const params = new URLSearchParams({ q: trimmed, location: trimmed })
+    router.push(`/search?${params.toString()}`)
   }
 
   return (
@@ -160,29 +169,32 @@ export default function ParentDashboardLayout({
             </SheetContent>
           </Sheet>
 
-          {/* Search / hint */}
+          {/* Search */}
           <div className="flex-1 max-w-md">
-            <div className="relative">
+            <form onSubmit={handleSearchSubmit} className="relative flex" role="search">
               <Input
+                type="search"
+                name="q"
                 placeholder="Search childcare or locations"
-                className="h-9 rounded-full bg-muted/70 border-0 pl-4 pr-4 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-1"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 rounded-full bg-muted/70 border-0 pl-4 pr-10 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-primary/50"
+                aria-label="Search childcare or locations"
               />
-            </div>
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-transparent"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </form>
           </div>
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative rounded-full"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
-            </Button>
-
             {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -1,24 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { getLocalFavoriteSlugs } from "@/lib/local-favorites"
 
 type Props = {
   hasDbFavorites: boolean
 }
 
 export function SavedEmptyState({ hasDbFavorites }: Props) {
-  const [localSlugs, setLocalSlugs] = useState<string[]>([])
-
-  useEffect(() => {
-    setLocalSlugs(getLocalFavoriteSlugs())
-  }, [])
-
-  const showEmpty = !hasDbFavorites && localSlugs.length === 0
-  if (!showEmpty) return null
+  if (hasDbFavorites) return null
 
   return (
     <Card className="rounded-3xl border border-border/60">

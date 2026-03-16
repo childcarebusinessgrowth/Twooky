@@ -78,6 +78,8 @@ export interface Review {
   rating: number
   text: string
   date: string
+  providerReplyText?: string | null
+  providerRepliedAt?: string | null
 }
 
 export interface Program {

@@ -15,6 +15,7 @@ import {
   type GoogleMapsNamespace,
   type GoogleMarkerInstance,
 } from "@/lib/google-maps-loader"
+import { createProviderPinDataUri } from "@/lib/map-pin-utils"
 
 type SearchMapModalProps = {
   providers: ProviderCardData[]
@@ -58,30 +59,6 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;")
-}
-
-function createProviderPinDataUri() {
-  // Custom childcare-themed pin: brand drop pin + tiny school/house glyph.
-  const svg = `
-    <svg width="56" height="72" viewBox="0 0 56 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="shadow" x="4" y="8" width="48" height="60" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-          <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#0b1220" flood-opacity="0.28"/>
-        </filter>
-      </defs>
-      <g filter="url(#shadow)">
-        <path d="M28 60C28 60 46 42.8 46 30C46 19.5066 37.4934 11 27 11C16.5066 11 8 19.5066 8 30C8 42.8 28 60 28 60Z" fill="#00718d"/>
-        <path d="M28 60C28 60 46 42.8 46 30C46 19.5066 37.4934 11 27 11C16.5066 11 8 19.5066 8 30C8 42.8 28 60 28 60Z" stroke="#005466" stroke-width="2"/>
-      </g>
-      <circle cx="27" cy="30" r="11.5" fill="white"/>
-      <path d="M20 31.5V27.8L27 23L34 27.8V31.5C34 32.6 33.1 33.5 32 33.5H22C20.9 33.5 20 32.6 20 31.5Z" fill="#ce1053"/>
-      <path d="M23.8 33.5V29.5H27.2V33.5H23.8Z" fill="#00718d"/>
-      <rect x="28.6" y="28.7" width="2.2" height="2.2" rx="0.5" fill="#00d4ff"/>
-      <path d="M19.2 27.9L27 22.4L34.8 27.9" stroke="#00718d" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  `.trim()
-
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
 export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProps) {
@@ -498,40 +475,44 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
                   const providerId = String(provider.id)
                   const isSelected = selectedProviderId === providerId
                   return (
-                    <button
+                    <article
                       key={provider.id}
-                      type="button"
-                      className={`w-full rounded-2xl border p-3.5 text-left transition-all duration-200 ${isSelected ? "border-primary/60 bg-primary/5 shadow-sm" : "border-border/70 bg-background hover:border-primary/35 hover:shadow-sm"}`}
-                      onClick={() => focusProvider(providerId)}
+                      className={`w-full rounded-2xl border p-3.5 transition-all duration-200 ${isSelected ? "border-primary/60 bg-primary/5 shadow-sm" : "border-border/70 bg-background hover:border-primary/35 hover:shadow-sm"}`}
                     >
-                      <p className="font-semibold text-[15px] text-foreground leading-snug">{provider.name}</p>
-                      <p className="mt-1.5 flex items-center gap-1 text-sm text-muted-foreground">
-                        <Navigation className="h-3.5 w-3.5" />
-                        {provider.location}
-                      </p>
-                      <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                        <Star className="h-3.5 w-3.5" />
-                        {provider.rating} ({provider.reviewCount})
-                      </p>
-                      {provider.programTypes.length > 0 && (
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          {provider.programTypes.slice(0, 2).map((program) => (
-                            <span
-                              key={program}
-                              className="rounded-full border border-border/60 bg-muted/25 px-2 py-0.5 text-[11px] text-muted-foreground"
-                            >
-                              {program}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => focusProvider(providerId)}
+                      >
+                        <p className="font-semibold text-[15px] text-foreground leading-snug">{provider.name}</p>
+                        <p className="mt-1.5 flex items-center gap-1 text-sm text-muted-foreground">
+                          <Navigation className="h-3.5 w-3.5" />
+                          {provider.location}
+                        </p>
+                        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                          <Star className="h-3.5 w-3.5" />
+                          {provider.rating} ({provider.reviewCount})
+                        </p>
+                        {provider.programTypes.length > 0 && (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {provider.programTypes.slice(0, 2).map((program) => (
+                              <span
+                                key={program}
+                                className="rounded-full border border-border/60 bg-muted/25 px-2 py-0.5 text-[11px] text-muted-foreground"
+                              >
+                                {program}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </button>
                       <Link
                         href={`/providers/${provider.slug}`}
                         className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
                       >
                         View details
                       </Link>
-                    </button>
+                    </article>
                   )
                 })}
                 {filteredMapProviders.length === 0 && (

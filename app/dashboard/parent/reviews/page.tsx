@@ -11,6 +11,7 @@ export default async function ParentReviewsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+  const parentProfileId = user?.id ?? null
   const reviews = user ? await getReviewsByParentProfileId(supabase, user.id) : []
 
   return (
@@ -26,7 +27,7 @@ export default async function ParentReviewsPage() {
           </p>
         </div>
 
-        <Card className="border-none bg-muted/40 rounded-3xl shadow-sm shadow-muted/30">
+        <Card className="border-none border-l-4 border-l-secondary bg-secondary/5 rounded-3xl shadow-sm shadow-secondary/10">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 lg:p-5">
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">
@@ -37,18 +38,18 @@ export default async function ParentReviewsPage() {
                 cleanliness, or curriculum.
               </p>
             </div>
-            <Button size="sm" className="rounded-full" asChild>
+            <Button size="sm" className="rounded-full bg-primary hover:bg-primary/90" asChild>
               <Link href="/search">Find a provider to review</Link>
             </Button>
           </CardContent>
         </Card>
 
-        {reviews.length > 0 ? (
+        {reviews.length > 0 && parentProfileId ? (
           <div className="space-y-4">
             {reviews.map((review) => (
               <ParentReviewCard
                 key={review.id}
-                parentProfileId={user!.id}
+                parentProfileId={parentProfileId}
                 review={review}
               />
             ))}

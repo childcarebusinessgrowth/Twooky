@@ -1,0 +1,1 @@
+export const MAX_PHOTOS_PER_PROVIDER = 12

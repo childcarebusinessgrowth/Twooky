@@ -14,8 +14,13 @@ import {
   Shield,
   Newspaper,
   FolderTree,
+  BarChart3,
+  MessageCircle,
+  ArrowRight,
+  CheckCircle,
+  Star,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -32,38 +37,17 @@ import { cn } from "@/lib/utils"
 import { RequireAuth } from "@/components/RequireAuth"
 import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
+import type { AdminNotificationItem } from "@/app/api/admin/notifications/route"
 
 const sidebarItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Listings", href: "/admin/listings", icon: Building2 },
   { label: "Parents", href: "/admin/parents", icon: UsersRound },
   { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
+  { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
   { label: "Claim Requests", href: "/admin/claims", icon: FileCheck, badge: 3 },
   { label: "Directory", href: "/admin/directory", icon: FolderTree },
-]
-
-const adminNotificationItems = [
-  {
-    id: 1,
-    type: "claim" as const,
-    title: "New claim request: Happy Kids Academy",
-    time: "5 minutes ago",
-    href: "/admin/claims",
-  },
-  {
-    id: 2,
-    type: "claim" as const,
-    title: "Claim request needs review",
-    time: "15 minutes ago",
-    href: "/admin/claims",
-  },
-  {
-    id: 3,
-    type: "listing" as const,
-    title: "Sunshine Daycare updated their listing",
-    time: "1 hour ago",
-    href: "/admin/listings",
-  },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
 ]
 
 function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
@@ -105,9 +89,52 @@ export function AdminLayoutClient({
   children: React.ReactNode
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [notifications, setNotifications] = useState<AdminNotificationItem[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
   const router = useRouter()
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "admin")
+  const unreadCount = notifications.filter((n) => !n.readAt).length
+
+  async function markNotificationsRead(ids: string[]) {
+    if (ids.length === 0) return
+    try {
+      const res = await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+      if (!res.ok) return
+      const now = new Date().toISOString()
+      setNotifications((prev) =>
+        prev.map((n) => (ids.includes(n.id) ? { ...n, readAt: now } : n))
+      )
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchNotifications() {
+      try {
+        const res = await fetch("/api/admin/notifications")
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (!cancelled && Array.isArray(data.notifications)) {
+          setNotifications(data.notifications)
+        }
+      } catch {
+        if (!cancelled) setNotifications([])
+      } finally {
+        if (!cancelled) setNotificationsLoading(false)
+      }
+    }
+    fetchNotifications()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSignOut = async () => {
     await signOut()
@@ -179,30 +206,128 @@ export function AdminLayoutClient({
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-foreground">Notifications</p>
-                    <p className="text-xs text-muted-foreground">Latest platform activity</p>
+                <DropdownMenuContent align="end" className="w-96 p-0 overflow-hidden">
+                  <div className="px-4 pt-4 pb-3 bg-muted/40 border-b border-border">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                        <Bell className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Notifications</p>
+                        <p className="text-xs text-muted-foreground">Latest platform activity</p>
+                      </div>
+                    </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  {adminNotificationItems.map((item) => (
-                    <DropdownMenuItem key={item.id} asChild>
-                      <Link href={item.href} className="flex flex-col items-start gap-0.5">
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{item.type}</span>
-                        <span className="w-full truncate text-sm font-medium text-foreground">{item.title}</span>
-                        <span className="mt-0.5 text-[11px] text-muted-foreground">{item.time}</span>
+                  <div className="max-h-[320px] overflow-y-auto">
+                    {notificationsLoading ? (
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        Loading...
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        No notifications yet
+                      </div>
+                    ) : (
+                      <>
+                        {notifications.map((item) => (
+                          <DropdownMenuItem key={item.id} asChild className="p-0 focus:bg-accent/50">
+                            <Link
+                              href={item.href}
+                              onClick={() => markNotificationsRead([item.id])}
+                              className={cn(
+                                "group flex gap-3 px-4 py-3 rounded-none border-b border-border/60 last:border-0 outline-none hover:bg-accent/50 focus:bg-accent/50",
+                                item.readAt && "opacity-75"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                                  item.type === "provider_signup"
+                                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                    : item.type === "contact_message"
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                      : item.type === "listing_pending"
+                                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                )}
+                              >
+                                {item.type === "provider_signup" ? (
+                                  <UsersRound className="h-5 w-5" />
+                                ) : item.type === "contact_message" ? (
+                                  <MessageCircle className="h-5 w-5" />
+                                ) : item.type === "listing_pending" ? (
+                                  <CheckCircle className="h-5 w-5" />
+                                ) : (
+                                  <Star className="h-5 w-5 fill-current" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-semibold uppercase tracking-wider",
+                                    item.type === "provider_signup"
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : item.type === "contact_message"
+                                        ? "text-emerald-600 dark:text-emerald-400"
+                                        : item.type === "listing_pending"
+                                          ? "text-amber-600 dark:text-amber-400"
+                                          : "text-rose-600 dark:text-rose-400"
+                                  )}
+                                >
+                                  {item.type === "provider_signup"
+                                    ? "Provider signup"
+                                    : item.type === "contact_message"
+                                      ? "Contact"
+                                      : item.type === "listing_pending"
+                                        ? "Listing"
+                                        : "Moderation"}
+                                </span>
+                                <p className="text-sm font-medium text-foreground mt-0.5 truncate">
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                  {item.message}
+                                </p>
+                                <span className="text-[11px] text-muted-foreground mt-1.5 block">
+                                  {item.time}
+                                </span>
+                              </div>
+                              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                  <div className="border-t border-border bg-muted/30 px-2 py-2 flex flex-col gap-0.5">
+                    {unreadCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-muted-foreground hover:text-foreground"
+                        onClick={() => markNotificationsRead(notifications.map((n) => n.id))}
+                      >
+                        Mark all as read
+                      </Button>
+                    )}
+                    <DropdownMenuItem asChild className="rounded-md py-2.5">
+                      <Link href="/admin/listings" className="flex items-center gap-2 text-sm font-medium text-foreground w-full">
+                        <Building2 className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        View pending listings
                       </Link>
                     </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/claims" className="text-sm">
-                      View all claims
-                    </Link>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="rounded-md py-2.5">
+                      <Link href="/admin/contact-messages" className="flex items-center gap-2 text-sm font-medium text-foreground w-full">
+                        <MessageCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        View contact messages
+                      </Link>
+                    </DropdownMenuItem>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
 

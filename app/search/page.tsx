@@ -1,12 +1,16 @@
 import { Suspense } from "react"
 import { SearchResults } from "@/components/search-results"
-import { programs, providers, type Provider } from "@/lib/mock-data"
+import { type Provider } from "@/lib/mock-data"
 import {
-  filterProviders,
   resolveLocationToCoords,
   type AgeTag,
   type SearchCriteria,
 } from "@/lib/search-providers"
+import {
+  getActiveProvidersFromDb,
+  filterActiveProviders,
+  activeProviderRowToCardData,
+} from "@/lib/search-providers-db"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import type { SearchFilterOptions } from "@/components/filter-sidebar"
 
@@ -76,13 +80,17 @@ function parseOptionalNumber(value?: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-function parseProgramTypes(programTypesValue?: string, singleProgramSlug?: string): string[] | undefined {
+function parseProgramTypes(
+  programTypesValue?: string,
+  singleProgramSlug?: string,
+  programTypesBySlug?: Record<string, string>
+): string[] | undefined {
   const fromCsv = parseCsv(programTypesValue)
   if (fromCsv.length > 0) return fromCsv
 
-  if (!singleProgramSlug) return undefined
-  const program = programs.find((entry) => entry.slug === singleProgramSlug)
-  return program ? [program.title] : undefined
+  if (!singleProgramSlug || !programTypesBySlug) return undefined
+  const name = programTypesBySlug[singleProgramSlug]
+  return name ? [name] : undefined
 }
 
 function normalizeCitySlug(value?: string): string | undefined {
@@ -125,7 +133,7 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
         .order("name", { ascending: true }),
       supabase
         .from("program_types")
-        .select("id, name")
+        .select("id, name, slug")
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
@@ -149,6 +157,12 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
         .order("name", { ascending: true }),
     ])
 
+    const programTypesBySlug: Record<string, string> = {}
+    for (const row of programTypes ?? []) {
+      const slug = (row as { slug?: string }).slug
+      if (slug) programTypesBySlug[slug] = row.name
+    }
+
     return {
       ageGroups: (ageGroups ?? []).map((row) => {
         const label = row.age_range ? `${row.name} (${row.age_range})` : row.name
@@ -158,6 +172,7 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
       languages: (languages ?? []).map((row) => ({ value: row.name, label: row.name })),
       curriculum: (curriculum ?? []).map((row) => ({ value: row.name, label: row.name })),
       features: (features ?? []).map((row) => ({ value: row.name, label: row.name })),
+      programTypesBySlug,
     }
   } catch (error) {
     console.error("[search] Failed to load search filter options", error)
@@ -167,6 +182,7 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
       languages: [],
       curriculum: [],
       features: [],
+      programTypesBySlug: {},
     }
   }
 }
@@ -198,9 +214,22 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const coords = resolveLocationToCoords(locationText)
   const parsedAgeTags = parseAgeTags(ageGroups) ?? []
   const fallbackAge = parseAgeTags(age) ?? []
-  const parsedProgramTypes = parseProgramTypes(programTypes, program)
   const parsedAvailability = parseAvailability(availability)
   const parsedFeatures = parseCsv(features)
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const supabase = getSupabaseAdminClient()
+
+  const [filterOptions, activeRows] = await Promise.all([
+    loadSearchFilterOptions(),
+    getActiveProvidersFromDb(supabase, baseUrl),
+  ])
+
+  const parsedProgramTypes = parseProgramTypes(
+    programTypes,
+    program,
+    filterOptions.programTypesBySlug ?? {}
+  )
 
   const criteria: SearchCriteria = {
     locationText,
@@ -222,27 +251,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       parsedFeatures.includes("special-needs"),
   }
 
-  const [filterOptions, filteredProviders] = await Promise.all([
-    loadSearchFilterOptions(),
-    Promise.resolve(filterProviders(providers, criteria)),
-  ])
-
-  const providerSummaries = filteredProviders.map((provider) => ({
-    id: provider.id,
-    slug: provider.slug,
-    name: provider.name,
-    rating: provider.rating,
-    reviewCount: provider.reviewCount,
-    location: provider.location,
-    priceRange: provider.priceRange,
-    providerTypes: provider.providerTypes,
-    programTypes: provider.programTypes,
-    shortDescription: provider.shortDescription,
-    image: provider.image,
-    latitude: provider.latitude,
-    longitude: provider.longitude,
-    address: provider.address,
-  }))
+  const filteredRows = filterActiveProviders(activeRows, criteria)
+  const providerSummaries = filteredRows.map((row) =>
+    activeProviderRowToCardData(row, baseUrl)
+  )
 
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>

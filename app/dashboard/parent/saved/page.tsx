@@ -5,7 +5,6 @@ import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getFavoritesByParentProfileId } from "@/lib/parent-engagement"
 import { SavedProviderCard } from "@/components/saved-provider-card"
-import { LocalSavedProviders } from "@/components/local-saved-providers"
 import { SavedEmptyState } from "@/components/saved-empty-state"
 
 export default async function ParentSavedProvidersPage() {
@@ -13,7 +12,9 @@ export default async function ParentSavedProvidersPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const favorites = user ? await getFavoritesByParentProfileId(supabase, user.id) : []
+  const parentProfileId = user?.id ?? null
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const favorites = user ? await getFavoritesByParentProfileId(supabase, user.id, baseUrl) : []
 
   return (
     <RequireAuth>
@@ -28,7 +29,7 @@ export default async function ParentSavedProvidersPage() {
           </p>
         </div>
 
-        <Card className="border-none bg-primary/10 rounded-3xl shadow-sm shadow-primary/10">
+        <Card className="border-none border-l-4 border-l-primary bg-primary/10 rounded-3xl shadow-sm shadow-primary/10">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 lg:p-5">
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">
@@ -45,19 +46,17 @@ export default async function ParentSavedProvidersPage() {
           </CardContent>
         </Card>
 
-        {favorites.length > 0 ? (
+        {favorites.length > 0 && parentProfileId ? (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {favorites.map((fav) => (
               <SavedProviderCard
                 key={fav.id}
-                parentProfileId={user!.id}
+                parentProfileId={parentProfileId}
                 favorite={fav}
               />
             ))}
           </div>
         ) : null}
-
-        <LocalSavedProviders />
 
         <SavedEmptyState hasDbFavorites={favorites.length > 0} />
       </div>

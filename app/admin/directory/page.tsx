@@ -35,6 +35,11 @@ type ProgramTypeRow = {
   name: string
   sort_order: number
   is_active: boolean
+  about_text: string | null
+  key_benefits: string[] | null
+  short_description: string | null
+  age_group_ids: string[] | null
+  slug: string | null
 }
 
 type LanguageRow = {
@@ -89,7 +94,7 @@ async function loadDirectoryData() {
       .order("name", { ascending: true }),
     supabase
       .from("program_types")
-      .select("id, name, sort_order, is_active")
+      .select("id, name, sort_order, is_active, about_text, key_benefits, short_description, age_group_ids, slug")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase

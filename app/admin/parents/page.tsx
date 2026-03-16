@@ -8,6 +8,7 @@ export type ParentProfile = {
   display_name: string | null
   country_name: string | null
   city_name: string | null
+  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -20,7 +21,7 @@ export default async function AdminParentsPage() {
     const admin = getSupabaseAdminClient()
     const { data, error: fetchError } = await admin
       .from("profiles")
-      .select("id, email, role, display_name, country_name, city_name, created_at, updated_at")
+      .select("id, email, role, display_name, country_name, city_name, is_active, created_at, updated_at")
       .eq("role", "parent")
       .order("created_at", { ascending: false })
 

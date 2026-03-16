@@ -1,10 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { MapPin } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { removeFavorite } from "@/lib/parent-engagement"
 import type { ParentFavoriteRow } from "@/lib/parent-engagement"
@@ -16,24 +20,44 @@ type Props = {
 
 export function SavedProviderCard({ parentProfileId, favorite }: Props) {
   const router = useRouter()
+  const { toast } = useToast()
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const name = favorite.provider_business_name ?? "Provider"
   const href = favorite.provider_slug
     ? `/providers/${favorite.provider_slug}`
     : "/dashboard/parent/saved"
 
-  const handleRemove = async () => {
+  const handleRemoveConfirm = async () => {
     const { error } = await removeFavorite(
       getSupabaseClient(),
       parentProfileId,
       favorite.provider_profile_id
     )
-    if (!error) router.refresh()
+    if (!error) {
+      setRemoveDialogOpen(false)
+      toast({
+        title: "Removed from saved",
+        description: "Provider removed from your list.",
+        variant: "success",
+      })
+      router.refresh()
+    }
   }
 
   return (
     <Card className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm hover:shadow-md transition-shadow">
       <div className="h-40 w-full overflow-hidden bg-muted relative flex items-center justify-center text-muted-foreground text-sm">
-        Saved provider
+        {favorite.provider_primary_image_url ? (
+          <Image
+            src={favorite.provider_primary_image_url}
+            alt={name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          "Saved provider"
+        )}
       </div>
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold text-foreground line-clamp-1">
@@ -53,12 +77,22 @@ export function SavedProviderCard({ parentProfileId, favorite }: Props) {
             size="sm"
             variant="outline"
             className="rounded-full border-border/60 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => void handleRemove()}
+            onClick={() => setRemoveDialogOpen(true)}
           >
             Remove
           </Button>
         </div>
       </CardContent>
+
+      <ConfirmDeleteDialog
+        open={removeDialogOpen}
+        onOpenChange={setRemoveDialogOpen}
+        title="Remove from saved?"
+        description="This provider will be removed from your saved list."
+        itemName={name}
+        variant="remove"
+        onConfirm={handleRemoveConfirm}
+      />
     </Card>
   )
 }
