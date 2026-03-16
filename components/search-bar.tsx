@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, MapPin, User, Layers, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ interface SearchBarProps {
   className?: string
   defaultProviderType?: string
   searchButtonLabel?: string
+  targetPath?: string
 }
 
 const PROGRAM_TYPE_OPTIONS = [
@@ -39,13 +40,34 @@ const PROGRAM_TYPE_OPTIONS = [
 const AUTO_LOCATION_VALUE_KEY = "eld:auto-location-value"
 
 export function SearchBar({
+  ...props
+}: SearchBarProps) {
+  return (
+    <Suspense fallback={<SearchBarFallback className={props.className} />}>
+      <SearchBarContent {...props} />
+    </Suspense>
+  )
+}
+
+function SearchBarFallback({ className = "" }: Pick<SearchBarProps, "className">) {
+  return (
+    <div className={`rounded-3xl border p-5 md:p-6 bg-card border-border shadow-lg ${className}`}>
+      <div className="h-12 rounded-full bg-muted/60" />
+    </div>
+  )
+}
+
+function SearchBarContent({
   variant = "hero",
   surface = "default",
   className = "",
   defaultProviderType,
   searchButtonLabel,
+  targetPath = "/search",
 }: SearchBarProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   const [location, setLocation] = useState("")
   const [ageGroup, setAgeGroup] = useState("")
@@ -59,6 +81,18 @@ export function SearchBar({
     return "Google Maps API key is not configured. We can detect coordinates but not city/state."
   }, [mapsApiKey])
 
+  const locationFromUrl = useMemo(() => {
+    const directLocation = searchParams.get("location")?.trim()
+    if (directLocation) return directLocation
+
+    const city = searchParams.get("city")?.trim()
+    const country = searchParams.get("country")?.trim()
+    if (city && country) return `${city.replace(/-/g, " ")}, ${country.toUpperCase()}`
+    if (city) return city.replace(/-/g, " ")
+    return ""
+  }, [searchParams])
+  const isOnTargetPath = pathname === targetPath
+
   const handleSearch = () => {
     const params = new URLSearchParams()
     if (location) params.set("location", location)
@@ -69,8 +103,9 @@ export function SearchBar({
     if (programType && programType !== "all") {
       params.set("programTypes", programType)
     }
-    
-    router.push(`/search?${params.toString()}`)
+
+    const query = params.toString()
+    router.push(query ? `${targetPath}?${query}` : targetPath)
   }
 
   const detectCurrentLocation = useCallback(async () => {
@@ -117,8 +152,25 @@ export function SearchBar({
   }, [mapsApiKey])
 
   useEffect(() => {
+    if (!isOnTargetPath) return
+    if (!searchParams) return
+
+    if (locationFromUrl) setLocation(locationFromUrl)
+
+    const ageFromUrl = searchParams.get("age")?.trim() ?? ""
+    setAgeGroup(ageFromUrl)
+
+    const firstProgramType = (searchParams.get("programTypes") ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .find(Boolean)
+    setProgramType(firstProgramType ?? "")
+  }, [isOnTargetPath, locationFromUrl, searchParams])
+
+  useEffect(() => {
     if (hasAutoDetectedRef.current) return
     if (typeof window === "undefined") return
+    if (isOnTargetPath && locationFromUrl) return
     hasAutoDetectedRef.current = true
 
     const cachedLocation = window.sessionStorage.getItem(AUTO_LOCATION_VALUE_KEY)
@@ -128,10 +180,11 @@ export function SearchBar({
 
     // Always refresh from live geolocation when visiting / or /search.
     void detectCurrentLocation()
-  }, [detectCurrentLocation])
+  }, [detectCurrentLocation, isOnTargetPath, locationFromUrl])
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    if (isOnTargetPath && locationFromUrl) return
 
     const retryIfEmpty = () => {
       if (!location.trim() && !isDetectingLocation) {
@@ -150,7 +203,7 @@ export function SearchBar({
       window.removeEventListener("focus", retryIfEmpty)
       document.removeEventListener("visibilitychange", retryIfEmpty)
     }
-  }, [detectCurrentLocation, isDetectingLocation, location])
+  }, [detectCurrentLocation, isDetectingLocation, isOnTargetPath, location, locationFromUrl])
 
   if (variant === "compact") {
     return (

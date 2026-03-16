@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { MapPin } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -9,11 +9,7 @@ import { getLocalFavoriteSlugs, removeLocalFavorite } from "@/lib/local-favorite
 import { getProviderBySlug } from "@/lib/mock-data"
 
 export function LocalSavedProviders() {
-  const [slugs, setSlugs] = useState<string[]>([])
-
-  useEffect(() => {
-    setSlugs(getLocalFavoriteSlugs())
-  }, [])
+  const [slugs, setSlugs] = useState<string[]>(() => getLocalFavoriteSlugs())
 
   const handleRemove = (slug: string) => {
     removeLocalFavorite(slug)

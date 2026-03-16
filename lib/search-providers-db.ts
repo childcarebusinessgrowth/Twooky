@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
+import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -19,6 +20,7 @@ export type ActiveProviderRow = {
   primary_photo_storage_path: string | null
   review_count: number
   avg_rating: number | null
+  featured: boolean
 }
 
 export type ProviderCardDataFromDb = {
@@ -29,30 +31,36 @@ export type ProviderCardDataFromDb = {
   reviewCount: number
   location: string
   priceRange: string
-  providerTypes: string[]
+  providerTypes: ProviderTypeId[]
   programTypes: string[]
   shortDescription: string
   image: string
   latitude: number
   longitude: number
   address: string
+  featured?: boolean
 }
 
 function buildPhotoPublicUrl(storagePath: string, baseUrl: string): string {
   return `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${storagePath}`
 }
 
-const PLACEHOLDER_IMAGE =
-  "https://images.pexels.com/photos/1648377/pexels-photo-1648377.jpeg?auto=compress&cs=tinysrgb&w=800"
+/** Local placeholder when provider has no primary photo (avoids external domain restrictions). */
+const PLACEHOLDER_IMAGE = "/images/placeholder-provider.svg"
+const VALID_PROVIDER_TYPE_IDS = new Set<ProviderTypeId>(PROVIDER_TYPES.map((type) => type.id))
+
+function toProviderTypeIds(values: string[] | null): ProviderTypeId[] {
+  if (!values?.length) return []
+  return values.filter((value): value is ProviderTypeId => VALID_PROVIDER_TYPE_IDS.has(value as ProviderTypeId))
+}
 
 export async function getActiveProvidersFromDb(
-  supabase: SupabaseClient,
-  baseUrl: string
+  supabase: SupabaseClient
 ): Promise<ActiveProviderRow[]> {
   const { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to"
+      "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, featured"
     )
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
@@ -106,6 +114,7 @@ export async function getActiveProvidersFromDb(
       primary_photo_storage_path: primaryPhotoByProfile[p.profile_id] ?? null,
       review_count: count,
       avg_rating: avgRating,
+      featured: (p as { featured?: boolean }).featured ?? false,
     }
   })
 }
@@ -254,7 +263,7 @@ export async function getRecommendedProvidersForDashboard(
   baseUrl: string,
   limit = 3
 ): Promise<RecommendedProviderForDashboard[]> {
-  const rows = await getActiveProvidersFromDb(supabase, baseUrl)
+  const rows = await getActiveProvidersFromDb(supabase)
   const sorted = [...rows].sort((a, b) => {
     const ra = a.avg_rating ?? 0
     const rb = b.avg_rating ?? 0
@@ -311,12 +320,13 @@ export function activeProviderRowToCardData(
     reviewCount: row.review_count,
     location,
     priceRange,
-    providerTypes: row.provider_types ?? [],
+    providerTypes: toProviderTypeIds(row.provider_types),
     programTypes: languagesParsed,
     shortDescription: (row.description ?? "").slice(0, 200),
     image,
     latitude: 0,
     longitude: 0,
     address: row.address ?? "",
+    featured: row.featured ?? false,
   }
 }

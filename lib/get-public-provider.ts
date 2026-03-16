@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
+import { fetchGooglePlaceReviewSummary } from "@/lib/google-place-reviews"
 import {
   getReviewsByProviderProfileId,
   type PublicReviewRow,
@@ -13,6 +14,11 @@ export type PublicProviderView = {
   name: string
   image: string
   address: string
+  platformRating: number
+  platformReviewCount: number
+  displayRating: number
+  displayReviewCount: number
+  googleReviewsUrl: string | null
   rating: number
   reviewCount: number
   providerTypes: string[]
@@ -28,6 +34,7 @@ export type PublicProviderView = {
   mealsIncluded: boolean
   outdoorSpace: boolean
   specialNeeds: boolean
+  inquiriesEnabled: boolean
   images: string[]
   photos: Array<{ id: string; url: string; caption: string | null }>
   virtualTourEmbedUrls: string[]
@@ -49,7 +56,7 @@ export async function getActivePublicProviderBySlug(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, description, address, phone, website, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, virtual_tour_url, virtual_tour_urls"
+      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, virtual_tour_url, virtual_tour_urls, is_admin_managed"
     )
     .ilike("provider_slug", slugTrimmed)
     .eq("listing_status", "active")
@@ -59,7 +66,10 @@ export async function getActivePublicProviderBySlug(
 
   const profileId = profile.profile_id
 
-  const [photosResult, reviews, faqsResult] = await Promise.all([
+  const googleApiKey =
+    process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
+  const [photosResult, reviews, faqsResult, googleReviewSummary] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
@@ -73,6 +83,7 @@ export async function getActivePublicProviderBySlug(
       .select("question, answer")
       .eq("provider_profile_id", profileId)
       .order("sort_order", { ascending: true }),
+    fetchGooglePlaceReviewSummary(profile.google_place_id, googleApiKey),
   ])
 
   const photoRows = photosResult.data ?? []
@@ -112,15 +123,15 @@ export async function getActivePublicProviderBySlug(
 
   const amenities = profile.amenities ?? []
   const mealsIncluded = amenities.some(
-    (a) => typeof a === "string" && a.toLowerCase().includes("meal")
+    (a: unknown) => typeof a === "string" && a.toLowerCase().includes("meal")
   )
   const outdoorSpace = amenities.some(
-    (a) =>
+    (a: unknown) =>
       typeof a === "string" &&
       (a.toLowerCase().includes("outdoor") || a.toLowerCase().includes("play"))
   )
   const specialNeeds = amenities.some(
-    (a) =>
+    (a: unknown) =>
       typeof a === "string" &&
       (a.toLowerCase().includes("special") || a.toLowerCase().includes("need"))
   )
@@ -129,9 +140,14 @@ export async function getActivePublicProviderBySlug(
     .split(/[\s,;]+/)
     .filter(Boolean)
 
-  const reviewCount = reviews.length
-  const rating =
-    reviewCount > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviewCount : 0
+  const platformReviewCount = reviews.length
+  const platformRating =
+    platformReviewCount > 0
+      ? reviews.reduce((s, r) => s + r.rating, 0) / platformReviewCount
+      : 0
+  const displayReviewCount = googleReviewSummary?.reviewCount ?? platformReviewCount
+  const displayRating = googleReviewSummary?.rating ?? platformRating
+  const googleReviewsUrl = googleReviewSummary?.reviewsUrl ?? null
 
   const faqs = (faqsResult.data ?? []).map((row) => ({
     question: row.question,
@@ -144,8 +160,13 @@ export async function getActivePublicProviderBySlug(
     name: profile.business_name ?? "Provider",
     image,
     address: profile.address ?? "",
-    rating,
-    reviewCount,
+    platformRating,
+    platformReviewCount,
+    displayRating,
+    displayReviewCount,
+    googleReviewsUrl,
+    rating: displayRating,
+    reviewCount: displayReviewCount,
     providerTypes: profile.provider_types ?? [],
     programTypes: profile.provider_types ?? [],
     description: profile.description ?? "",
@@ -159,6 +180,7 @@ export async function getActivePublicProviderBySlug(
     mealsIncluded,
     outdoorSpace,
     specialNeeds,
+    inquiriesEnabled: !profile.is_admin_managed,
     images,
     photos,
     virtualTourEmbedUrls,

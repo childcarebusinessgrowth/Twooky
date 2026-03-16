@@ -16,9 +16,9 @@ import {
 
 const navigation = [
   { name: "Home", href: "/" },
+  { name: "About", href: "/about" },
   { name: "Programs", href: "/programs" },
   { name: "Locations", href: "/childcare/locations" },
-  { name: "For Providers", href: "/claim-listing" },
 ]
 
 const providerLinks = [

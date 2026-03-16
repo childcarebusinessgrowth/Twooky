@@ -208,7 +208,7 @@ export default function PhotosPage() {
       if (successCount > 0) {
         try {
           await fetchPhotos()
-        } catch (fetchErr) {
+        } catch {
           toast({
             title: "Photo uploaded",
             description: "If you don't see it, refresh the page.",
@@ -268,7 +268,7 @@ export default function PhotosPage() {
       if (successCount > 0) {
         try {
           await fetchPhotos()
-        } catch (fetchErr) {
+        } catch {
           toast({
             title: "Photo uploaded",
             description: "If you don't see it, refresh the page.",

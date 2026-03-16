@@ -5,7 +5,6 @@ import { SearchBar } from "@/components/search-bar"
 import { ProviderCard } from "@/components/provider-card"
 import { ProgramCard } from "@/components/program-card"
 import { Button } from "@/components/ui/button"
-import { providers } from "@/lib/mock-data"
 import {
   getActiveProgramTypes,
   getAgeGroupsById,
@@ -13,6 +12,11 @@ import {
 } from "@/lib/program-types"
 import { getRecentPublishedBlogs } from "@/lib/blogs"
 import { getPopularLocations } from "@/lib/popular-locations"
+import {
+  activeProviderRowToCardData,
+  getActiveProvidersFromDb,
+} from "@/lib/search-providers-db"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 const trustFeatures = [
   {
@@ -45,16 +49,34 @@ const heroStats = [
 ]
 
 export default async function HomePage() {
-  const featuredProviders = providers.slice(0, 3)
-  const [programRows, ageGroupsById] = await Promise.all([
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const supabase = getSupabaseAdminClient()
+
+  const [programRows, ageGroupsById, activeProviderRows, featuredBlogs, popularLocations] = await Promise.all([
     getActiveProgramTypes(),
     getAgeGroupsById(),
+    getActiveProvidersFromDb(supabase),
+    getRecentPublishedBlogs(3),
+    getPopularLocations(),
   ])
+
+  const featuredProviders = activeProviderRows
+    .filter((provider) => provider.featured)
+    .sort((a, b) => {
+      const ratingDiff = (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
+      if (ratingDiff !== 0) return ratingDiff
+
+      const reviewDiff = (b.review_count ?? 0) - (a.review_count ?? 0)
+      if (reviewDiff !== 0) return reviewDiff
+
+      return (a.business_name ?? "").localeCompare(b.business_name ?? "")
+    })
+    .slice(0, 3)
+    .map((provider) => activeProviderRowToCardData(provider, baseUrl))
+
   const displayPrograms = programRows
     .slice(0, 6)
     .map((row) => programTypeToCardShape(row, ageGroupsById))
-  const featuredBlogs = await getRecentPublishedBlogs(3)
-  const popularLocations = await getPopularLocations()
 
   return (
     <div className="min-h-screen **:data-[slot=button]:rounded-full! [&_button]:rounded-full!">
@@ -133,9 +155,15 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProviders.map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} featured />
-            ))}
+            {featuredProviders.length > 0 ? (
+              featuredProviders.map((provider) => (
+                <ProviderCard key={provider.id} provider={provider} featured />
+              ))
+            ) : (
+              <p className="col-span-full rounded-2xl border border-dashed border-border/70 bg-muted/25 px-6 py-10 text-center text-muted-foreground">
+                No featured providers available right now.
+              </p>
+            )}
           </div>
 
           <div className="mt-8 text-center md:hidden">
@@ -165,9 +193,15 @@ export default async function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {displayPrograms.map((program) => (
-                <ProgramCard key={program.id} program={program} compact />
-              ))}
+              {displayPrograms.length > 0 ? (
+                displayPrograms.map((program) => (
+                  <ProgramCard key={program.id} program={program} compact />
+                ))
+              ) : (
+                <p className="col-span-full text-center text-muted-foreground py-8">
+                  No program types available at the moment.
+                </p>
+              )}
             </div>
 
             <div className="mt-8 text-center">

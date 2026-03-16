@@ -35,6 +35,24 @@ function parseOptionalInteger(value: string): number | null {
   return Number.isNaN(parsed) ? null : parsed
 }
 
+async function resolveGooglePlaceId(
+  businessName: string,
+  address: string,
+): Promise<string | null> {
+  const response = await fetch("/api/provider/resolve-place-id", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ businessName, address }),
+  }).catch(() => null)
+
+  if (!response || !response.ok) return null
+  const payload = (await response.json().catch(() => null)) as
+    | { placeId?: string | null }
+    | null
+  const placeId = payload?.placeId?.trim()
+  return placeId || null
+}
+
 export default function ManageListingPage() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -93,7 +111,7 @@ export default function ManageListingPage() {
         "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity"
 
       try {
-        const [profileResult, _] = await Promise.all([
+        const [profileResult] = await Promise.all([
           supabase
             .from("provider_profiles")
             .select(selectWithStatus)
@@ -114,7 +132,7 @@ export default function ManageListingPage() {
               .eq("profile_id", user.id)
               .maybeSingle()
             if (!fallback.error && fallback.data) {
-              data = fallback.data
+              data = { ...fallback.data, listing_status: "draft" }
               error = null
               setListingStatus("draft")
             }
@@ -320,6 +338,10 @@ export default function ManageListingPage() {
     }
 
     try {
+      const resolvedGooglePlaceId = await resolveGooglePlaceId(
+        trimmedBusinessName,
+        address,
+      )
       const supabase = getSupabaseClient()
       const { error } = await supabase.from("provider_profiles").upsert(
         {
@@ -332,6 +354,7 @@ export default function ManageListingPage() {
           description: description.trim() || null,
           phone: phone.trim() || null,
           website: website.trim() || null,
+          google_place_id: resolvedGooglePlaceId,
           address: address.trim() || null,
           provider_types: providerTypes.length > 0 ? providerTypes : null,
           age_groups_served: ageGroupsServed.length > 0 ? ageGroupsServed : null,

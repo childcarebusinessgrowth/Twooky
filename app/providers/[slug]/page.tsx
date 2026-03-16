@@ -32,7 +32,6 @@ import { ProviderProfileViewTracker } from "@/components/provider-profile-view-t
 import { SendInquiryButton } from "@/components/send-inquiry-button"
 import { ProviderLocationMap } from "@/components/provider-location-map"
 import { ProviderReviewsTab } from "@/components/provider-reviews-tab"
-import { ProviderWriteReview } from "@/components/provider-write-review"
 
 interface ProviderPageProps {
   params: Promise<{ slug: string }>
@@ -101,9 +100,20 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       <div className="flex items-center gap-1">
                         <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
                         <span className="font-semibold text-foreground">
-                          {p.rating > 0 ? p.rating.toFixed(1) : "—"}
+                          {p.displayRating > 0 ? p.displayRating.toFixed(1) : "—"}
                         </span>
-                        <span>({p.reviewCount} reviews)</span>
+                        {p.googleReviewsUrl ? (
+                          <a
+                            href={p.googleReviewsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-foreground hover:underline transition-colors"
+                          >
+                            ({p.displayReviewCount} Google reviews)
+                          </a>
+                        ) : (
+                          <span>({p.displayReviewCount} reviews)</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
@@ -441,10 +451,14 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       </a>
                     </Button>
                   ) : null}
-                  <SendInquiryButton providerSlug={p.slug} providerName={p.name} className="w-full" />
-                  <p className="text-[11px] text-muted-foreground">
-                    Inquiry submissions require explicit consent to process personal data.
-                  </p>
+                  {p.inquiriesEnabled ? (
+                    <>
+                      <SendInquiryButton providerSlug={p.slug} providerName={p.name} className="w-full" />
+                      <p className="text-[11px] text-muted-foreground">
+                        Inquiry submissions require explicit consent to process personal data.
+                      </p>
+                    </>
+                  ) : null}
                 </CardContent>
               </Card>
 

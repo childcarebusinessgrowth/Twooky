@@ -21,13 +21,11 @@ export function ProviderLocationMap({ address, providerName }: ProviderLocationM
 
   useEffect(() => {
     if (!address?.trim()) {
-      setStatus("no-address")
       return
     }
 
-    setStatus("loading")
-
     const fetchAndRender = async () => {
+      setStatus("loading")
       try {
         const res = await fetch(`/api/geocode?address=${encodeURIComponent(address.trim())}`)
         if (!res.ok) {
@@ -52,17 +50,16 @@ export function ProviderLocationMap({ address, providerName }: ProviderLocationM
   useEffect(() => {
     if (status !== "success" || !coords || !mapContainerRef.current) return
 
-    const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-    if (!mapsApiKey) {
-      setStatus("map-error")
-      return
-    }
-
     let isCancelled = false
-    setIsMapReady(false)
 
     const initializeMap = async () => {
+      setIsMapReady(false)
       try {
+        const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        if (!mapsApiKey) {
+          setStatus("map-error")
+          return
+        }
         const maps = await loadGoogleMapsApi(mapsApiKey)
         if (isCancelled || !mapContainerRef.current) return
 
@@ -123,7 +120,7 @@ export function ProviderLocationMap({ address, providerName }: ProviderLocationM
     }
   }, [status, coords, address, providerName])
 
-  if (status === "no-address") {
+  if (!address?.trim()) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center gap-3 p-12">

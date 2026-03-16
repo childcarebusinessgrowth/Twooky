@@ -12,11 +12,11 @@ import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Separator } from "@/components/ui/separator"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useAuth } from "@/components/AuthProvider"
-import { getSupabaseClient } from "@/lib/supabaseClient"
 import {
   getProviderNotificationPrefs,
   updateNotificationPrefs,
   deactivateListing,
+  deleteProviderAccount,
   type ProviderNotificationPrefs,
 } from "./actions"
 
@@ -78,11 +78,10 @@ export default function SettingsPage() {
   }
 
   const handleDeleteConfirm = async () => {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase.auth.deleteUser()
+    const { error } = await deleteProviderAccount()
     if (error) {
-      toast({ title: error.message ?? "Failed to delete account", variant: "destructive" })
-      throw new Error(error.message)
+      toast({ title: error ?? "Failed to delete account", variant: "destructive" })
+      throw new Error(error)
     }
     setDeleteDialogOpen(false)
     await signOut()

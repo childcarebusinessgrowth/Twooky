@@ -8,11 +8,11 @@ import {
   Filter,
   MoreVertical,
   Eye,
-  Pencil,
   Trash2,
   Star as StarIcon,
   MapPin,
   Loader2,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -97,6 +97,7 @@ export function AdminListingsTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<{ profileId: string; name: string } | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [localSearch, setLocalSearch] = useState(searchQuery)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -246,11 +247,20 @@ export function AdminListingsTable({
 
   const bulkDelete = () => {
     if (selectedIds.size === 0) return
+    setBulkDeleteOpen(true)
+  }
+
+  const confirmBulkDelete = () => {
+    if (selectedIds.size === 0) {
+      setBulkDeleteOpen(false)
+      return
+    }
     startTransition(async () => {
       for (const id of selectedIds) {
         await deleteListing(id)
       }
       setSelectedIds(new Set())
+      setBulkDeleteOpen(false)
       router.refresh()
     })
   }
@@ -267,7 +277,8 @@ export function AdminListingsTable({
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-[260px]">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search listings..."
@@ -276,111 +287,116 @@ export function AdminListingsTable({
             onChange={(e) => setLocalSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applyFilters()}
           />
+          </div>
+          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="relative">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-2 h-5 min-w-5 rounded-full px-1.5 text-xs"
+                  >
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full max-w-[440px] sm:w-[440px]">
+              <SheetHeader className="px-8">
+                <SheetTitle>Filters</SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 py-4 px-8">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Status</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Country</label>
+                  <Select value={countryFilter || "all"} onValueChange={setCountryFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All Countries" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Countries</SelectItem>
+                      {countries.map((country) => (
+                        <SelectItem key={country.id} value={country.id}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Featured</label>
+                  <Select value={featuredFilter || "all"} onValueChange={setFeaturedFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="yes">Featured only</SelectItem>
+                      <SelectItem value="no">Not featured</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Rating</label>
+                  <Select value={ratingFilter || "all"} onValueChange={setRatingFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="none">No rating</SelectItem>
+                      <SelectItem value="2">2+</SelectItem>
+                      <SelectItem value="3">3+</SelectItem>
+                      <SelectItem value="4">4+</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Reviews</label>
+                  <Select value={reviewsFilter || "all"} onValueChange={setReviewsFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="none">No reviews</SelectItem>
+                      <SelectItem value="1">1+</SelectItem>
+                      <SelectItem value="5">5+</SelectItem>
+                      <SelectItem value="10">10+</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-auto flex flex-col gap-2 border-t pt-4 px-8">
+                <Button onClick={applyFilters} disabled={isPending}>
+                  Apply
+                </Button>
+                <Button variant="outline" onClick={clearFilters} disabled={isPending}>
+                  Clear
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" className="relative">
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-              {activeFilterCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-2 h-5 min-w-5 rounded-full px-1.5 text-xs"
-                >
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-full max-w-[440px] sm:w-[440px]">
-            <SheetHeader className="px-8">
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 py-4 px-8">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Status</label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Country</label>
-                <Select value={countryFilter || "all"} onValueChange={setCountryFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All Countries" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Countries</SelectItem>
-                    {countries.map((country) => (
-                      <SelectItem key={country.id} value={country.id}>
-                        {country.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Featured</label>
-                <Select value={featuredFilter || "all"} onValueChange={setFeaturedFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="yes">Featured only</SelectItem>
-                    <SelectItem value="no">Not featured</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Rating</label>
-                <Select value={ratingFilter || "all"} onValueChange={setRatingFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="none">No rating</SelectItem>
-                    <SelectItem value="2">2+</SelectItem>
-                    <SelectItem value="3">3+</SelectItem>
-                    <SelectItem value="4">4+</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Reviews</label>
-                <Select value={reviewsFilter || "all"} onValueChange={setReviewsFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="none">No reviews</SelectItem>
-                    <SelectItem value="1">1+</SelectItem>
-                    <SelectItem value="5">5+</SelectItem>
-                    <SelectItem value="10">10+</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="mt-auto flex flex-col gap-2 border-t pt-4 px-8">
-              <Button onClick={applyFilters} disabled={isPending}>
-                Apply
-              </Button>
-              <Button variant="outline" onClick={clearFilters} disabled={isPending}>
-                Clear
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
+        <Button className="ml-auto" onClick={() => router.push("/admin/listings/new")}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Provider
+        </Button>
       </div>
 
       {selectedIds.size > 0 && (
@@ -623,6 +639,33 @@ export function AdminListingsTable({
               disabled={isPending}
             >
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete selected listings?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedIds.size} selected{" "}
+              {selectedIds.size === 1 ? "listing" : "listings"} and all associated
+              data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={confirmBulkDelete}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Delete Selected"
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

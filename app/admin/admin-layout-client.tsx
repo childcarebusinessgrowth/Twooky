@@ -19,6 +19,7 @@ import {
   ArrowRight,
   CheckCircle,
   Star,
+  PlusCircle,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,7 @@ import type { AdminNotificationItem } from "@/app/api/admin/notifications/route"
 const sidebarItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Listings", href: "/admin/listings", icon: Building2 },
+  { label: "Add Provider", href: "/admin/listings/new", icon: PlusCircle },
   { label: "Parents", href: "/admin/parents", icon: UsersRound },
   { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
   { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },

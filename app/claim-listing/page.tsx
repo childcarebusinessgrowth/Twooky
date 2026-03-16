@@ -80,6 +80,12 @@ const stats = [
   { value: "98%", label: "Parent Satisfaction" },
 ]
 
+const heroTrustSignals = [
+  "No credit card required",
+  "Free listing setup",
+  "Fast provider verification"
+]
+
 const rankingFactors = [
   {
     icon: BadgeCheck,
@@ -140,56 +146,97 @@ export default function ClaimListingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="bg-linear-to-b from-primary/5 to-background py-16 md:py-24">
+      <section className="relative isolate overflow-hidden py-16 md:py-24">
+        <div className="pointer-events-none absolute inset-0 -z-20 bg-linear-to-b from-primary/10 via-background to-background" />
+        <div className="pointer-events-none absolute -left-20 top-16 -z-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 top-12 -z-10 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-36 bg-linear-to-t from-background via-background/90 to-transparent" />
+
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-                <Shield className="h-4 w-4" />
-                For Childcare Providers
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <div className="max-w-2xl">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                <Shield className="h-3.5 w-3.5" />
+                Built for Childcare Providers
               </div>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6 text-balance">
-                Grow Your Enrollment with Early Learning Directory
+
+              <h1 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-5xl lg:text-6xl text-balance">
+                Turn profile views into{" "}
+                <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  real enrollment
+                </span>
               </h1>
-              <p className="text-lg text-muted-foreground mb-8">
-                Join thousands of childcare providers who use our platform to connect with local families. 
-                Claim your free listing today and start reaching more parents.
+
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
+                Claim your listing in minutes and showcase your programs to families actively searching
+                in your area. Improve visibility, earn trust, and grow inquiries from qualified parents.
               </p>
-              
-              {/* Stats */}
-              <div className="flex flex-wrap gap-8 mb-8">
+
+              <div className="mt-6 flex flex-wrap gap-2.5">
+                {heroTrustSignals.map((signal) => (
+                  <span
+                    key={signal}
+                    className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm"
+                  >
+                    {signal}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-8 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
                 {stats.map((stat) => (
-                  <div key={stat.label}>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <div
+                    key={stat.label}
+                    className="rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm backdrop-blur-sm"
+                  >
+                    <p className="text-2xl font-extrabold leading-none tracking-tight text-foreground">
+                      {stat.value}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-muted-foreground">{stat.label}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Claim Form */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Claim Your Free Listing</CardTitle>
+            <Card
+              id="claim-form"
+              className="border-border/70 bg-card/90 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.35)] backdrop-blur-sm"
+            >
+              <CardHeader className="space-y-3 pb-3">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  <BadgeCheck className="h-3.5 w-3.5" />
+                  Free Listing Setup
+                </div>
+                <CardTitle className="text-2xl">Claim Your Free Listing</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Complete this quick form and our team will help verify your listing so you can start
+                  receiving parent inquiries.
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="business-name">Business Name</Label>
                   <Input id="business-name" placeholder="Your childcare center name" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" placeholder="your@email.com" />
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" type="email" placeholder="your@email.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" type="tel" placeholder="(555) 123-4567" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="(555) 123-4567" />
-                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="address">Business Address</Label>
                   <Input id="address" placeholder="123 Main Street, City, State" />
                 </div>
-                <label htmlFor="claim-consent" className="flex items-start gap-2 text-xs text-muted-foreground">
+
+                <label htmlFor="claim-consent" className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
                   <input
                     id="claim-consent"
                     type="checkbox"
@@ -198,20 +245,39 @@ export default function ClaimListingPage() {
                   />
                   <span>
                     I consent to processing this claim request and contact details under the{" "}
-                    <Link href="/privacy" className="underline">
+                    <Link href="/privacy" className="underline underline-offset-2">
                       Privacy Policy
                     </Link>
                     .
                   </span>
                 </label>
+
                 <Button className="w-full bg-primary hover:bg-primary/90" size="lg">
                   Claim Your Listing
-                  <ArrowRight className="h-5 w-5 ml-2" />
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
+
+                <div className="grid grid-cols-1 gap-2 text-[11px] text-muted-foreground sm:grid-cols-2">
+                  <p className="inline-flex items-center gap-1.5">
+                    <Clock3 className="h-3.5 w-3.5 text-primary" />
+                    Average first response within 1 business day
+                  </p>
+                  <p className="inline-flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5 text-primary" />
+                    No obligation or payment required to submit
+                  </p>
+                </div>
+
+                <p className="text-center text-xs text-muted-foreground">
                   By claiming your listing, you agree to our{" "}
-                  <Link href="/terms" className="underline">Terms of Service</Link> and{" "}
-                  <Link href="/privacy" className="underline">Privacy Policy</Link>.
+                  <Link href="/terms" className="underline underline-offset-2">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" className="underline underline-offset-2">
+                    Privacy Policy
+                  </Link>
+                  .
                 </p>
               </CardContent>
             </Card>
@@ -333,7 +399,7 @@ export default function ClaimListingPage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-16 md:py-20 bg-muted/30">
+      <section id="how-it-works" className="py-16 md:py-20 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">

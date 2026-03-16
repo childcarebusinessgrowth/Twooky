@@ -159,7 +159,7 @@ export async function getAdminListings(
     if (cur) { cur.count += 1; cur.sum += r.rating }
   }
 
-  let filteredIds = profileIds.filter((id) => {
+  const filteredIds = profileIds.filter((id) => {
     const rev = reviewCountByProfile[id]
     const count = rev?.count ?? 0
     const avgRating = count > 0 && rev ? rev.sum / count : null
@@ -224,6 +224,7 @@ export type AdminListingDetail = {
     city: string | null
     address: string | null
     website: string | null
+    google_place_id: string | null
     description: string | null
     provider_types: string[] | null
     age_groups_served: string[] | null
@@ -235,6 +236,8 @@ export type AdminListingDetail = {
     monthly_tuition_from: number | null
     monthly_tuition_to: number | null
     total_capacity: number | null
+    country_id: string | null
+    city_id: string | null
     virtual_tour_url: string | null
     virtual_tour_urls: string[] | null
     listing_status: string
@@ -254,7 +257,7 @@ export async function getAdminListingDetail(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, phone, city, address, website, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, virtual_tour_url, virtual_tour_urls, listing_status, featured, created_at"
+      "profile_id, provider_slug, business_name, phone, city, address, website, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, country_id, city_id, virtual_tour_url, virtual_tour_urls, listing_status, featured, created_at"
     )
     .eq("profile_id", profileId)
     .single()

@@ -1,49 +1,42 @@
-import { ReactNode } from "react"
-import { SearchBar } from "@/components/search-bar"
+import { SearchResults } from "@/components/search-results"
+import type { ProviderCardData } from "@/components/provider-card"
+import type { SearchFilterOptions } from "@/components/filter-sidebar"
+import type { ProviderTypePageConfig } from "@/lib/provider-type-page-config"
 
 type ProviderTypeSearchPageProps = {
-  title: string
-  description: string
-  intro?: string
-  defaultProviderType: string
-  children?: ReactNode
+  config: ProviderTypePageConfig
+  providers: ProviderCardData[]
+  filterOptions?: SearchFilterOptions
 }
 
 export function ProviderTypeSearchPage({
-  title,
-  description,
-  intro,
-  defaultProviderType,
-  children,
+  config,
+  providers,
+  filterOptions,
 }: ProviderTypeSearchPageProps) {
   return (
     <div className="min-h-screen bg-background">
-      <section className="border-b border-border bg-card/70 py-8">
+      <section className="border-b border-border bg-linear-to-b from-primary/10 via-background to-background py-10 md:py-12">
         <div className="mx-auto max-w-6xl px-4 lg:px-6">
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {title}
+            {config.heroTitle}
           </h1>
-          <p className="mt-3 max-w-2xl text-base text-muted-foreground">{description}</p>
-          {intro && <p className="mt-4 max-w-3xl text-sm text-muted-foreground">{intro}</p>}
+          <p className="mt-3 max-w-3xl text-base text-muted-foreground">{config.heroDescription}</p>
+          <p className="mt-4 max-w-4xl text-sm text-muted-foreground">{config.heroIntro}</p>
+
         </div>
       </section>
 
-      <section className="border-b border-border bg-background py-6">
-        <div className="mx-auto max-w-6xl px-4 lg:px-6">
-          <SearchBar
-            variant="hero"
-            className="shadow-md"
-            defaultProviderType={defaultProviderType}
-            searchButtonLabel="Search providers"
-          />
-        </div>
-      </section>
-
-      {children && (
-        <section className="py-10">
-          <div className="mx-auto max-w-6xl px-4 lg:px-6">{children}</div>
-        </section>
-      )}
+      <SearchResults
+        providers={providers}
+        filterOptions={filterOptions}
+        basePath={config.path}
+        defaultProviderType={config.providerType}
+        headerTitle={config.headerTitle}
+        listTitle={config.listTitle}
+        emptyStateTitle={config.emptyStateTitle}
+        emptyStateDescription={config.emptyStateDescription}
+      />
     </div>
   )
 }

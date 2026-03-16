@@ -45,13 +45,18 @@ export function ProviderWriteReview({
   const [isParent, setIsParent] = useState(false)
 
   useEffect(() => {
-    if (!user) {
-      setRoleChecked(true)
-      return
-    }
+    if (!user) return
+    let cancelled = false
     getProfileRoleForUser(getSupabaseClient(), user)
-      .then((role) => setIsParent(role === "parent"))
-      .finally(() => setRoleChecked(true))
+      .then((role) => {
+        if (!cancelled) setIsParent(role === "parent")
+      })
+      .finally(() => {
+        if (!cancelled) setRoleChecked(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [user])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,8 +89,8 @@ export function ProviderWriteReview({
 
   const loginHref = `/login?next=${encodeURIComponent(`/providers/${providerSlug}`)}`
   const canSaveReview = !!providerProfileId
-  const showDisabled = authLoading || !roleChecked
-  const showLoginDialog = !user && roleChecked
+  const showDisabled = authLoading || (!!user && !roleChecked)
+  const showLoginDialog = !user && !authLoading
   const showFormOnClick = user && isParent && canSaveReview
   const showParentsOnlyMessage = user && roleChecked && !isParent
   const showNotAvailableMessage = user && isParent && !canSaveReview

@@ -1,20 +1,28 @@
 import type { Metadata } from "next"
 import { ProviderTypeSearchPage } from "@/components/provider-type-search-page"
+import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { getProviderTypePageConfig } from "@/lib/provider-type-page-config"
+
+const config = getProviderTypePageConfig("tutoring")
 
 export const metadata: Metadata = {
-  title: "Tutoring and Academic Support | Early Learning Directory",
-  description:
-    "Find tutors and academic support services for children, covering core subjects, exam prep, and enrichment.",
+  title: config.metadataTitle,
+  description: config.metadataDescription,
 }
 
-export default function TutoringSearchPage() {
+interface TutoringSearchPageProps {
+  searchParams?: Promise<SearchPageQueryParams>
+}
+
+export default async function TutoringSearchPage({ searchParams }: TutoringSearchPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const { providers, filterOptions } = await getSearchPageData({
+    searchParams: resolvedSearchParams,
+    forcedProviderType: config.providerType,
+  })
+
   return (
-    <ProviderTypeSearchPage
-      title="Tutoring and Academic Support"
-      description="Search local and online tutoring services for children."
-      intro="Filter by subject, level, and format to find the right tutor for your child."
-      defaultProviderType="tutoring"
-    />
+    <ProviderTypeSearchPage config={config} providers={providers} filterOptions={filterOptions} />
   )
 }
 

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { MessageSquare, Star, User, Loader2 } from "lucide-react"
+import { MessageSquare, Star, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
@@ -69,26 +69,28 @@ export default function ProviderSearchPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!q) {
-      setResult(null)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    fetch(`/api/provider/search?q=${encodeURIComponent(q)}`)
-      .then((res) => res.json())
-      .then((data) => {
+    if (!q) return
+    const fetchSearchResults = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`/api/provider/search?q=${encodeURIComponent(q)}`)
+        const data = await res.json()
         setResult({
           inquiries: data.inquiries ?? [],
           guestInquiries: data.guestInquiries ?? [],
           reviews: data.reviews ?? [],
         })
-      })
-      .catch(() => setResult({ inquiries: [], guestInquiries: [], reviews: [] }))
-      .finally(() => setLoading(false))
+      } catch {
+        setResult({ inquiries: [], guestInquiries: [], reviews: [] })
+      } finally {
+        setLoading(false)
+      }
+    }
+    void fetchSearchResults()
   }, [q])
 
   const hasResults =
+    q.length > 0 &&
     result &&
     (result.inquiries.length > 0 || result.guestInquiries.length > 0 || result.reviews.length > 0)
   const hasNoResults = result && !hasResults && q.length > 0
@@ -101,7 +103,7 @@ export default function ProviderSearchPage() {
           Search across inquiries and reviews
           {q && (
             <span className="ml-1 font-medium text-foreground">
-              — "{q}"
+              — &ldquo;{q}&rdquo;
             </span>
           )}
         </p>
@@ -130,7 +132,7 @@ export default function ProviderSearchPage() {
           <CardContent className="py-12 text-center text-muted-foreground">
             <p className="font-medium text-foreground">No results found</p>
             <p className="mt-1 text-sm">
-              No inquiries or reviews match "{q}". Try a different search term.
+              No inquiries or reviews match &ldquo;{q}&rdquo;. Try a different search term.
             </p>
           </CardContent>
         </Card>

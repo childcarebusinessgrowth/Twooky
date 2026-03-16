@@ -1,20 +1,28 @@
 import type { Metadata } from "next"
 import { ProviderTypeSearchPage } from "@/components/provider-type-search-page"
+import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { getProviderTypePageConfig } from "@/lib/provider-type-page-config"
+
+const config = getProviderTypePageConfig("holiday_camp")
 
 export const metadata: Metadata = {
-  title: "Holiday Camps for Children | Early Learning Directory",
-  description:
-    "Browse children's holiday camps near you, including school holiday clubs, activity camps, and seasonal childcare.",
+  title: config.metadataTitle,
+  description: config.metadataDescription,
 }
 
-export default function HolidayCampsSearchPage() {
+interface HolidayCampsSearchPageProps {
+  searchParams?: Promise<SearchPageQueryParams>
+}
+
+export default async function HolidayCampsSearchPage({ searchParams }: HolidayCampsSearchPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const { providers, filterOptions } = await getSearchPageData({
+    searchParams: resolvedSearchParams,
+    forcedProviderType: config.providerType,
+  })
+
   return (
-    <ProviderTypeSearchPage
-      title="Holiday Camp Search"
-      description="Find holiday camps and school break programs near you."
-      intro="Search by dates, themes, and age groups to secure engaging holiday childcare."
-      defaultProviderType="holiday_camp"
-    />
+    <ProviderTypeSearchPage config={config} providers={providers} filterOptions={filterOptions} />
   )
 }
 

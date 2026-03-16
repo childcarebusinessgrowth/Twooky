@@ -433,6 +433,9 @@ export interface Database {
           business_name: string | null
           phone: string | null
           city: string | null
+          country_id: string | null
+          city_id: string | null
+          google_place_id: string | null
           virtual_tour_url: string | null
           virtual_tour_urls: string[] | null
           description: string | null
@@ -450,6 +453,7 @@ export interface Database {
           total_capacity: number | null
           listing_status: string
           featured: boolean
+          is_admin_managed: boolean
           notify_new_inquiries: boolean
           notify_new_reviews: boolean
           notify_weekly_analytics: boolean
@@ -461,6 +465,9 @@ export interface Database {
           business_name?: string | null
           phone?: string | null
           city?: string | null
+          country_id?: string | null
+          city_id?: string | null
+          google_place_id?: string | null
           virtual_tour_url?: string | null
           virtual_tour_urls?: string[] | null
           description?: string | null
@@ -478,6 +485,7 @@ export interface Database {
           total_capacity?: number | null
           listing_status?: string
           featured?: boolean
+          is_admin_managed?: boolean
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean
@@ -489,6 +497,9 @@ export interface Database {
           business_name?: string | null
           phone?: string | null
           city?: string | null
+          country_id?: string | null
+          city_id?: string | null
+          google_place_id?: string | null
           virtual_tour_url?: string | null
           virtual_tour_urls?: string[] | null
           description?: string | null
@@ -506,6 +517,7 @@ export interface Database {
           total_capacity?: number | null
           listing_status?: string
           featured?: boolean
+          is_admin_managed?: boolean
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean

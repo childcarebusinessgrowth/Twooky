@@ -131,7 +131,11 @@ export async function GET() {
 
     const notifications: ProviderNotificationItem[] = items
       .slice(0, NOTIFICATION_LIMIT)
-      .map(({ sortAt: _, ...item }) => item)
+      .map((item) => {
+        const { sortAt, ...notification } = item
+        void sortAt
+        return notification
+      })
 
     return NextResponse.json({ notifications })
   } catch (e) {

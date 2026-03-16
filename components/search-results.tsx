@@ -29,12 +29,38 @@ const AGE_TAG_TO_LABEL: Record<string, string> = {
 type SearchResultsProps = {
   providers: ProviderCardData[]
   filterOptions?: SearchFilterOptions
+  basePath?: string
+  defaultProviderType?: string
+  headerTitle?: string
+  listTitle?: string
+  emptyStateTitle?: string
+  emptyStateDescription?: string
 }
 
-export function SearchResults({ providers, filterOptions }: SearchResultsProps) {
+export function SearchResults({
+  providers,
+  filterOptions,
+  basePath = "/search",
+  defaultProviderType,
+  headerTitle = "Childcare Near You",
+  listTitle = "Providers",
+  emptyStateTitle = "No providers found",
+  emptyStateDescription = "Try adjusting filters or increasing your search radius.",
+}: SearchResultsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+
+  const pushWithParams = useCallback(
+    (sp: URLSearchParams) => {
+      if (defaultProviderType && defaultProviderType !== "all") {
+        sp.set("providerType", defaultProviderType)
+      }
+      const query = sp.toString()
+      router.push(query ? `${basePath}?${query}` : basePath)
+    },
+    [basePath, defaultProviderType, router],
+  )
 
   const buildActiveFilters = useCallback(() => {
     const chips: { key: string; label: string; param: string; value?: string }[] = []
@@ -67,7 +93,11 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
     }
 
     const providerType = sp.get("providerType")
-      if (providerType && providerType !== "all") {
+    if (
+      providerType &&
+      providerType !== "all" &&
+      (!defaultProviderType || providerType !== defaultProviderType)
+    ) {
       chips.push({
         key: `providerType:${providerType}`,
         param: "providerType",
@@ -77,7 +107,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
     }
 
     const programTypes = sp.get("programTypes")
-      if (programTypes) {
+    if (programTypes) {
       programTypes.split(",").forEach((p) => {
         const trimmed = p.trim()
         if (!trimmed) return
@@ -85,13 +115,13 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
           key: `programTypes:${trimmed}`,
           param: "programTypes",
           value: trimmed,
-            label: trimmed.replace(/_/g, " "),
+          label: trimmed.replace(/_/g, " "),
         })
       })
     }
 
     const curriculum = sp.get("curriculum")
-      if (curriculum) {
+    if (curriculum) {
       curriculum.split(",").forEach((c) => {
         const trimmed = c.trim()
         if (!trimmed) return
@@ -99,7 +129,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
           key: `curriculum:${trimmed}`,
           param: "curriculum",
           value: trimmed,
-            label: trimmed.replace(/_/g, " "),
+          label: trimmed.replace(/_/g, " "),
         })
       })
     }
@@ -150,7 +180,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
     }
 
     const languages = sp.get("languages")
-      if (languages) {
+    if (languages) {
       languages.split(",").forEach((lang) => {
         const trimmed = lang.trim()
         if (!trimmed) return
@@ -158,13 +188,13 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
           key: `languages:${trimmed}`,
           param: "languages",
           value: trimmed,
-            label: trimmed.replace(/_/g, " "),
+          label: trimmed.replace(/_/g, " "),
         })
       })
     }
 
     const features = sp.get("features")
-      if (features) {
+    if (features) {
       features.split(",").forEach((feat) => {
         const trimmed = feat.trim()
         if (!trimmed) return
@@ -172,7 +202,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
           key: `features:${trimmed}`,
           param: "features",
           value: trimmed,
-            label: trimmed.replace(/_/g, " "),
+          label: trimmed.replace(/_/g, " "),
         })
       })
     }
@@ -188,7 +218,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
     }
 
     return chips
-  }, [searchParams])
+  }, [defaultProviderType, searchParams])
 
   const activeFilters = useMemo(() => buildActiveFilters(), [buildActiveFilters])
 
@@ -216,10 +246,9 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
         sp.delete(param)
       }
 
-      const query = sp.toString()
-      router.push(query ? `/search?${query}` : "/search")
+      pushWithParams(sp)
     },
-    [router, searchParams],
+    [pushWithParams, searchParams],
   )
 
   const handleFilterChange = useCallback(
@@ -287,10 +316,9 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
         sp.delete("minRating")
       }
 
-      const query = sp.toString()
-      router.push(query ? `/search?${query}` : "/search")
+      pushWithParams(sp)
     },
-    [router, searchParams],
+    [pushWithParams, searchParams],
   )
 
   const handleLoadMore = useCallback(() => {
@@ -308,7 +336,11 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
       {/* Top Search Bar */}
       <section className="bg-card border-b border-border py-4">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <SearchBar variant="compact" />
+          <SearchBar
+            variant="compact"
+            targetPath={basePath}
+            defaultProviderType={defaultProviderType}
+          />
         </div>
       </section>
 
@@ -318,7 +350,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                Childcare Near You
+                {headerTitle}
               </h1>
               <p className="text-muted-foreground flex items-center gap-1 mt-1">
                 <MapPin className="h-4 w-4" />
@@ -379,7 +411,7 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
             {/* Results + Map */}
             <div className="min-w-0 flex-1 space-y-6">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-foreground">Providers</h2>
+                <h2 className="text-lg font-semibold text-foreground">{listTitle}</h2>
                 <p className="text-sm text-muted-foreground">
                   Showing {Math.min(visibleCount, providers.length)} of {providers.length}
                 </p>
@@ -389,15 +421,15 @@ export function SearchResults({ providers, filterOptions }: SearchResultsProps) 
 
               <div className="space-y-5">
                 {visibleProviders.map((provider) => (
-                  <ProviderCard key={provider.id} provider={provider} layout="horizontal" />
+                  <ProviderCard key={provider.id} provider={provider} layout="horizontal" featured={provider.featured} />
                 ))}
               </div>
 
               {providers.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
-                  <h3 className="text-base font-semibold text-foreground">No providers found</h3>
+                  <h3 className="text-base font-semibold text-foreground">{emptyStateTitle}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Try adjusting filters or increasing your search radius.
+                    {emptyStateDescription}
                   </p>
                 </div>
               )}

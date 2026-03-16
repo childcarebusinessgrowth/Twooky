@@ -247,7 +247,7 @@ export function ProviderInquiriesClient({
 
   useEffect(() => {
     let cancelled = false
-    let channelName = `provider-inquiries-${Math.random().toString(36).slice(2)}`
+    const channelName = `provider-inquiries-${Math.random().toString(36).slice(2)}`
     try {
       const supabase = getSupabaseClient()
       const channel = supabase

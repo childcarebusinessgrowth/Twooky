@@ -279,7 +279,7 @@ export function BlogEditor({
 
   const applyImage = () => {
     if (!editor || disabled || !imageForm.url) return
-    const attrs: { src: string; alt: string; width?: number | string; height?: number | string } = {
+    const attrs: { src: string; alt: string; width?: number } = {
       src: imageForm.url,
       alt: imageForm.alt || "Blog image",
     }

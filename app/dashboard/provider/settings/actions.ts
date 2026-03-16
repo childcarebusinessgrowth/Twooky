@@ -1,6 +1,7 @@
 "use server"
 
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 export type ProviderNotificationPrefs = {
   notify_new_inquiries: boolean
@@ -83,6 +84,22 @@ export async function deactivateListing(): Promise<{ error?: string }> {
     .from("provider_profiles")
     .update({ listing_status: "inactive" })
     .eq("profile_id", user.id)
+  if (error) return { error: error.message }
+  return {}
+}
+
+export async function deleteProviderAccount(): Promise<{ error?: string }> {
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return { error: userError?.message ?? "Not authenticated" }
+  }
+
+  const admin = getSupabaseAdminClient()
+  const { error } = await admin.auth.admin.deleteUser(user.id)
   if (error) return { error: error.message }
   return {}
 }

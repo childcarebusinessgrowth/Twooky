@@ -1,20 +1,30 @@
 import type { Metadata } from "next"
 import { ProviderTypeSearchPage } from "@/components/provider-type-search-page"
+import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { getProviderTypePageConfig } from "@/lib/provider-type-page-config"
+
+const config = getProviderTypePageConfig("sports_academy")
 
 export const metadata: Metadata = {
-  title: "Children's Sports Academies | Early Learning Directory",
-  description:
-    "Discover sports academies and clubs for children, from football and gymnastics to swimming and more.",
+  title: config.metadataTitle,
+  description: config.metadataDescription,
 }
 
-export default function SportsAcademiesSearchPage() {
+interface SportsAcademiesSearchPageProps {
+  searchParams?: Promise<SearchPageQueryParams>
+}
+
+export default async function SportsAcademiesSearchPage({
+  searchParams,
+}: SportsAcademiesSearchPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const { providers, filterOptions } = await getSearchPageData({
+    searchParams: resolvedSearchParams,
+    forcedProviderType: config.providerType,
+  })
+
   return (
-    <ProviderTypeSearchPage
-      title="Sports Academies for Children"
-      description="Search local sports academies and clubs designed for children of all ages."
-      intro="Filter by sport, age group, and schedule to find the right sports academy for your child."
-      defaultProviderType="sports_academy"
-    />
+    <ProviderTypeSearchPage config={config} providers={providers} filterOptions={filterOptions} />
   )
 }
 

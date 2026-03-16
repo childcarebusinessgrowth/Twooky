@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Star, MapPin, DollarSign, Tags } from "lucide-react"
+import { Star, MapPin, DollarSign, Tags, BadgeCheck } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,7 @@ export type ProviderCardData = Pick<
   | "latitude"
   | "longitude"
   | "address"
->
+> & { featured?: boolean }
 
 interface ProviderCardProps {
   provider: ProviderCardData
@@ -33,18 +33,23 @@ interface ProviderCardProps {
 export function ProviderCard({ provider, featured = false, layout = "grid" }: ProviderCardProps) {
   if (layout === "horizontal") {
     return (
-      <Card className="group overflow-hidden rounded-2xl border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30">
+      <Card className="group overflow-hidden rounded-2xl border-border/60 bg-card p-0 gap-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30">
+        {featured && (
+          <div className="flex items-center px-4 py-2.5 bg-primary">
+            <span className="inline-flex items-center gap-2 text-primary-foreground">
+              <BadgeCheck className="h-4 w-4 shrink-0" strokeWidth={2} />
+              <span className="text-sm font-medium">Featured</span>
+            </span>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row">
-          <div className="relative h-56 w-full overflow-hidden md:h-auto md:w-72 lg:w-80">
+          <div className="relative h-56 w-full overflow-hidden md:h-64 md:w-72 lg:w-80">
             <Image
               src={provider.image}
               alt={provider.name}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
-            {featured && (
-              <Badge className="absolute left-3 top-3 bg-primary text-primary-foreground">Featured</Badge>
-            )}
           </div>
 
           <CardContent className="flex flex-1 flex-col p-5 md:p-6">
@@ -105,9 +110,17 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
   }
 
   return (
-    <Card
-      className={`overflow-hidden rounded-2xl border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 ${featured ? "border-primary/40" : ""}`}
+      <Card
+      className={`overflow-hidden rounded-2xl border-border/60 bg-card p-0 gap-0 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 ${featured ? "border-primary/40" : ""}`}
     >
+      {featured && (
+        <div className="flex items-center px-4 py-2.5 bg-primary">
+          <span className="inline-flex items-center gap-2 text-primary-foreground">
+            <BadgeCheck className="h-4 w-4 shrink-0" strokeWidth={2} />
+            <span className="text-sm font-medium">Featured</span>
+          </span>
+        </div>
+      )}
       <div className="relative aspect-4/3 overflow-hidden">
         <Image
           src={provider.image}
@@ -115,11 +128,6 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
           fill
           className="object-cover transition-transform duration-300 hover:scale-105"
         />
-        {featured && (
-          <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground">
-            Featured
-          </Badge>
-        )}
       </div>
       <CardContent className="p-4 md:p-5">
         <div className="flex items-start justify-between gap-2 mb-2">

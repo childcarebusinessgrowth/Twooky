@@ -35,7 +35,7 @@ function toMonthKey(d: Date): string {
 }
 
 function monthKeyToLabel(key: string): string {
-  const [y, m] = key.split("-").map(Number)
+  const [, m] = key.split("-").map(Number)
   return MONTH_LABELS[m - 1] ?? key
 }
 

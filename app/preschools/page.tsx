@@ -1,20 +1,28 @@
 import type { Metadata } from "next"
 import { ProviderTypeSearchPage } from "@/components/provider-type-search-page"
+import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { getProviderTypePageConfig } from "@/lib/provider-type-page-config"
+
+const config = getProviderTypePageConfig("preschool")
 
 export const metadata: Metadata = {
-  title: "Find Preschools Near You | Early Learning Directory",
-  description:
-    "Explore preschools near you and compare programs, ratings, curriculum, and fees to find the right preschool for your child.",
+  title: config.metadataTitle,
+  description: config.metadataDescription,
 }
 
-export default function PreschoolsSearchPage() {
+interface PreschoolsSearchPageProps {
+  searchParams?: Promise<SearchPageQueryParams>
+}
+
+export default async function PreschoolsSearchPage({ searchParams }: PreschoolsSearchPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const { providers, filterOptions } = await getSearchPageData({
+    searchParams: resolvedSearchParams,
+    forcedProviderType: config.providerType,
+  })
+
   return (
-    <ProviderTypeSearchPage
-      title="Preschool Search"
-      description="Search high-quality preschools in your area."
-      intro="Filter by age group, curriculum approach, opening hours, and more to find the perfect preschool match."
-      defaultProviderType="preschool"
-    />
+    <ProviderTypeSearchPage config={config} providers={providers} filterOptions={filterOptions} />
   )
 }
 

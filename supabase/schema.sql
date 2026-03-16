@@ -426,7 +426,7 @@ create table if not exists public.parent_profiles (
 );
 
 create table if not exists public.provider_profiles (
-  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  profile_id uuid primary key,
   provider_slug text,
   business_name text,
   phone text,
@@ -449,6 +449,8 @@ alter table if exists public.provider_profiles
   add column if not exists website text;
 alter table if exists public.provider_profiles
   add column if not exists address text;
+alter table if exists public.provider_profiles
+  add column if not exists google_place_id text;
 
 -- Program
 alter table if exists public.provider_profiles
@@ -479,6 +481,8 @@ alter table if exists public.provider_profiles
   add column if not exists listing_status text not null default 'pending';
 alter table if exists public.provider_profiles
   add column if not exists featured boolean not null default false;
+alter table if exists public.provider_profiles
+  add column if not exists is_admin_managed boolean not null default false;
 
 alter table if exists public.provider_profiles
   add column if not exists country_id uuid references public.countries(id) on delete restrict;

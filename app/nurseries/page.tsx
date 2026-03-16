@@ -1,20 +1,28 @@
-import { Metadata } from "next"
+import type { Metadata } from "next"
 import { ProviderTypeSearchPage } from "@/components/provider-type-search-page"
+import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { getProviderTypePageConfig } from "@/lib/provider-type-page-config"
+
+const config = getProviderTypePageConfig("nursery")
 
 export const metadata: Metadata = {
-  title: "Find Nurseries Near You | Early Learning Directory",
-  description:
-    "Discover Ofsted-registered nurseries near you. Compare ratings, programs, fees, and availability to find the best nursery for your child.",
+  title: config.metadataTitle,
+  description: config.metadataDescription,
 }
 
-export default function NurseriesSearchPage() {
+interface NurseriesSearchPageProps {
+  searchParams?: Promise<SearchPageQueryParams>
+}
+
+export default async function NurseriesSearchPage({ searchParams }: NurseriesSearchPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {}
+  const { providers, filterOptions } = await getSearchPageData({
+    searchParams: resolvedSearchParams,
+    forcedProviderType: config.providerType,
+  })
+
   return (
-    <ProviderTypeSearchPage
-      title="Nursery Search"
-      description="Search and compare nurseries in your area, including full-day and part-day care options."
-      intro="Use filters to narrow nurseries by age group, curriculum, opening hours, fees, and more."
-      defaultProviderType="nursery"
-    />
+    <ProviderTypeSearchPage config={config} providers={providers} filterOptions={filterOptions} />
   )
 }
 

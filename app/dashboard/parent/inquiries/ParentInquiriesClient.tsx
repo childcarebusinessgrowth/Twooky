@@ -122,7 +122,7 @@ export function ParentInquiriesClient({
 
   useEffect(() => {
     let cancelled = false
-    let channelName = `parent-inquiries-${Math.random().toString(36).slice(2)}`
+    const channelName = `parent-inquiries-${Math.random().toString(36).slice(2)}`
     try {
       const supabase = getSupabaseClient()
       const channel = supabase
@@ -170,7 +170,6 @@ export function ParentInquiriesClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: replyText.trim() }),
       })
-      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setReplyText((prev) => prev)
         return

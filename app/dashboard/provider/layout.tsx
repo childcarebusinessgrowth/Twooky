@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { 
   LayoutDashboard, 
   FileEdit, 
@@ -87,7 +87,6 @@ export default function ProviderDashboardLayout({
   const [searchQuery, setSearchQuery] = useState("")
   const [notifications, setNotifications] = useState<ProviderNotificationItem[]>([])
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [notificationsLoading, setNotificationsLoading] = useState(true)
   const [publicProfileHref, setPublicProfileHref] = useState("/dashboard/provider/listing")
   const router = useRouter()
@@ -140,12 +139,12 @@ export default function ProviderDashboardLayout({
 
   useEffect(() => {
     if (pathname === "/dashboard/provider/search") {
-      const q = searchParams.get("q") ?? ""
+      const q = new URLSearchParams(window.location.search).get("q") ?? ""
       setSearchQuery(q)
     } else {
       setSearchQuery("")
     }
-  }, [pathname, searchParams])
+  }, [pathname])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()

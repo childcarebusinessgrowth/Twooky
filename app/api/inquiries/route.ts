@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
-import { getProviderProfileIdBySlug } from "@/lib/parent-engagement"
 import { resolveRoleForUser } from "@/lib/authz"
 
 type CreateInquiryPayload = {
@@ -58,21 +57,36 @@ export async function POST(request: Request) {
       )
     }
 
-    const providerProfileId = await getProviderProfileIdBySlug(
-      supabase,
-      providerSlug
-    )
-    if (!providerProfileId) {
+    const { data: providerRow, error: providerLookupError } = await supabase
+      .from("provider_profiles")
+      .select("profile_id, is_admin_managed")
+      .ilike("provider_slug", providerSlug)
+      .eq("listing_status", "active")
+      .maybeSingle()
+
+    if (providerLookupError) {
+      return NextResponse.json(
+        { error: providerLookupError.message ?? "Failed to create inquiry." },
+        { status: 500 }
+      )
+    }
+    if (!providerRow) {
       return NextResponse.json(
         { error: "Provider not found." },
         { status: 404 }
+      )
+    }
+    if (providerRow.is_admin_managed) {
+      return NextResponse.json(
+        { error: "Inquiries are not available for this provider." },
+        { status: 403 }
       )
     }
 
     const { data: inquiryId, error: rpcError } = await supabase.rpc(
       "create_inquiry",
       {
-        p_provider_profile_id: providerProfileId,
+        p_provider_profile_id: providerRow.profile_id,
         p_inquiry_subject: subject ?? "",
         p_message_plain: message,
         p_consent_to_contact: true,

@@ -106,6 +106,9 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
               ) : null
             }
           />
+          <Field label="Google Place ID" value={profile.google_place_id} />
+          <Field label="Country ID" value={profile.country_id} />
+          <Field label="City ID" value={profile.city_id} />
         </Section>
 
         <Section title="Program">
