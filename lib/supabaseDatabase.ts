@@ -363,6 +363,33 @@ export interface Database {
         }
         Relationships: []
       }
+      provider_faqs: {
+        Row: {
+          id: string
+          provider_profile_id: string
+          question: string
+          answer: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          provider_profile_id: string
+          question: string
+          answer: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          provider_profile_id?: string
+          question?: string
+          answer?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
