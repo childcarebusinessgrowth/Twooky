@@ -483,6 +483,39 @@ export interface Database {
         }
         Relationships: []
       }
+      provider_notifications: {
+        Row: {
+          id: string
+          provider_profile_id: string
+          type: string
+          title: string
+          message: string | null
+          href: string | null
+          read_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          provider_profile_id: string
+          type: string
+          title: string
+          message?: string | null
+          href?: string | null
+          read_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          provider_profile_id?: string
+          type?: string
+          title?: string
+          message?: string | null
+          href?: string | null
+          read_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       inquiries: {
         Row: {
           id: string
