@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition, type ChangeEvent, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Loader2, Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,22 +19,31 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { PROVIDER_TYPES } from "@/lib/provider-types"
 import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
-import type { AdminProviderCityOption, AdminProviderCountryOption } from "./actions"
+import type {
+  AdminProviderCityOption,
+  AdminProviderCountryOption,
+  AdminProviderCurriculumOption,
+  AdminProviderLanguageOption,
+} from "./actions"
 import { createAdminProvider } from "./actions"
 
 type FaqItem = { id: string; question: string; answer: string }
-type PhotoItem = { name: string; size: number; caption: string }
+type PhotoItem = { key: string; file: File; caption: string }
 
 function toFileKey(file: File): string {
-  return `${file.name}:${file.size}`
+  return `${file.name}:${file.size}:${file.lastModified}`
 }
 
 export function AdminCreateProviderForm({
   countries,
   cities,
+  languages,
+  curriculum,
 }: {
   countries: AdminProviderCountryOption[]
   cities: AdminProviderCityOption[]
+  languages: AdminProviderLanguageOption[]
+  curriculum: AdminProviderCurriculumOption[]
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -49,6 +58,8 @@ export function AdminCreateProviderForm({
   const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
   const [providerTypes, setProviderTypes] = useState<string[]>([])
   const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>([])
+  const [selectedCurriculum, setSelectedCurriculum] = useState<string>("")
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [amenities, setAmenities] = useState<string[]>([])
   const [primaryPhotoIndex, setPrimaryPhotoIndex] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
@@ -84,19 +95,41 @@ export function AdminCreateProviderForm({
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
+    if (selectedFiles.length === 0) return
+
     setPhotoItems((prev) => {
-      const prevMap = new Map(prev.map((item) => [item.name + ":" + item.size, item.caption]))
-      return selectedFiles.map((file) => ({
-        name: file.name,
-        size: file.size,
-        caption: prevMap.get(toFileKey(file)) ?? "",
-      }))
+      const existingKeys = new Set(prev.map((item) => item.key))
+      const next = [...prev]
+
+      for (const file of selectedFiles) {
+        const key = toFileKey(file)
+        if (existingKeys.has(key)) continue
+        existingKeys.add(key)
+        next.push({
+          key,
+          file,
+          caption: "",
+        })
+      }
+
+      return next
     })
-    setPrimaryPhotoIndex(0)
+
+    // Allow selecting the same file again in a later pick.
+    event.target.value = ""
   }
 
   const updatePhotoCaption = (index: number, value: string) => {
     setPhotoItems((prev) => prev.map((item, i) => (i === index ? { ...item, caption: value } : item)))
+  }
+
+  const removePhotoItem = (index: number) => {
+    setPhotoItems((prev) => prev.filter((_, i) => i !== index))
+    setPrimaryPhotoIndex((prev) => {
+      if (index < prev) return prev - 1
+      if (index === prev) return 0
+      return prev
+    })
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -109,9 +142,13 @@ export function AdminCreateProviderForm({
     formData.set("cityId", cityId)
     formData.set("listingStatus", listingStatus)
     formData.set("featured", featured ? "true" : "false")
+    formData.set("curriculumType", selectedCurriculum)
+    formData.set("languagesSpoken", selectedLanguages.join(", "))
     formData.set("faqsJson", JSON.stringify(faqs))
     formData.set("photoCaptionsJson", JSON.stringify(photoItems.map((item) => item.caption)))
     formData.set("primaryPhotoIndex", String(primaryPhotoIndex))
+    formData.delete("photos")
+    for (const item of photoItems) formData.append("photos", item.file)
     formData.delete("providerTypes")
     for (const type of providerTypes) formData.append("providerTypes", type)
     formData.delete("ageGroupsServed")
@@ -286,12 +323,42 @@ export function AdminCreateProviderForm({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="curriculumType">Curriculum Type</Label>
-            <Input id="curriculumType" name="curriculumType" />
+            <Label>Curriculum Type</Label>
+            <Select value={selectedCurriculum || "none"} onValueChange={(value) => setSelectedCurriculum(value === "none" ? "" : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Optional curriculum type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No curriculum selected</SelectItem>
+                {curriculum.map((item) => (
+                  <SelectItem key={item.id} value={item.name}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="languagesSpoken">Languages Spoken</Label>
-            <Input id="languagesSpoken" name="languagesSpoken" placeholder="english, arabic" />
+            <Label>Languages Spoken</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {languages.map((language) => (
+                <label key={language.id} className="inline-flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedLanguages.includes(language.name)}
+                    onCheckedChange={(checked) =>
+                      setSelectedLanguages((prev) =>
+                        checked
+                          ? prev.includes(language.name)
+                            ? prev
+                            : [...prev, language.name]
+                          : prev.filter((item) => item !== language.name)
+                      )
+                    }
+                  />
+                  <span className="text-sm">{language.name}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
         <div className="space-y-2">
@@ -422,26 +489,32 @@ export function AdminCreateProviderForm({
         <div className="space-y-2">
           <Label htmlFor="photos">Upload Photos (PNG/JPG/WebP, max 10MB each)</Label>
           <Input id="photos" name="photos" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={handleFileChange} />
+          <p className="text-xs text-muted-foreground">You can select multiple photos at once and add more in additional picks.</p>
         </div>
 
         {photoItems.length > 0 && (
           <div className="space-y-3">
             {photoItems.map((item, index) => (
-              <div key={`${item.name}-${item.size}`} className="rounded-md border p-3 space-y-2">
+              <div key={item.key} className="rounded-md border p-3 space-y-2">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{Math.round(item.size / 1024)} KB</p>
+                    <p className="text-sm font-medium truncate">{item.file.name}</p>
+                    <p className="text-xs text-muted-foreground">{Math.round(item.file.size / 1024)} KB</p>
                   </div>
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="primary-photo"
-                      checked={primaryPhotoIndex === index}
-                      onChange={() => setPrimaryPhotoIndex(index)}
-                    />
-                    Primary
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="primary-photo"
+                        checked={primaryPhotoIndex === index}
+                        onChange={() => setPrimaryPhotoIndex(index)}
+                      />
+                      Primary
+                    </label>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removePhotoItem(index)} aria-label={`Remove ${item.file.name}`}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <Input
                   value={item.caption}
