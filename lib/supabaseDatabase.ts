@@ -3,6 +3,57 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      admin_notification_reads: {
+        Row: {
+          id: string
+          notification_id: string
+          admin_user_id: string
+          read_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          notification_id: string
+          admin_user_id: string
+          read_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          notification_id?: string
+          admin_user_id?: string
+          read_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      admin_notifications: {
+        Row: {
+          id: string
+          type: string
+          title: string
+          message: string | null
+          href: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: string
+          title: string
+          message?: string | null
+          href?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: string
+          title?: string
+          message?: string | null
+          href?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       blogs: {
         Row: {
           id: string
