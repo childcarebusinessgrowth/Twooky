@@ -64,6 +64,7 @@ type ProgramTypeRow = {
   name: string
   sort_order: number
   is_active: boolean
+  age_group_ids: string[] | null
 }
 
 type LanguageRow = {
