@@ -24,7 +24,20 @@ export function ClaimListingForm() {
     setErrorMessage("")
     try {
       const res = await fetch("/api/claim-listing", { method: "POST", body: formData })
-      const json = await res.json()
+      const text = await res.text()
+      let json: { success?: boolean; error?: string }
+      try {
+        json = JSON.parse(text)
+      } catch {
+        if (res.status === 413 || /request entity too large|body exceeded|payload too large/i.test(text)) {
+          setStatus("error")
+          setErrorMessage("File(s) are too large. Please ensure each file is under 10MB and the total upload is under 4.5MB.")
+          return
+        }
+        setStatus("error")
+        setErrorMessage("The server returned an unexpected response. Please try again with smaller files.")
+        return
+      }
       if (json.success) {
         setStatus("success")
       } else {
