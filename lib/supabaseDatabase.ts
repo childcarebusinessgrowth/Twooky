@@ -141,6 +141,39 @@ export interface Database {
         }
         Relationships: []
       }
+      currencies: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          symbol: string
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name: string
+          symbol: string
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name?: string
+          symbol?: string
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cities: {
         Row: {
           id: string
@@ -435,6 +468,7 @@ export interface Database {
           city: string | null
           country_id: string | null
           city_id: string | null
+          currency_id: string | null
           google_place_id: string | null
           virtual_tour_url: string | null
           virtual_tour_urls: string[] | null
@@ -467,6 +501,7 @@ export interface Database {
           city?: string | null
           country_id?: string | null
           city_id?: string | null
+          currency_id?: string | null
           google_place_id?: string | null
           virtual_tour_url?: string | null
           virtual_tour_urls?: string[] | null
@@ -499,6 +534,7 @@ export interface Database {
           city?: string | null
           country_id?: string | null
           city_id?: string | null
+          currency_id?: string | null
           google_place_id?: string | null
           virtual_tour_url?: string | null
           virtual_tour_urls?: string[] | null
