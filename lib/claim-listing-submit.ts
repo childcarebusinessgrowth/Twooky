@@ -2,9 +2,7 @@ import { randomUUID } from "crypto"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { matchClaimToListing } from "@/lib/claim-listing-match"
 import { z } from "zod"
-
-const CLAIM_DOCUMENTS_BUCKET = "claim-documents"
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
+import { CLAIM_DOCUMENTS_BUCKET, MAX_FILE_SIZE_BYTES } from "@/lib/claim-listing-constants"
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -26,6 +24,12 @@ const submitSchema = z.object({
 
 export type SubmitClaimResult = { success: true } | { success: false; error: string }
 
+export type InitClaimResult =
+  | { success: true; claimId: string; uploads: { path: string; token: string }[] }
+  | { success: false; error: string }
+
+export type CompleteClaimResult = SubmitClaimResult
+
 async function ensureClaimDocumentsBucket() {
   const supabase = getSupabaseAdminClient()
   const { data: buckets, error: listError } = await supabase.storage.listBuckets()
@@ -41,6 +45,164 @@ async function ensureClaimDocumentsBucket() {
   }
 }
 
+function validateFile(file: { name: string; size: number; type: string }): string | null {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return `File "${file.name}" exceeds 10MB limit.`
+  }
+  if (!ALLOWED_MIME_TYPES.has(file.type) && !file.type.startsWith("image/")) {
+    return `File "${file.name}" must be PDF or image (JPEG, PNG, WebP).`
+  }
+  return null
+}
+
+/** Init flow: create claim, return signed upload URLs. Client uploads directly to Supabase. */
+export async function initClaimSubmission(data: {
+  claimant_name: string
+  business_name: string
+  email: string
+  phone: string
+  business_address: string
+  consent: boolean
+  document_type: string
+  files: { name: string; size: number; type: string }[]
+}): Promise<InitClaimResult> {
+  try {
+    const parsed = submitSchema.safeParse({
+      ...data,
+      document_type: data.document_type || "Other",
+    })
+    if (!parsed.success) {
+      const first = parsed.error.flatten().fieldErrors
+      const msg = Object.values(first).flat().find(Boolean) ?? "Invalid form data"
+      return { success: false, error: String(msg) }
+    }
+
+    const files = data.files.filter((f) => f && f.size > 0 && f.name)
+    if (files.length === 0) {
+      return { success: false, error: "At least one verification document is required." }
+    }
+
+    for (const f of files) {
+      const err = validateFile(f)
+      if (err) return { success: false, error: err }
+    }
+
+    const supabase = getSupabaseAdminClient()
+    await ensureClaimDocumentsBucket()
+
+    const { data: claim, error: insertError } = await supabase
+      .from("provider_listing_claims")
+      .insert({
+        claimant_name: parsed.data.claimant_name,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+        business_name: parsed.data.business_name,
+        business_address: parsed.data.business_address,
+        status: "pending",
+        consent_version: "v1",
+      })
+      .select("id")
+      .single()
+
+    if (insertError || !claim) {
+      return { success: false, error: insertError?.message ?? "Failed to save claim." }
+    }
+
+    const claimId = claim.id
+    const uploads: { path: string; token: string }[] = []
+
+    for (const file of files) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin"
+      const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "bin"
+      const storagePath = `${claimId}/${randomUUID()}.${safeExt}`
+      const { data: signed, error: signedError } = await supabase.storage
+        .from(CLAIM_DOCUMENTS_BUCKET)
+        .createSignedUploadUrl(storagePath)
+      if (signedError || !signed?.token) {
+        return { success: false, error: `Failed to create upload URL: ${signedError?.message ?? "Unknown error"}` }
+      }
+      uploads.push({ path: storagePath, token: signed.token })
+    }
+
+    return { success: true, claimId, uploads }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "An unexpected error occurred."
+    return { success: false, error: message }
+  }
+}
+
+/** Complete flow: register uploaded documents, run match, create notification. */
+export async function completeClaimSubmission(data: {
+  claimId: string
+  document_type: string
+  documents: { path: string; mime_type: string; file_size: number }[]
+}): Promise<CompleteClaimResult> {
+  try {
+    const supabase = getSupabaseAdminClient()
+    const docType = data.document_type || "Other"
+
+    for (const doc of data.documents) {
+      const { error: docError } = await supabase.from("provider_listing_claim_documents").insert({
+        claim_id: data.claimId,
+        document_type: docType,
+        storage_path: doc.path,
+        mime_type: doc.mime_type,
+        file_size: doc.file_size,
+      })
+      if (docError) {
+        return { success: false, error: `Failed to save document record: ${docError.message}` }
+      }
+    }
+
+    const { data: claim } = await supabase
+      .from("provider_listing_claims")
+      .select("business_name, claimant_name")
+      .eq("id", data.claimId)
+      .single()
+
+    if (claim) {
+      const { data: claimRow } = await supabase
+        .from("provider_listing_claims")
+        .select("business_name, business_address")
+        .eq("id", data.claimId)
+        .single()
+
+      const { data: candidates } = await supabase
+        .from("provider_profiles")
+        .select("profile_id, business_name, address")
+
+      const matchResult = matchClaimToListing(
+        claimRow?.business_name ?? claim.business_name ?? "",
+        claimRow?.business_address ?? "",
+        candidates ?? []
+      )
+
+      await supabase
+        .from("provider_listing_claims")
+        .update({
+          match_status: matchResult.status,
+          match_score: matchResult.score,
+          matched_provider_profile_id: matchResult.matchedProviderProfileId,
+          match_metadata: matchResult.metadata,
+        })
+        .eq("id", data.claimId)
+
+      await supabase.from("admin_notifications").insert({
+        type: "claim_request",
+        title: "New listing claim request",
+        message: `${claim.business_name} by ${claim.claimant_name}`,
+        href: "/admin/claims",
+      })
+    }
+
+    return { success: true }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "An unexpected error occurred."
+    return { success: false, error: message }
+  }
+}
+
+/** Legacy: process full FormData (files go through server, subject to 4.5MB limit). */
 export async function processClaimSubmission(formData: FormData): Promise<SubmitClaimResult> {
   try {
     const parsed = submitSchema.safeParse({
@@ -65,12 +227,8 @@ export async function processClaimSubmission(formData: FormData): Promise<Submit
     }
 
     for (const f of validFiles) {
-      if (f.size > MAX_FILE_SIZE_BYTES) {
-        return { success: false, error: `File "${f.name}" exceeds 10MB limit.` }
-      }
-      if (!ALLOWED_MIME_TYPES.has(f.type) && !f.type.startsWith("image/")) {
-        return { success: false, error: `File "${f.name}" must be PDF or image (JPEG, PNG, WebP).` }
-      }
+      const err = validateFile({ name: f.name, size: f.size, type: f.type })
+      if (err) return { success: false, error: err }
     }
 
     const supabase = getSupabaseAdminClient()

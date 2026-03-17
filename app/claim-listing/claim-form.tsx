@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { getSupabaseClient } from "@/lib/supabaseClient"
+import { CLAIM_DOCUMENTS_BUCKET, MAX_FILE_SIZE_BYTES } from "@/lib/claim-listing-constants"
 
 const DOCUMENT_TYPES = [
   "Business License",
@@ -23,26 +25,76 @@ export function ClaimListingForm() {
     setStatus("submitting")
     setErrorMessage("")
     try {
-      const res = await fetch("/api/claim-listing", { method: "POST", body: formData })
-      const text = await res.text()
-      let json: { success?: boolean; error?: string }
-      try {
-        json = JSON.parse(text)
-      } catch {
-        if (res.status === 413 || /request entity too large|body exceeded|payload too large/i.test(text)) {
-          setStatus("error")
-          setErrorMessage("File(s) are too large. Please ensure each file is under 10MB and the total upload is under 4.5MB.")
-          return
-        }
+      const files = formData.getAll("documents") as File[]
+      const validFiles = files.filter((f) => f && f.size > 0 && f.name)
+      if (validFiles.length === 0) {
         setStatus("error")
-        setErrorMessage("The server returned an unexpected response. Please try again with smaller files.")
+        setErrorMessage("At least one verification document is required.")
         return
       }
-      if (json.success) {
+      for (const f of validFiles) {
+        if (f.size > MAX_FILE_SIZE_BYTES) {
+          setStatus("error")
+          setErrorMessage(`File "${f.name}" exceeds 10MB limit.`)
+          return
+        }
+      }
+
+      const initRes = await fetch("/api/claim-listing/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          claimant_name: formData.get("claimant_name")?.toString()?.trim(),
+          business_name: formData.get("business_name")?.toString()?.trim(),
+          email: formData.get("email")?.toString()?.trim(),
+          phone: formData.get("phone")?.toString()?.trim(),
+          business_address: formData.get("business_address")?.toString()?.trim(),
+          consent: formData.get("consent") === "on",
+          document_type: formData.get("document_type")?.toString() ?? "Other",
+          files: validFiles.map((f) => ({ name: f.name, size: f.size, type: f.type })),
+        }),
+      })
+      const initJson = await initRes.json()
+      if (!initJson.success) {
+        setStatus("error")
+        setErrorMessage(initJson.error ?? "Something went wrong.")
+        return
+      }
+
+      const { claimId, uploads } = initJson
+      const supabase = getSupabaseClient()
+      for (let i = 0; i < validFiles.length; i++) {
+        const { path, token } = uploads[i]
+        const file = validFiles[i]
+        const { error: uploadError } = await supabase.storage
+          .from(CLAIM_DOCUMENTS_BUCKET)
+          .uploadToSignedUrl(path, token, file, { contentType: file.type })
+        if (uploadError) {
+          setStatus("error")
+          setErrorMessage(`Failed to upload "${file.name}": ${uploadError.message}`)
+          return
+        }
+      }
+
+      const completeRes = await fetch("/api/claim-listing/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          claimId,
+          document_type: formData.get("document_type")?.toString() ?? "Other",
+          documents: validFiles.map((f, i) => ({
+            path: uploads[i].path,
+            mime_type: f.type,
+            file_size: f.size,
+          })),
+        }),
+      })
+      const completeJson = await completeRes.json()
+      if (completeJson.success) {
         setStatus("success")
       } else {
         setStatus("error")
-        setErrorMessage(json.error ?? "Something went wrong.")
+        setErrorMessage(completeJson.error ?? "Something went wrong.")
       }
     } catch (e) {
       setStatus("error")
@@ -102,7 +154,13 @@ export function ClaimListingForm() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form action={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void handleSubmit(new FormData(e.currentTarget))
+          }}
+          className="space-y-4"
+        >
           <div className="space-y-2">
             <Label htmlFor="claimant_name">Your Name</Label>
             <Input
