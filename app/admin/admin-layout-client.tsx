@@ -47,6 +47,7 @@ const sidebarItems = [
   { label: "Parents", href: "/admin/parents", icon: UsersRound },
   { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
   { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
+  { label: "Reviews", href: "/admin/reviews", icon: Star },
   { label: "Claim Requests", href: "/admin/claims", icon: FileCheck, badge: 3 },
   { label: "Directory", href: "/admin/directory", icon: FolderTree },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },

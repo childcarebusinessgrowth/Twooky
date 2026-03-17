@@ -103,6 +103,7 @@ export function Header() {
   const showDashboardAction = !loading && isAuthResolved && isServerAuthenticated
   const isAdmin = showDashboardAction && dashboardHref === "/admin"
   const isParent = showDashboardAction && dashboardHref === "/dashboard/parent"
+  const isProvider = showDashboardAction && !isAdmin && !isParent
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
@@ -167,22 +168,22 @@ export function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden lg:flex lg:items-center lg:gap-3">
-          {isAdmin ? (
-            <Button variant="secondary" size="sm" asChild>
-              <Link href={dashboardHref}>Dashboard</Link>
-            </Button>
-          ) : isParent ? (
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={dashboardHref}>Dashboard</Link>
-            </Button>
-          ) : showDashboardAction ? (
+          {showDashboardAction ? (
             <>
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="secondary" size="sm" asChild>
                 <Link href={dashboardHref}>Dashboard</Link>
               </Button>
-              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                <Link href="/claim-listing" className="text-inherit">Claim Your Listing</Link>
-              </Button>
+              {isProvider ? (
+                <Button
+                  size="sm"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  asChild
+                >
+                  <Link href="/claim-listing" className="text-inherit">
+                    Claim Your Listing
+                  </Link>
+                </Button>
+              ) : null}
             </>
           ) : (
             <>
@@ -246,22 +247,24 @@ export function Header() {
             ))}
           </div>
           <div className="flex flex-col gap-2 pt-4 border-t border-border">
-            {isAdmin ? (
-              <Button variant="secondary" className="justify-start" asChild>
-                <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
-              </Button>
-            ) : isParent ? (
-              <Button variant="ghost" className="justify-start" asChild>
-                <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
-              </Button>
-            ) : showDashboardAction ? (
+            {showDashboardAction ? (
               <>
-                <Button variant="ghost" className="justify-start" asChild>
-                  <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+                <Button variant="secondary" className="justify-start" asChild>
+                  <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>
+                    Dashboard
+                  </Link>
                 </Button>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                  <Link href="/claim-listing" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>Claim Your Listing</Link>
-                </Button>
+                {isProvider ? (
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+                    <Link
+                      href="/claim-listing"
+                      className="text-inherit"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Claim Your Listing
+                    </Link>
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>

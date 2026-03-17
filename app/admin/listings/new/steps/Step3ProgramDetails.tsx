@@ -1,0 +1,182 @@
+"use client"
+
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { WizardStepHeader } from "../_components/WizardStepHeader"
+import { PROVIDER_TYPES } from "@/lib/provider-types"
+import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
+import type { AdminProviderCurriculumOption, AdminProviderLanguageOption } from "../actions"
+
+type Step3ProgramDetailsProps = {
+  providerTypes: string[]
+  setProviderTypes: (v: string[]) => void
+  ageGroupsServed: string[]
+  setAgeGroupsServed: (v: string[]) => void
+  selectedCurriculum: string
+  setSelectedCurriculum: (v: string) => void
+  selectedLanguages: string[]
+  setSelectedLanguages: (v: string[]) => void
+  amenities: string[]
+  setAmenities: (v: string[]) => void
+  curriculum: AdminProviderCurriculumOption[]
+  languages: AdminProviderLanguageOption[]
+}
+
+export function Step3ProgramDetails({
+  providerTypes,
+  setProviderTypes,
+  ageGroupsServed,
+  setAgeGroupsServed,
+  selectedCurriculum,
+  setSelectedCurriculum,
+  selectedLanguages,
+  setSelectedLanguages,
+  amenities,
+  setAmenities,
+  curriculum,
+  languages,
+}: Step3ProgramDetailsProps) {
+  return (
+    <div className="space-y-6">
+      <WizardStepHeader
+        title="Program Details"
+        description="Types of care, age groups, curriculum, and amenities."
+      />
+
+      <Card className="border-border/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Provider Types</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {PROVIDER_TYPES.map((type) => (
+              <label key={type.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
+                <Checkbox
+                  checked={providerTypes.includes(type.id)}
+                  onCheckedChange={(checked) =>
+                    setProviderTypes(
+                      checked
+                        ? providerTypes.includes(type.id)
+                          ? providerTypes
+                          : [...providerTypes, type.id]
+                        : providerTypes.filter((id) => id !== type.id),
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">{type.label}</span>
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Age Groups Served</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {AGE_GROUPS.map((group) => (
+              <label key={group.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
+                <Checkbox
+                  checked={ageGroupsServed.includes(group.id)}
+                  onCheckedChange={(checked) =>
+                    setAgeGroupsServed(
+                      checked
+                        ? ageGroupsServed.includes(group.id)
+                          ? ageGroupsServed
+                          : [...ageGroupsServed, group.id]
+                        : ageGroupsServed.filter((id) => id !== group.id),
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">{group.label}</span>
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Curriculum and Languages</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Curriculum Type</Label>
+            <Select value={selectedCurriculum || "none"} onValueChange={(v) => setSelectedCurriculum(v === "none" ? "" : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Optional curriculum type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No curriculum selected</SelectItem>
+                {curriculum.map((item) => (
+                  <SelectItem key={item.id} value={item.name}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Languages Spoken</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {languages.map((lang) => (
+                <label key={lang.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
+                  <Checkbox
+                    checked={selectedLanguages.includes(lang.name)}
+                    onCheckedChange={(checked) =>
+                      setSelectedLanguages(
+                        checked
+                          ? selectedLanguages.includes(lang.name)
+                            ? selectedLanguages
+                            : [...selectedLanguages, lang.name]
+                          : selectedLanguages.filter((l) => l !== lang.name),
+                      )
+                    }
+                  />
+                  <span className="text-sm font-medium">{lang.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Amenities and Features</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {AMENITIES.map((amenity) => (
+              <label key={amenity.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
+                <Checkbox
+                  checked={amenities.includes(amenity.id)}
+                  onCheckedChange={(checked) =>
+                    setAmenities(
+                      checked
+                        ? amenities.includes(amenity.id)
+                          ? amenities
+                          : [...amenities, amenity.id]
+                        : amenities.filter((id) => id !== amenity.id),
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">{amenity.label}</span>
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

@@ -16,7 +16,7 @@ export default async function AdminCreateProviderPage() {
         </p>
       </div>
       <Card className="border-border/50">
-        <CardContent className="pt-6">
+        <CardContent className="px-6 py-6 lg:px-8">
           <AdminCreateProviderForm countries={countries} cities={cities} languages={languages} curriculum={curriculum} />
         </CardContent>
       </Card>

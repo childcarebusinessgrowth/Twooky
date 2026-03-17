@@ -1,24 +1,8 @@
 "use client"
 
-import { useMemo, useRef, useState, useTransition, type ChangeEvent, type FormEvent } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Plus, Trash2, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
-import { PROVIDER_TYPES } from "@/lib/provider-types"
-import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
 import type {
   AdminProviderCityOption,
   AdminProviderCountryOption,
@@ -26,9 +10,14 @@ import type {
   AdminProviderLanguageOption,
 } from "./actions"
 import { createAdminProvider } from "./actions"
-
-type FaqItem = { id: string; question: string; answer: string }
-type PhotoItem = { key: string; file: File; caption: string }
+import { WIZARD_STEPS, type WizardStepId } from "./types"
+import { WizardProgress } from "./_components/WizardProgress"
+import { WizardFooter } from "./_components/WizardFooter"
+import { Step1Basics } from "./steps/Step1Basics"
+import { Step2LocationVisibility } from "./steps/Step2LocationVisibility"
+import { Step3ProgramDetails } from "./steps/Step3ProgramDetails"
+import { Step4OperationsMedia } from "./steps/Step4OperationsMedia"
+import { Step5ReviewSubmit } from "./steps/Step5ReviewSubmit"
 
 function toFileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`
@@ -48,113 +37,153 @@ export function AdminCreateProviderForm({
   const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
-  const formRef = useRef<HTMLFormElement | null>(null)
-  const [countryId, setCountryId] = useState<string>("")
-  const [cityId, setCityId] = useState<string>("")
-  const [listingStatus, setListingStatus] = useState<string>("active")
+  const [currentStep, setCurrentStep] = useState<WizardStepId>(1)
+  const [error, setError] = useState<string | null>(null)
+
+  const [businessName, setBusinessName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [website, setWebsite] = useState("")
+  const [description, setDescription] = useState("")
+  const [address, setAddress] = useState("")
+  const [city, setCity] = useState("")
+  const [countryId, setCountryIdState] = useState("")
+  const [cityId, setCityId] = useState("")
+  const [listingStatus, setListingStatus] = useState("active")
   const [featured, setFeatured] = useState(false)
+  const [openingTime, setOpeningTime] = useState("")
+  const [closingTime, setClosingTime] = useState("")
+  const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState("")
+  const [monthlyTuitionTo, setMonthlyTuitionTo] = useState("")
+  const [totalCapacity, setTotalCapacity] = useState("")
   const [virtualTourUrls, setVirtualTourUrls] = useState<string[]>([""])
-  const [faqs, setFaqs] = useState<FaqItem[]>([])
-  const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>([])
+  const [photoItems, setPhotoItems] = useState<Array<{ key: string; file: File; caption: string }>>([])
   const [providerTypes, setProviderTypes] = useState<string[]>([])
   const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>([])
-  const [selectedCurriculum, setSelectedCurriculum] = useState<string>("")
+  const [selectedCurriculum, setSelectedCurriculum] = useState("")
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [amenities, setAmenities] = useState<string[]>([])
-  const [primaryPhotoIndex, setPrimaryPhotoIndex] = useState<number>(0)
-  const [error, setError] = useState<string | null>(null)
+  const [primaryPhotoIndex, setPrimaryPhotoIndex] = useState(0)
+
+  const setCountryId = (value: string) => {
+    setCountryIdState(value)
+    if (value && cityId) {
+      const cityRow = cities.find((c) => c.id === cityId)
+      if (cityRow && cityRow.country_id !== value) setCityId("")
+    }
+  }
 
   const visibleCities = useMemo(() => {
     if (!countryId) return cities
-    return cities.filter((city) => city.country_id === countryId)
+    return cities.filter((c) => c.country_id === countryId)
   }, [cities, countryId])
 
   const addVirtualTour = () => setVirtualTourUrls((prev) => [...prev, ""])
-  const updateVirtualTour = (index: number, value: string) => {
-    setVirtualTourUrls((prev) => prev.map((item, i) => (i === index ? value : item)))
-  }
-  const removeVirtualTour = (index: number) => {
+  const updateVirtualTour = (i: number, v: string) =>
+    setVirtualTourUrls((prev) => prev.map((item, idx) => (idx === i ? v : item)))
+  const removeVirtualTour = (i: number) =>
     setVirtualTourUrls((prev) => {
-      const next = prev.filter((_, i) => i !== index)
+      const next = prev.filter((_, idx) => idx !== i)
       return next.length === 0 ? [""] : next
     })
-  }
 
-  const addFaq = () => {
+  const addFaq = () =>
     setFaqs((prev) => [
       ...prev,
       { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, question: "", answer: "" },
     ])
-  }
-  const updateFaq = (id: string, key: "question" | "answer", value: string) => {
-    setFaqs((prev) => prev.map((faq) => (faq.id === id ? { ...faq, [key]: value } : faq)))
-  }
-  const removeFaq = (id: string) => {
-    setFaqs((prev) => prev.filter((faq) => faq.id !== id))
-  }
+  const updateFaq = (id: string, key: "question" | "answer", value: string) =>
+    setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, [key]: value } : f)))
+  const removeFaq = (id: string) => setFaqs((prev) => prev.filter((f) => f.id !== id))
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files ?? [])
-    if (selectedFiles.length === 0) return
-
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
     setPhotoItems((prev) => {
-      const existingKeys = new Set(prev.map((item) => item.key))
+      const keys = new Set(prev.map((p) => p.key))
       const next = [...prev]
-
-      for (const file of selectedFiles) {
+      for (const file of files) {
         const key = toFileKey(file)
-        if (existingKeys.has(key)) continue
-        existingKeys.add(key)
-        next.push({
-          key,
-          file,
-          caption: "",
-        })
+        if (keys.has(key)) continue
+        keys.add(key)
+        next.push({ key, file, caption: "" })
       }
-
       return next
     })
-
-    // Allow selecting the same file again in a later pick.
-    event.target.value = ""
+    e.target.value = ""
   }
-
-  const updatePhotoCaption = (index: number, value: string) => {
-    setPhotoItems((prev) => prev.map((item, i) => (i === index ? { ...item, caption: value } : item)))
-  }
-
-  const removePhotoItem = (index: number) => {
-    setPhotoItems((prev) => prev.filter((_, i) => i !== index))
+  const updatePhotoCaption = (i: number, v: string) =>
+    setPhotoItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, caption: v } : item)))
+  const removePhotoItem = (i: number) => {
+    setPhotoItems((prev) => prev.filter((_, idx) => idx !== i))
     setPrimaryPhotoIndex((prev) => {
-      if (index < prev) return prev - 1
-      if (index === prev) return 0
+      if (i < prev) return prev - 1
+      if (i === prev) return 0
       return prev
     })
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError(null)
-    if (!formRef.current) return
+  const canProceedStep1 = businessName.trim().length > 0 && description.trim().length > 0
+  const canProceedStep2 = address.trim().length > 0 && city.trim().length > 0
+  const canProceedStep3 = true
+  const canProceedStep4 = true
+  const canProceedStep5 = canProceedStep1 && canProceedStep2
 
-    const formData = new FormData(formRef.current)
+  const canProceed = useMemo(() => {
+    switch (currentStep) {
+      case 1:
+        return canProceedStep1
+      case 2:
+        return canProceedStep2
+      case 3:
+        return canProceedStep3
+      case 4:
+        return canProceedStep4
+      case 5:
+        return canProceedStep5
+      default:
+        return false
+    }
+  }, [currentStep, canProceedStep1, canProceedStep2, canProceedStep3, canProceedStep4, canProceedStep5])
+
+  const handleNext = () => {
+    if (currentStep < WIZARD_STEPS.length) setCurrentStep((currentStep + 1) as WizardStepId)
+  }
+  const handleBack = () => {
+    if (currentStep > 1) setCurrentStep((currentStep - 1) as WizardStepId)
+  }
+  const handleCancel = () => router.push("/admin/listings")
+
+  const handleSubmit = () => {
+    setError(null)
+    const formData = new FormData()
+    formData.set("businessName", businessName.trim())
+    formData.set("description", description.trim())
+    formData.set("phone", phone.trim())
+    formData.set("website", website.trim())
+    formData.set("address", address.trim())
+    formData.set("city", city.trim())
     formData.set("countryId", countryId)
     formData.set("cityId", cityId)
     formData.set("listingStatus", listingStatus)
     formData.set("featured", featured ? "true" : "false")
     formData.set("curriculumType", selectedCurriculum)
     formData.set("languagesSpoken", selectedLanguages.join(", "))
+    formData.set("openingTime", openingTime.trim())
+    formData.set("closingTime", closingTime.trim())
+    formData.set("monthlyTuitionFrom", monthlyTuitionFrom.trim())
+    formData.set("monthlyTuitionTo", monthlyTuitionTo.trim())
+    formData.set("totalCapacity", totalCapacity.trim())
     formData.set("faqsJson", JSON.stringify(faqs))
-    formData.set("photoCaptionsJson", JSON.stringify(photoItems.map((item) => item.caption)))
+    formData.set("photoCaptionsJson", JSON.stringify(photoItems.map((p) => p.caption)))
     formData.set("primaryPhotoIndex", String(primaryPhotoIndex))
-    formData.delete("photos")
-    for (const item of photoItems) formData.append("photos", item.file)
-    formData.delete("providerTypes")
     for (const type of providerTypes) formData.append("providerTypes", type)
-    formData.delete("ageGroupsServed")
     for (const group of ageGroupsServed) formData.append("ageGroupsServed", group)
-    formData.delete("amenities")
     for (const amenity of amenities) formData.append("amenities", amenity)
+    for (const url of virtualTourUrls) {
+      if (url.trim()) formData.append("virtualTourUrls", url.trim())
+    }
+    for (const item of photoItems) formData.append("photos", item.file)
 
     startTransition(async () => {
       const result = await createAdminProvider(formData)
@@ -163,381 +192,139 @@ export function AdminCreateProviderForm({
         toast({ title: "Could not create provider", description: result.error, variant: "destructive" })
         return
       }
-      toast({ title: "Provider created", description: "The provider listing has been added successfully.", variant: "success" })
+      toast({
+        title: "Provider created",
+        description: "The provider listing has been added successfully.",
+        variant: "success",
+      })
       router.push(`/admin/listings/${result.profileId}`)
       router.refresh()
     })
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Business Information</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="businessName">Business Name *</Label>
-            <Input id="businessName" name="businessName" required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input id="phone" name="phone" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="website">Website</Label>
-          <Input id="website" name="website" placeholder="https://..." />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="description">Description *</Label>
-          <Textarea id="description" name="description" rows={5} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="address">Address *</Label>
-          <Input id="address" name="address" required />
-        </div>
-      </section>
+    <div className="mx-auto max-w-3xl">
+      <WizardProgress currentStep={currentStep} />
 
-      <Separator />
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Location and Visibility</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Country</Label>
-            <Select
-              value={countryId || "none"}
-              onValueChange={(value) => {
-                const nextCountry = value === "none" ? "" : value
-                setCountryId(nextCountry)
-                if (nextCountry && cityId) {
-                  const city = cities.find((item) => item.id === cityId)
-                  if (city && city.country_id !== nextCountry) {
-                    setCityId("")
-                  }
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Optional country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No country selected</SelectItem>
-                {countries.map((country) => (
-                  <SelectItem key={country.id} value={country.id}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Directory City</Label>
-            <Select value={cityId || "none"} onValueChange={(value) => setCityId(value === "none" ? "" : value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Optional city from directory" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No directory city selected</SelectItem>
-                {visibleCities.map((city) => (
-                  <SelectItem key={city.id} value={city.id}>
-                    {city.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="city">Public City Label *</Label>
-            <Input id="city" name="city" required placeholder="What parents should see" />
-          </div>
-          <div className="space-y-2">
-            <Label>Listing Status</Label>
-            <Select value={listingStatus} onValueChange={setListingStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <label className="inline-flex items-center gap-2">
-          <Checkbox checked={featured} onCheckedChange={(checked) => setFeatured(Boolean(checked))} />
-          <span className="text-sm">Feature this listing</span>
-        </label>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Program Details</h2>
-        <div className="space-y-2">
-          <Label>Provider Types</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {PROVIDER_TYPES.map((type) => (
-              <label key={type.id} className="inline-flex items-center gap-2">
-                <Checkbox
-                  checked={providerTypes.includes(type.id)}
-                  onCheckedChange={(checked) =>
-                    setProviderTypes((prev) =>
-                      checked
-                        ? prev.includes(type.id)
-                          ? prev
-                          : [...prev, type.id]
-                        : prev.filter((item) => item !== type.id)
-                    )
-                  }
-                />
-                <span className="text-sm">{type.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Age Groups Served</Label>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {AGE_GROUPS.map((group) => (
-              <label key={group.id} className="inline-flex items-center gap-2">
-                <Checkbox
-                  checked={ageGroupsServed.includes(group.id)}
-                  onCheckedChange={(checked) =>
-                    setAgeGroupsServed((prev) =>
-                      checked
-                        ? prev.includes(group.id)
-                          ? prev
-                          : [...prev, group.id]
-                        : prev.filter((item) => item !== group.id)
-                    )
-                  }
-                />
-                <span className="text-sm">{group.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Curriculum Type</Label>
-            <Select value={selectedCurriculum || "none"} onValueChange={(value) => setSelectedCurriculum(value === "none" ? "" : value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Optional curriculum type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No curriculum selected</SelectItem>
-                {curriculum.map((item) => (
-                  <SelectItem key={item.id} value={item.name}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Languages Spoken</Label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {languages.map((language) => (
-                <label key={language.id} className="inline-flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedLanguages.includes(language.name)}
-                    onCheckedChange={(checked) =>
-                      setSelectedLanguages((prev) =>
-                        checked
-                          ? prev.includes(language.name)
-                            ? prev
-                            : [...prev, language.name]
-                          : prev.filter((item) => item !== language.name)
-                      )
-                    }
-                  />
-                  <span className="text-sm">{language.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Amenities and Features</Label>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {AMENITIES.map((amenity) => (
-              <label key={amenity.id} className="inline-flex items-center gap-2">
-                <Checkbox
-                  checked={amenities.includes(amenity.id)}
-                  onCheckedChange={(checked) =>
-                    setAmenities((prev) =>
-                      checked
-                        ? prev.includes(amenity.id)
-                          ? prev
-                          : [...prev, amenity.id]
-                        : prev.filter((item) => item !== amenity.id)
-                    )
-                  }
-                />
-                <span className="text-sm">{amenity.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Operating Details</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="openingTime">Opening Time</Label>
-            <Input id="openingTime" name="openingTime" placeholder="07:00" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="closingTime">Closing Time</Label>
-            <Input id="closingTime" name="closingTime" placeholder="18:00" />
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="monthlyTuitionFrom">Monthly Tuition From</Label>
-            <Input id="monthlyTuitionFrom" name="monthlyTuitionFrom" type="number" min="0" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="monthlyTuitionTo">Monthly Tuition To</Label>
-            <Input id="monthlyTuitionTo" name="monthlyTuitionTo" type="number" min="0" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="totalCapacity">Total Capacity</Label>
-            <Input id="totalCapacity" name="totalCapacity" type="number" min="0" />
-          </div>
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Virtual Tours</h2>
-          <Button type="button" variant="outline" size="sm" onClick={addVirtualTour}>
-            <Plus className="mr-1 h-4 w-4" />
-            Add URL
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {virtualTourUrls.map((url, index) => (
-            <div key={`tour-${index}`} className="flex gap-2">
-              <Input
-                name="virtualTourUrls"
-                value={url}
-                placeholder="https://www.youtube.com/watch?v=..."
-                onChange={(event) => updateVirtualTour(index, event.target.value)}
-              />
-              <Button type="button" variant="outline" size="icon" onClick={() => removeVirtualTour(index)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">FAQs</h2>
-          <Button type="button" variant="outline" size="sm" onClick={addFaq}>
-            <Plus className="mr-1 h-4 w-4" />
-            Add FAQ
-          </Button>
-        </div>
-        {faqs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No FAQs yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {faqs.map((faq) => (
-              <div key={faq.id} className="rounded-md border p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">FAQ</p>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeFaq(faq.id)}>
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Remove
-                  </Button>
-                </div>
-                <Input
-                  value={faq.question}
-                  placeholder="Question"
-                  onChange={(event) => updateFaq(faq.id, "question", event.target.value)}
-                />
-                <Textarea
-                  value={faq.answer}
-                  rows={3}
-                  placeholder="Answer"
-                  onChange={(event) => updateFaq(faq.id, "answer", event.target.value)}
-                />
-              </div>
-            ))}
-          </div>
+      <div className="min-h-[400px]">
+        {currentStep === 1 && (
+          <Step1Basics
+            businessName={businessName}
+            setBusinessName={setBusinessName}
+            phone={phone}
+            setPhone={setPhone}
+            website={website}
+            setWebsite={setWebsite}
+            description={description}
+            setDescription={setDescription}
+          />
         )}
-      </section>
-
-      <Separator />
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Photos</h2>
-        <div className="space-y-2">
-          <Label htmlFor="photos">Upload Photos (PNG/JPG/WebP, max 10MB each)</Label>
-          <Input id="photos" name="photos" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={handleFileChange} />
-          <p className="text-xs text-muted-foreground">You can select multiple photos at once and add more in additional picks.</p>
-        </div>
-
-        {photoItems.length > 0 && (
-          <div className="space-y-3">
-            {photoItems.map((item, index) => (
-              <div key={item.key} className="rounded-md border p-3 space-y-2">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{item.file.name}</p>
-                    <p className="text-xs text-muted-foreground">{Math.round(item.file.size / 1024)} KB</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="radio"
-                        name="primary-photo"
-                        checked={primaryPhotoIndex === index}
-                        onChange={() => setPrimaryPhotoIndex(index)}
-                      />
-                      Primary
-                    </label>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removePhotoItem(index)} aria-label={`Remove ${item.file.name}`}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <Input
-                  value={item.caption}
-                  placeholder="Caption (optional)"
-                  onChange={(event) => updatePhotoCaption(index, event.target.value)}
-                />
-              </div>
-            ))}
-          </div>
+        {currentStep === 2 && (
+          <Step2LocationVisibility
+            address={address}
+            setAddress={setAddress}
+            city={city}
+            setCity={setCity}
+            countryId={countryId}
+            setCountryId={setCountryId}
+            cityId={cityId}
+            setCityId={setCityId}
+            listingStatus={listingStatus}
+            setListingStatus={setListingStatus}
+            featured={featured}
+            setFeatured={setFeatured}
+            countries={countries}
+            cities={cities}
+            visibleCities={visibleCities}
+          />
         )}
-      </section>
-
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Create Provider
-        </Button>
-        <Button type="button" variant="outline" onClick={() => router.push("/admin/listings")} disabled={isPending}>
-          Cancel
-        </Button>
+        {currentStep === 3 && (
+          <Step3ProgramDetails
+            providerTypes={providerTypes}
+            setProviderTypes={setProviderTypes}
+            ageGroupsServed={ageGroupsServed}
+            setAgeGroupsServed={setAgeGroupsServed}
+            selectedCurriculum={selectedCurriculum}
+            setSelectedCurriculum={setSelectedCurriculum}
+            selectedLanguages={selectedLanguages}
+            setSelectedLanguages={setSelectedLanguages}
+            amenities={amenities}
+            setAmenities={setAmenities}
+            curriculum={curriculum}
+            languages={languages}
+          />
+        )}
+        {currentStep === 4 && (
+          <Step4OperationsMedia
+            openingTime={openingTime}
+            setOpeningTime={setOpeningTime}
+            closingTime={closingTime}
+            setClosingTime={setClosingTime}
+            monthlyTuitionFrom={monthlyTuitionFrom}
+            setMonthlyTuitionFrom={setMonthlyTuitionFrom}
+            monthlyTuitionTo={monthlyTuitionTo}
+            setMonthlyTuitionTo={setMonthlyTuitionTo}
+            totalCapacity={totalCapacity}
+            setTotalCapacity={setTotalCapacity}
+            virtualTourUrls={virtualTourUrls}
+            addVirtualTour={addVirtualTour}
+            updateVirtualTour={updateVirtualTour}
+            removeVirtualTour={removeVirtualTour}
+            faqs={faqs}
+            addFaq={addFaq}
+            updateFaq={updateFaq}
+            removeFaq={removeFaq}
+            photoItems={photoItems}
+            handleFileChange={handleFileChange}
+            updatePhotoCaption={updatePhotoCaption}
+            removePhotoItem={removePhotoItem}
+            primaryPhotoIndex={primaryPhotoIndex}
+            setPrimaryPhotoIndex={setPrimaryPhotoIndex}
+          />
+        )}
+        {currentStep === 5 && (
+          <Step5ReviewSubmit
+            businessName={businessName}
+            phone={phone}
+            website={website}
+            description={description}
+            address={address}
+            city={city}
+            listingStatus={listingStatus}
+            featured={featured}
+            providerTypes={providerTypes}
+            ageGroupsServed={ageGroupsServed}
+            selectedCurriculum={selectedCurriculum}
+            selectedLanguages={selectedLanguages}
+            amenities={amenities}
+            openingTime={openingTime}
+            closingTime={closingTime}
+            monthlyTuitionFrom={monthlyTuitionFrom}
+            monthlyTuitionTo={monthlyTuitionTo}
+            totalCapacity={totalCapacity}
+            virtualTourUrls={virtualTourUrls}
+            faqs={faqs}
+            photoItems={photoItems}
+            curriculumOptions={curriculum}
+          />
+        )}
       </div>
-    </form>
+
+      {error && (
+        <p className="mb-4 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
+      <WizardFooter
+        currentStep={currentStep}
+        onBack={handleBack}
+        onNext={handleNext}
+        onSubmit={handleSubmit}
+        canProceed={canProceed}
+        isPending={isPending}
+        onCancel={handleCancel}
+      />
+    </div>
   )
 }

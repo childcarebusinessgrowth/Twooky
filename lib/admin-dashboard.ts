@@ -318,6 +318,82 @@ export type ContactMessageRow = {
 }
 
 const CONTACT_MESSAGES_PAGE_SIZE = 50
+const ADMIN_REVIEWS_PAGE_SIZE = 200
+
+export type AdminReviewRow = {
+  id: string
+  parent_profile_id: string | null
+  parent_display_name: string | null
+  provider_profile_id: string
+  provider_business_name: string | null
+  provider_slug: string | null
+  rating: number
+  review_text: string
+  created_at: string
+  provider_reply_text: string | null
+  provider_replied_at: string | null
+}
+
+export async function loadAdminReviews(): Promise<{
+  reviews: AdminReviewRow[]
+  error: string | null
+}> {
+  try {
+    const supabase = getSupabaseAdminClient()
+    const { data: rows, error } = await supabase
+      .from("parent_reviews")
+      .select("id, parent_profile_id, provider_profile_id, rating, review_text, created_at, provider_reply_text, provider_replied_at")
+      .order("created_at", { ascending: false })
+      .limit(ADMIN_REVIEWS_PAGE_SIZE)
+    if (error) return { reviews: [], error: error.message }
+    if (!rows || rows.length === 0) return { reviews: [], error: null }
+
+    const providerIds = [...new Set(rows.map((r) => r.provider_profile_id))]
+    const parentIds = [...new Set(rows.map((r) => r.parent_profile_id).filter((id): id is string => id != null))]
+
+    const [providerProfilesRes, profilesRes] = await Promise.all([
+      supabase
+        .from("provider_profiles")
+        .select("profile_id, business_name, provider_slug")
+        .in("profile_id", providerIds),
+      parentIds.length > 0
+        ? supabase.from("profiles").select("id, display_name").in("id", parentIds)
+        : Promise.resolve({ data: [] as { id: string; display_name: string | null }[] }),
+    ])
+
+    const providerBy = new Map(
+      (providerProfilesRes.data ?? []).map((p) => [
+        p.profile_id,
+        { business_name: p.business_name, provider_slug: p.provider_slug },
+      ])
+    )
+    const nameBy = new Map((profilesRes.data ?? []).map((p) => [p.id, p.display_name]))
+
+    const reviews: AdminReviewRow[] = rows.map((row) => {
+      const provider = providerBy.get(row.provider_profile_id)
+      return {
+        id: row.id,
+        parent_profile_id: row.parent_profile_id,
+        parent_display_name: row.parent_profile_id == null ? "Anonymous" : (nameBy.get(row.parent_profile_id) ?? null),
+        provider_profile_id: row.provider_profile_id,
+        provider_business_name: provider?.business_name ?? null,
+        provider_slug: provider?.provider_slug ?? null,
+        rating: row.rating,
+        review_text: row.review_text,
+        created_at: row.created_at,
+        provider_reply_text: row.provider_reply_text ?? null,
+        provider_replied_at: row.provider_replied_at ?? null,
+      }
+    })
+
+    return { reviews, error: null }
+  } catch (e) {
+    return {
+      reviews: [],
+      error: e instanceof Error ? e.message : "Failed to load reviews",
+    }
+  }
+}
 
 export async function loadContactMessages(): Promise<{
   messages: ContactMessageRow[]

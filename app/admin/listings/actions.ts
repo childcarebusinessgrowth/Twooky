@@ -244,6 +244,11 @@ export type AdminListingDetailPhoto = {
   sort_order: number
 }
 
+export type AdminListingDetailFaq = {
+  question: string
+  answer: string
+}
+
 export type AdminListingDetail = {
   profile: {
     profile_id: string
@@ -276,6 +281,7 @@ export type AdminListingDetail = {
     created_at: string
   }
   photos: AdminListingDetailPhoto[]
+  faqs: AdminListingDetailFaq[]
 }
 
 export async function getAdminListingDetail(
@@ -314,13 +320,20 @@ export async function getAdminListingDetail(
       : Promise.resolve({ data: null }),
   ])
 
-  const { data: photoRows } = await supabase
-    .from("provider_photos")
-    .select("id, storage_path, caption, is_primary, sort_order")
-    .eq("provider_profile_id", profileId)
-    .order("is_primary", { ascending: false })
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true })
+  const [{ data: photoRows }, { data: faqRows }] = await Promise.all([
+    supabase
+      .from("provider_photos")
+      .select("id, storage_path, caption, is_primary, sort_order")
+      .eq("provider_profile_id", profileId)
+      .order("is_primary", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("provider_faqs")
+      .select("question, answer")
+      .eq("provider_profile_id", profileId)
+      .order("sort_order", { ascending: true }),
+  ])
 
   const photos: AdminListingDetailPhoto[] = (photoRows ?? []).map((row) => ({
     id: row.id,
@@ -328,6 +341,11 @@ export async function getAdminListingDetail(
     caption: row.caption,
     is_primary: row.is_primary,
     sort_order: row.sort_order,
+  }))
+
+  const faqs: AdminListingDetailFaq[] = (faqRows ?? []).map((row) => ({
+    question: row.question ?? "",
+    answer: row.answer ?? "",
   }))
 
   return {
@@ -339,6 +357,7 @@ export async function getAdminListingDetail(
       featured: profile.featured ?? false,
     },
     photos,
+    faqs,
   }
 }
 

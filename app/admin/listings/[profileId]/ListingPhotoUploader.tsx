@@ -1,12 +1,12 @@
 "use client"
 
-import { useRef, useState, useTransition, type ChangeEvent } from "react"
+import { useRef, useCallback, useTransition, type ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { addListingPhotos } from "../actions"
+
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"]
 
 type ListingPhotoUploaderProps = {
   profileId: string
@@ -15,57 +15,108 @@ type ListingPhotoUploaderProps = {
 export function ListingPhotoUploader({ profileId }: ListingPhotoUploaderProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const inputRef = useRef<HTMLInputElement | null>(null)
   const [isPending, startTransition] = useTransition()
-  const [selectedCount, setSelectedCount] = useState(0)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
-  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSelectedCount(Array.from(event.target.files ?? []).length)
-  }
-
-  const onUpload = () => {
-    const files = Array.from(inputRef.current?.files ?? [])
-    if (files.length === 0) {
-      toast({ title: "No photos selected", description: "Pick one or more photos to upload.", variant: "destructive" })
-      return
-    }
-
-    const formData = new FormData()
-    for (const file of files) formData.append("photos", file)
-
-    startTransition(async () => {
-      const result = await addListingPhotos(profileId, formData)
-      if (!result.ok) {
-        toast({ title: "Upload failed", description: result.error, variant: "destructive" })
+  const uploadFiles = useCallback(
+    (files: File[]) => {
+      const valid = files.filter((f) => ALLOWED_TYPES.includes(f.type))
+      if (valid.length === 0) {
+        toast({
+          title: "Invalid files",
+          description: "Only PNG, JPG, and WebP images are supported.",
+          variant: "destructive",
+        })
         return
       }
-      setSelectedCount(0)
-      if (inputRef.current) inputRef.current.value = ""
-      toast({
-        title: "Photos uploaded",
-        description: result.added === 1 ? "1 photo added." : `${result.added} photos added.`,
-        variant: "success",
+
+      const formData = new FormData()
+      for (const file of valid) formData.append("photos", file)
+
+      startTransition(async () => {
+        const result = await addListingPhotos(profileId, formData)
+        if (!result.ok) {
+          toast({
+            title: "Upload failed",
+            description: result.error,
+            variant: "destructive",
+          })
+          return
+        }
+        toast({
+          title: "Photos uploaded",
+          description:
+            result.added === 1
+              ? "1 photo added."
+              : `${result.added} photos added.`,
+          variant: "success",
+        })
+        router.refresh()
       })
-      router.refresh()
-    })
-  }
+    },
+    [profileId, router, toast],
+  )
+
+  const handleFileChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? [])
+      if (files.length === 0) return
+      uploadFiles(files)
+      e.target.value = ""
+    },
+    [uploadFiles],
+  )
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      const files = Array.from(e.dataTransfer.files ?? []).filter((f) =>
+        ALLOWED_TYPES.includes(f.type),
+      )
+      if (files.length === 0) {
+        toast({
+          title: "Invalid files",
+          description: "Only PNG, JPG, and WebP images are supported.",
+          variant: "destructive",
+        })
+        return
+      }
+      uploadFiles(files)
+    },
+    [uploadFiles, toast],
+  )
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Input
+      <input
         ref={inputRef}
         type="file"
         accept="image/png,image/jpeg,image/webp"
         multiple
-        onChange={onFileChange}
-        className="max-w-sm"
+        onChange={handleFileChange}
+        className="sr-only"
       />
-      <Button type="button" variant="outline" size="sm" onClick={onUpload} disabled={isPending}>
-        {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-        Upload
-      </Button>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        disabled={isPending}
+        className="inline-flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-2 text-sm font-medium transition-colors hover:border-primary/50 hover:bg-muted/50 disabled:opacity-50"
+      >
+        {isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Upload className="h-4 w-4" />
+        )}
+        Add photos
+      </button>
       <span className="text-xs text-muted-foreground">
-        {selectedCount > 0 ? `${selectedCount} selected` : "PNG/JPG/WebP, max 10MB each"}
+        PNG, JPG, WebP · max 10MB each
       </span>
     </div>
   )
