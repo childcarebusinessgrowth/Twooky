@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { submitClaimListing } from "./actions"
 
 const DOCUMENT_TYPES = [
   "Business License",
@@ -24,12 +23,13 @@ export function ClaimListingForm() {
     setStatus("submitting")
     setErrorMessage("")
     try {
-      const result = await submitClaimListing(formData)
-      if (result.success) {
+      const res = await fetch("/api/claim-listing", { method: "POST", body: formData })
+      const json = await res.json()
+      if (json.success) {
         setStatus("success")
       } else {
         setStatus("error")
-        setErrorMessage(result.error)
+        setErrorMessage(json.error ?? "Something went wrong.")
       }
     } catch (e) {
       setStatus("error")
