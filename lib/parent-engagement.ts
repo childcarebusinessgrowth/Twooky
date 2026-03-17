@@ -306,9 +306,13 @@ export type ParentCompareProviderRow = {
   imageUrl: string | null
 }
 
-function formatCompareTuitionRange(from: number | null, to: number | null): string {
+function formatCompareTuitionRange(
+  from: number | null,
+  to: number | null,
+  symbol: string = "$"
+): string {
   if (from == null && to == null) return "Contact for pricing"
-  return `$${from ?? "-"} - $${to ?? "-"}`
+  return `${symbol}${from ?? "-"} - ${symbol}${to ?? "-"}`
 }
 
 function formatCompareHours(openingTime: string | null, closingTime: string | null): string {
@@ -364,7 +368,7 @@ export async function getCompareProvidersByParentProfileId(
     supabase
       .from("provider_profiles")
       .select(
-        "profile_id, provider_slug, business_name, city, address, age_groups_served, curriculum_type, opening_time, closing_time, languages_spoken, monthly_tuition_from, monthly_tuition_to, listing_status"
+        "profile_id, provider_slug, business_name, city, address, age_groups_served, curriculum_type, opening_time, closing_time, languages_spoken, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), listing_status"
       )
       .in("profile_id", providerIds)
       .eq("listing_status", "active"),
@@ -421,10 +425,13 @@ export async function getCompareProvidersByParentProfileId(
         reviewCount,
         tuitionRange: formatCompareTuitionRange(
           profile.monthly_tuition_from ?? null,
-          profile.monthly_tuition_to ?? null
+          profile.monthly_tuition_to ?? null,
+          (profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"
         ),
         ageGroups: formatCompareListText(profile.age_groups_served ?? null),
-        curriculum: profile.curriculum_type?.trim() || "Not specified",
+        curriculum: formatCompareListText(
+          Array.isArray(profile.curriculum_type) ? profile.curriculum_type : profile.curriculum_type ? [profile.curriculum_type] : null
+        ) || "Not specified",
         hours: formatCompareHours(profile.opening_time ?? null, profile.closing_time ?? null),
         languages: formatCompareLanguageText(profile.languages_spoken ?? null),
         imageUrl,

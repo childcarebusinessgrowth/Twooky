@@ -1,18 +1,22 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
-import { Plus, Save, Trash2, Loader2, MapPin } from "lucide-react"
+import { Plus, Save, Trash2, Loader2, MapPin, Building2, GraduationCap, Clock, CheckCircle, AlertCircle, Info, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
+import { FieldGroup, Field, FieldLabel, FieldDescription } from "@/components/ui/field"
 import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
 import { PROVIDER_TYPES, type ProviderTypeId } from "@/lib/provider-types"
-import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
+import { AGE_GROUPS, AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { parseYouTubeUrl } from "@/lib/youtube"
@@ -71,13 +75,15 @@ export default function ManageListingPage() {
   const [website, setWebsite] = useState("")
   const [providerTypes, setProviderTypes] = useState<ProviderTypeId[]>(["nursery", "preschool"])
   const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>(["infant", "toddler", "preschool", "prek"])
-  const [curriculumType, setCurriculumType] = useState("play-based")
+  const [curriculumTypes, setCurriculumTypes] = useState<string[]>(["play-based"])
   const [languagesSpoken, setLanguagesSpoken] = useState("english-spanish")
   const [amenities, setAmenities] = useState<string[]>(["meals_included", "outdoor_play_area", "nap_room", "security_cameras", "parent_app"])
   const [openingTime, setOpeningTime] = useState("7:00")
   const [closingTime, setClosingTime] = useState("18:00")
   const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState<string>("1200")
   const [monthlyTuitionTo, setMonthlyTuitionTo] = useState<string>("2000")
+  const [currencyId, setCurrencyId] = useState<string>("")
+  const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; name: string; symbol: string }>>([])
   const [totalCapacity, setTotalCapacity] = useState<string>("60")
   const [listingStatus, setListingStatus] = useState<string>("draft")
   const [photoCount, setPhotoCount] = useState<number>(0)
@@ -106,21 +112,36 @@ export default function ManageListingPage() {
       const supabase = getSupabaseClient()
 
       const selectWithStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, listing_status"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
       const selectWithoutStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id"
 
       try {
-        const [profileResult] = await Promise.all([
+        const [profileResult, currenciesResult] = await Promise.all([
           supabase
             .from("provider_profiles")
             .select(selectWithStatus)
             .eq("profile_id", user.id)
             .maybeSingle(),
-          fetchPhotoCount(user.id),
+          Promise.all([
+            fetchPhotoCount(user.id),
+            supabase
+              .from("currencies")
+              .select("id, code, name, symbol")
+              .eq("is_active", true)
+              .order("sort_order", { ascending: true })
+              .order("code", { ascending: true }),
+          ]),
         ])
 
         let { data, error } = profileResult
+        const [, currenciesRes] = currenciesResult as [
+          void,
+          { data: Array<{ id: string; code: string; name: string; symbol: string }> | null },
+        ]
+        if (currenciesRes?.data && isMounted) {
+          setCurrencies(currenciesRes.data)
+        }
 
         if (error && isMounted) {
           const msg = error.message ?? ""
@@ -180,13 +201,18 @@ export default function ManageListingPage() {
         if (data?.age_groups_served && data.age_groups_served.length > 0) {
           setAgeGroupsServed(data.age_groups_served)
         }
-        if (data?.curriculum_type != null) setCurriculumType(data.curriculum_type)
+        if (data?.curriculum_type && Array.isArray(data.curriculum_type) && data.curriculum_type.length > 0) {
+          setCurriculumTypes(data.curriculum_type)
+        } else if (data?.curriculum_type && typeof data.curriculum_type === "string") {
+          setCurriculumTypes([data.curriculum_type])
+        }
         if (data?.languages_spoken != null) setLanguagesSpoken(data.languages_spoken)
         if (data?.amenities && data.amenities.length > 0) setAmenities(data.amenities)
         if (data?.opening_time != null) setOpeningTime(data.opening_time)
         if (data?.closing_time != null) setClosingTime(data.closing_time)
         if (data?.monthly_tuition_from != null) setMonthlyTuitionFrom(String(data.monthly_tuition_from))
         if (data?.monthly_tuition_to != null) setMonthlyTuitionTo(String(data.monthly_tuition_to))
+        if (data?.currency_id != null) setCurrencyId(data.currency_id)
         if (data?.total_capacity != null) setTotalCapacity(String(data.total_capacity))
       } catch (err) {
         if (isMounted) {
@@ -227,7 +253,59 @@ export default function ManageListingPage() {
 
   const isDraftListing = listingStatus === "draft"
   const isPendingListing = listingStatus === "pending"
+  const isLiveListing = listingStatus === "active"
   const primaryActionLabel = isDraftListing ? "Submit" : "Save Changes"
+
+  const completionProgress = useMemo(() => {
+    if (!isDraftListing) return 100
+    const checks = [
+      !!businessName.trim(),
+      !!description.trim(),
+      !!phone.trim(),
+      !!website.trim(),
+      !!address.trim() && address !== DEFAULT_ADDRESS,
+      providerTypes.length > 0,
+      ageGroupsServed.length > 0,
+      curriculumTypes.length > 0,
+      !!languagesSpoken.trim(),
+      amenities.length > 0,
+      !!openingTime.trim(),
+      !!closingTime.trim(),
+      parseOptionalInteger(monthlyTuitionFrom) != null,
+      parseOptionalInteger(monthlyTuitionTo) != null,
+      parseOptionalInteger(totalCapacity) != null,
+      photoCount >= 1,
+    ]
+    const filled = checks.filter(Boolean).length
+    return Math.round((filled / checks.length) * 100)
+  }, [
+    isDraftListing,
+    businessName,
+    description,
+    phone,
+    website,
+    address,
+    providerTypes.length,
+    ageGroupsServed.length,
+    curriculumTypes.length,
+    languagesSpoken,
+    amenities.length,
+    openingTime,
+    closingTime,
+    monthlyTuitionFrom,
+    monthlyTuitionTo,
+    totalCapacity,
+    photoCount,
+  ])
+
+  const [showStickySave, setShowStickySave] = useState(false)
+  useEffect(() => {
+    const onScroll = () => {
+      setShowStickySave(window.scrollY > 200)
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   function validateDraftSubmission(
     values: {
@@ -238,7 +316,7 @@ export default function ManageListingPage() {
       address: string
       providerTypes: ProviderTypeId[]
       ageGroupsServed: string[]
-      curriculumType: string
+      curriculumTypes: string[]
       languagesSpoken: string
       amenities: string[]
       openingTime: string
@@ -257,7 +335,7 @@ export default function ManageListingPage() {
     if (!values.address.trim()) missing.push("Address")
     if (values.providerTypes.length === 0) missing.push("Provider Types")
     if (values.ageGroupsServed.length === 0) missing.push("Age Groups Served")
-    if (!values.curriculumType.trim()) missing.push("Curriculum Type")
+    if (values.curriculumTypes.length === 0) missing.push("Curriculum Type")
     if (!values.languagesSpoken.trim()) missing.push("Languages Spoken")
     if (values.amenities.length === 0) missing.push("Amenities & Features")
     if (!values.openingTime.trim()) missing.push("Opening Time")
@@ -320,7 +398,7 @@ export default function ManageListingPage() {
         address,
         providerTypes,
         ageGroupsServed,
-        curriculumType,
+        curriculumTypes,
         languagesSpoken,
         amenities,
         openingTime,
@@ -358,13 +436,14 @@ export default function ManageListingPage() {
           address: address.trim() || null,
           provider_types: providerTypes.length > 0 ? providerTypes : null,
           age_groups_served: ageGroupsServed.length > 0 ? ageGroupsServed : null,
-          curriculum_type: curriculumType || null,
+          curriculum_type: curriculumTypes.length > 0 ? curriculumTypes : null,
           languages_spoken: languagesSpoken || null,
           amenities: amenities.length > 0 ? amenities : null,
           opening_time: openingTime || null,
           closing_time: closingTime || null,
           monthly_tuition_from: tuitionFrom ?? null,
           monthly_tuition_to: tuitionTo ?? null,
+          currency_id: currencyId || null,
           total_capacity: capacity ?? null,
         },
         { onConflict: "profile_id" },
@@ -460,71 +539,125 @@ export default function ManageListingPage() {
   }, [address, detectAddressFromCurrentLocation])
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl pb-24">
       {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Manage Listing</h1>
-          <p className="text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 gap-y-1">
+            <h1 className="text-2xl font-bold text-foreground">Manage Listing</h1>
+            <Badge
+              variant={
+                isLiveListing ? "default" : isPendingListing ? "outline" : "secondary"
+              }
+              className={
+                isPendingListing
+                  ? "border-amber-500/60 text-amber-700 dark:text-amber-400 dark:border-amber-500/60"
+                  : isLiveListing
+                    ? "bg-green-600 hover:bg-green-600/90"
+                    : ""
+              }
+            >
+              {isDraftListing ? "Draft" : isPendingListing ? "Pending Review" : "Live"}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground mt-1">
             {isDraftListing
               ? "Complete your profile and submit for admin approval."
               : isPendingListing
                 ? "Your submission is under review. Editing is locked until approval."
                 : "Update your business information and program details"}
           </p>
+          {isDraftListing && !isLoadingProfile && (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Profile completion</span>
+                <span className="font-medium">{completionProgress}%</span>
+              </div>
+              <Progress value={completionProgress} className="h-2" />
+              {photoCount === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Add at least one photo in{" "}
+                  <Link href="/dashboard/provider/photos" className="text-primary hover:underline">
+                    Photos
+                  </Link>{" "}
+                  to complete.
+                </p>
+              )}
+            </div>
+          )}
         </div>
         {!isPendingListing && (
-          <Button onClick={handleSave} disabled={isSaving || isLoadingProfile}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingProfile} className="shrink-0">
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? (isDraftListing ? "Submitting..." : "Saving...") : primaryActionLabel}
           </Button>
         )}
       </div>
 
-      {isLoadingProfile && (
-        <p className="text-sm text-muted-foreground">Loading your listing information...</p>
-      )}
+      {/* Status messages */}
       {saveError && (
-        <p className="text-sm text-destructive">{saveError}</p>
+        <Alert variant="destructive" role="alert" aria-live="assertive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{saveError}</AlertDescription>
+        </Alert>
       )}
       {saveSuccess && (
-        <p className="text-sm text-green-600">{saveSuccess}</p>
+        <Alert className="border-green-500/40 bg-green-500/5" role="status" aria-live="polite">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertTitle className="text-green-800 dark:text-green-200">Success</AlertTitle>
+          <AlertDescription className="text-green-700 dark:text-green-300">{saveSuccess}</AlertDescription>
+        </Alert>
       )}
-
-      {isDraftListing && !saveError && !saveSuccess && !isLoadingProfile && (
-        <p className="text-sm text-muted-foreground">
-          Fill in all profile details, add at least one photo, then click <strong>Submit</strong>. Video URL is optional.
-        </p>
-      )}
-
       {isPendingListing && !saveSuccess && !saveError && !isLoadingProfile && (
-        <p className="text-sm text-muted-foreground">
-          Thank you. Your listing is under review. We&apos;ll notify you when it&apos;s live on the directory.
-        </p>
+        <Alert className="border-primary/40 bg-primary/5" role="status">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertTitle>Under review</AlertTitle>
+          <AlertDescription>
+            Thank you. Your listing is under review. We&apos;ll notify you when it&apos;s live on the directory.
+          </AlertDescription>
+        </Alert>
       )}
 
-      {!isLoadingProfile && photoCount === 0 && (
-        <Card className="border-amber-500/40 bg-amber-500/5">
-          <CardContent className="pt-6">
-            <p className="text-sm text-foreground">
-              Add at least one photo so families can see your space. Go to{" "}
-              <Link href="/dashboard/provider/photos" className="font-medium text-primary underline underline-offset-2">
-                Photos
-              </Link>{" "}
-              to upload.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
+      {isLoadingProfile ? (
+        <div className="space-y-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-80 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      ) : (
       <fieldset disabled={isPendingListing || isSaving || isLoadingProfile} className="space-y-6">
+      <Tabs defaultValue="business" className="w-full">
+        <TabsList className="w-full sm:w-auto flex flex-wrap h-auto gap-1 p-1 bg-muted/60">
+          <TabsTrigger value="business" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Business Info
+          </TabsTrigger>
+          <TabsTrigger value="program" className="flex items-center gap-2">
+            <GraduationCap className="h-4 w-4" />
+            Program Details
+          </TabsTrigger>
+          <TabsTrigger value="operating" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Operating Details
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="business" className="mt-6">
       {/* Business Information */}
-      <Card className="border-border/50">
+      <Card className="border-border/50 border-l-4 border-l-primary">
         <CardHeader>
-          <CardTitle>Business Information</CardTitle>
-          <CardDescription>
-            Basic details about your childcare center.
-          </CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Business Information</CardTitle>
+              <CardDescription>
+                Basic details about your childcare center.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -556,16 +689,35 @@ export default function ManageListingPage() {
 
             <Field>
               <FieldLabel>Address</FieldLabel>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={address}
-                  onChange={(event) => setAddress(event.target.value)}
-                  className="pl-10 pr-10"
-                />
-                {isDetectingAddress && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={address}
+                    onChange={(event) => setAddress(event.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {isDetectingAddress && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={detectAddressFromCurrentLocation}
+                  disabled={isDetectingAddress}
+                  className="shrink-0"
+                >
+                  {isDetectingAddress ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <MapPin className="h-4 w-4 mr-1.5" />
+                      Use location
+                    </>
+                  )}
+                </Button>
               </div>
               {(addressError || !mapsApiKey) && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -577,20 +729,28 @@ export default function ManageListingPage() {
 
             <Field>
               <FieldLabel>Virtual Tours (YouTube URLs)</FieldLabel>
-              <div className="space-y-2">
+              <FieldDescription>
+                Add one or more YouTube links to show as virtual tours on your public provider page.
+              </FieldDescription>
+              <div className="space-y-3 mt-2">
                 {virtualTourUrls.map((url, index) => (
-                  <div key={`virtual-tour-${index}`} className="flex gap-2">
+                  <div
+                    key={`virtual-tour-${index}`}
+                    className="flex gap-2 items-center rounded-lg border border-border bg-muted/30 p-2"
+                  >
                     <Input
                       placeholder="https://www.youtube.com/watch?v=..."
                       value={url}
                       onChange={(event) => updateVirtualTourUrl(index, event.target.value)}
+                      className="border-0 bg-transparent focus-visible:ring-0"
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={() => removeVirtualTourInput(index)}
                       aria-label={`Remove video ${index + 1}`}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -607,44 +767,54 @@ export default function ManageListingPage() {
                 <Plus className="h-4 w-4 mr-1.5" />
                 Add another video
               </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Add one or more YouTube links to show as virtual tours on your public provider page.
-              </p>
               {virtualTourError && (
-                <p className="text-xs text-destructive mt-1">{virtualTourError}</p>
+                <p className="text-xs text-destructive mt-2" role="alert">{virtualTourError}</p>
               )}
             </Field>
           </FieldGroup>
         </CardContent>
       </Card>
+        </TabsContent>
 
+        <TabsContent value="program" className="mt-6">
       {/* Program Details */}
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle>Program Details</CardTitle>
-          <CardDescription>Information about your programs and services</CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <GraduationCap className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Program Details</CardTitle>
+              <CardDescription>Information about your programs and services</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             <Field>
               <FieldLabel>Provider Types</FieldLabel>
-              <p className="text-xs text-muted-foreground mb-2">
+              <FieldDescription>
                 Select all that apply to your organisation (e.g. nursery, preschool, afterschool program).
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                {PROVIDER_TYPES.map((type) => (
-                  <label key={type.id} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={providerTypes.includes(type.id)}
-                      onCheckedChange={(checked) => {
+              </FieldDescription>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {PROVIDER_TYPES.map((type) => {
+                  const selected = providerTypes.includes(type.id)
+                  return (
+                    <Badge
+                      key={type.id}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                      onClick={() =>
                         setProviderTypes((prev) =>
-                          checked ? [...prev, type.id] : prev.filter((id) => id !== type.id),
+                          selected ? prev.filter((id) => id !== type.id) : [...prev, type.id],
                         )
-                      }}
-                    />
-                    <span className="text-sm">{type.label}</span>
-                  </label>
-                ))}
+                      }
+                    >
+                      {type.label}
+                    </Badge>
+                  )
+                })}
               </div>
             </Field>
 
@@ -652,20 +822,24 @@ export default function ManageListingPage() {
 
             <Field>
               <FieldLabel>Age Groups Served</FieldLabel>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-                {AGE_GROUPS.map((age) => (
-                  <label key={age.id} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={ageGroupsServed.includes(age.id)}
-                      onCheckedChange={(checked) => {
+              <div className="flex flex-wrap gap-2 pt-2">
+                {AGE_GROUPS.map((age) => {
+                  const selected = ageGroupsServed.includes(age.id)
+                  return (
+                    <Badge
+                      key={age.id}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                      onClick={() =>
                         setAgeGroupsServed((prev) =>
-                          checked ? [...prev, age.id] : prev.filter((id) => id !== age.id),
+                          selected ? prev.filter((id) => id !== age.id) : [...prev, age.id],
                         )
-                      }}
-                    />
-                    <span className="text-sm">{age.label}</span>
-                  </label>
-                ))}
+                      }
+                    >
+                      {age.label}
+                    </Badge>
+                  )
+                })}
               </div>
             </Field>
 
@@ -674,18 +848,25 @@ export default function ManageListingPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>Curriculum Type</FieldLabel>
-                <Select value={curriculumType} onValueChange={setCurriculumType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="play-based">Play-Based</SelectItem>
-                    <SelectItem value="montessori">Montessori</SelectItem>
-                    <SelectItem value="reggio">Reggio Emilia</SelectItem>
-                    <SelectItem value="waldorf">Waldorf</SelectItem>
-                    <SelectItem value="academic">Academic</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {CURRICULUM_OPTIONS.map((curriculum) => {
+                    const selected = curriculumTypes.includes(curriculum.id)
+                    return (
+                      <Badge
+                        key={curriculum.id}
+                        variant={selected ? "default" : "outline"}
+                        className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                        onClick={() =>
+                          setCurriculumTypes((prev) =>
+                            selected ? prev.filter((id) => id !== curriculum.id) : [...prev, curriculum.id],
+                          )
+                        }
+                      >
+                        {curriculum.label}
+                      </Badge>
+                    )
+                  })}
+                </div>
               </Field>
 
               <Field>
@@ -708,31 +889,44 @@ export default function ManageListingPage() {
 
             <Field>
               <FieldLabel>Amenities & Features</FieldLabel>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-                {AMENITIES.map((a) => (
-                  <label key={a.id} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={amenities.includes(a.id)}
-                      onCheckedChange={(checked) => {
+              <div className="flex flex-wrap gap-2 pt-2">
+                {AMENITIES.map((a) => {
+                  const selected = amenities.includes(a.id)
+                  return (
+                    <Badge
+                      key={a.id}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                      onClick={() =>
                         setAmenities((prev) =>
-                          checked ? [...prev, a.id] : prev.filter((id) => id !== a.id),
+                          selected ? prev.filter((id) => id !== a.id) : [...prev, a.id],
                         )
-                      }}
-                    />
-                    <span className="text-sm">{a.label}</span>
-                  </label>
-                ))}
+                      }
+                    >
+                      {a.label}
+                    </Badge>
+                  )
+                })}
               </div>
             </Field>
           </FieldGroup>
         </CardContent>
       </Card>
+        </TabsContent>
 
+        <TabsContent value="operating" className="mt-6">
       {/* Operating Details */}
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle>Operating Details</CardTitle>
-          <CardDescription>Hours, pricing, and capacity information</CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Clock className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Operating Details</CardTitle>
+              <CardDescription>Hours, pricing, and capacity information</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -772,38 +966,61 @@ export default function ManageListingPage() {
 
             <Separator />
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel>Monthly Tuition (From)</FieldLabel>
-                <Input
-                  type="number"
-                  value={monthlyTuitionFrom}
-                  onChange={(e) => setMonthlyTuitionFrom(e.target.value)}
-                />
-              </Field>
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+              <p className="text-sm font-medium text-foreground">Pricing</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Field>
+                  <FieldLabel>Monthly Tuition (From)</FieldLabel>
+                  <Input
+                    type="number"
+                    value={monthlyTuitionFrom}
+                    onChange={(e) => setMonthlyTuitionFrom(e.target.value)}
+                  />
+                </Field>
 
-              <Field>
-                <FieldLabel>Monthly Tuition (To)</FieldLabel>
-                <Input
-                  type="number"
-                  value={monthlyTuitionTo}
-                  onChange={(e) => setMonthlyTuitionTo(e.target.value)}
-                />
-              </Field>
+                <Field>
+                  <FieldLabel>Monthly Tuition (To)</FieldLabel>
+                  <Input
+                    type="number"
+                    value={monthlyTuitionTo}
+                    onChange={(e) => setMonthlyTuitionTo(e.target.value)}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel>Currency</FieldLabel>
+                  <Select value={currencyId || "none"} onValueChange={(v) => setCurrencyId(v === "none" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select currency</SelectItem>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.code} ({c.symbol}) – {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel>Total Capacity</FieldLabel>
+                  <Input
+                    type="number"
+                    value={totalCapacity}
+                    onChange={(e) => setTotalCapacity(e.target.value)}
+                  />
+                </Field>
+              </div>
             </div>
-
-            <Field>
-              <FieldLabel>Total Capacity</FieldLabel>
-              <Input
-                type="number"
-                value={totalCapacity}
-                onChange={(e) => setTotalCapacity(e.target.value)}
-              />
-            </Field>
           </FieldGroup>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
       </fieldset>
+      )}
 
       {/* Save button mobile */}
       {!isPendingListing && (
@@ -812,6 +1029,31 @@ export default function ManageListingPage() {
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? (isDraftListing ? "Submitting..." : "Saving...") : primaryActionLabel}
           </Button>
+        </div>
+      )}
+
+      {/* Sticky save bar */}
+      {!isPendingListing && showStickySave && (
+        <div
+          className="fixed bottom-0 left-0 right-0 lg:left-64 z-50 border-t border-border bg-background/95 backdrop-blur px-4 py-3"
+          role="region"
+          aria-label="Save actions"
+        >
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="text-muted-foreground"
+            >
+              <ChevronUp className="h-4 w-4 mr-1.5" />
+              Scroll to top
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || isLoadingProfile}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? (isDraftListing ? "Submitting..." : "Saving...") : primaryActionLabel}
+            </Button>
+          </div>
         </div>
       )}
     </div>

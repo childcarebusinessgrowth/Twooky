@@ -26,13 +26,21 @@ type CityInput = {
 
 const ADMIN_LOCATIONS_PATH = "/admin/locations"
 
+function toTitleCase(s: string): string {
+  return s
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
 export async function createCountry(input: CountryInput) {
   await assertServerRole("admin")
   const supabase = getSupabaseAdminClient()
 
   const { error } = await supabase.from("countries").insert({
     code: input.code.trim().toLowerCase(),
-    name: input.name.trim(),
+    name: toTitleCase(input.name),
     sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
   })
@@ -42,6 +50,7 @@ export async function createCountry(input: CountryInput) {
   }
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function updateCountry(id: string, input: CountryInput) {
@@ -52,7 +61,7 @@ export async function updateCountry(id: string, input: CountryInput) {
     .from("countries")
     .update({
       code: input.code.trim().toLowerCase(),
-      name: input.name.trim(),
+      name: toTitleCase(input.name),
       sort_order: input.sortOrder ?? 0,
       is_active: input.isActive ?? true,
     })
@@ -63,6 +72,7 @@ export async function updateCountry(id: string, input: CountryInput) {
   }
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function deleteCountry(id: string) {
@@ -76,6 +86,7 @@ export async function deleteCountry(id: string) {
   }
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function createCity(input: CityInput) {
@@ -98,6 +109,7 @@ export async function createCity(input: CityInput) {
   }
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function updateCity(id: string, input: CityInput) {
@@ -123,6 +135,7 @@ export async function updateCity(id: string, input: CityInput) {
   }
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function deleteCity(id: string) {
@@ -136,5 +149,6 @@ export async function deleteCity(id: string) {
   }
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
+  revalidatePath("/admin/directory")
 }
 

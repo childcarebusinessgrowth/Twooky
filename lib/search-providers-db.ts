@@ -3,6 +3,7 @@ import type { SearchCriteria } from "./search-providers"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import { fetchGooglePlaceReviewSummary } from "./google-place-reviews"
 import { geocodeAddressToCoordinates } from "./geocode-server"
+import { formatTuitionRange } from "./currency"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -18,10 +19,11 @@ export type ActiveProviderRow = {
   description: string | null
   provider_types: string[] | null
   age_groups_served: string[] | null
-  curriculum_type: string | null
+  curriculum_type: string[] | null
   languages_spoken: string | null
   monthly_tuition_from: number | null
   monthly_tuition_to: number | null
+  currencies?: { symbol?: string } | null
   primary_photo_storage_path: string | null
   review_count: number
   avg_rating: number | null
@@ -68,7 +70,7 @@ export async function getActiveProvidersFromDb(
   const { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, featured"
+      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), featured"
     )
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
@@ -173,6 +175,7 @@ export async function getActiveProvidersFromDb(
       languages_spoken: p.languages_spoken,
       monthly_tuition_from: p.monthly_tuition_from,
       monthly_tuition_to: p.monthly_tuition_to,
+      currencies: (p as { currencies?: { symbol?: string } | null }).currencies ?? null,
       primary_photo_storage_path: primaryPhotoByProfile[p.profile_id] ?? null,
       review_count: count,
       avg_rating: avgRating,
@@ -197,7 +200,7 @@ function matchesQuery(row: ActiveProviderRow, queryText?: string): boolean {
   const city = (row.city ?? "").toLowerCase()
   const address = (row.address ?? "").toLowerCase()
   const types = (row.provider_types ?? []).join(" ").toLowerCase()
-  const curriculum = (row.curriculum_type ?? "").toLowerCase()
+  const curriculum = (Array.isArray(row.curriculum_type) ? row.curriculum_type.join(" ") : row.curriculum_type ?? "").toLowerCase()
   const lang = (row.languages_spoken ?? "").toLowerCase()
   return (
     name.includes(q) ||
@@ -226,9 +229,10 @@ function matchesProviderTypes(row: ActiveProviderRow, types?: string[]): boolean
 
 function matchesCurriculum(row: ActiveProviderRow, curriculumTypes?: string[]): boolean {
   if (!curriculumTypes?.length) return true
-  const c = (row.curriculum_type ?? "").toLowerCase()
-  if (!c) return false
-  return curriculumTypes.some((t) => c.includes(t.toLowerCase()))
+  const arr = row.curriculum_type ?? []
+  if (!arr.length) return false
+  const lower = arr.map((c) => c.toLowerCase())
+  return curriculumTypes.some((t) => lower.some((c) => c.includes(t.toLowerCase()) || t.toLowerCase().includes(c)))
 }
 
 function matchesTuition(
@@ -363,10 +367,9 @@ export function activeProviderRowToCardData(
   const location = [row.city, row.address].filter(Boolean).join(", ") || "—"
   const from = row.monthly_tuition_from
   const to = row.monthly_tuition_to
-  const priceRange =
-    from != null || to != null
-      ? `$${from ?? "—"} – $${to ?? "—"}`
-      : "Contact for pricing"
+  const symbol =
+    (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
+  const priceRange = formatTuitionRange(from, to, symbol)
   const image = row.primary_photo_storage_path
     ? buildPhotoPublicUrl(row.primary_photo_storage_path, baseUrl)
     : PLACEHOLDER_IMAGE

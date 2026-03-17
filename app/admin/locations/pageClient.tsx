@@ -104,8 +104,8 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
 
-  const [countries] = useState<Country[]>(initialCountries)
-  const [cities] = useState<City[]>(initialCities)
+  const countries = initialCountries
+  const cities = initialCities
 
   const [countryDialogOpen, setCountryDialogOpen] = useState(false)
   const [cityDialogOpen, setCityDialogOpen] = useState(false)

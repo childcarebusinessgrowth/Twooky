@@ -13,6 +13,17 @@ export const AGE_GROUPS = [
 
 export type AgeGroupId = (typeof AGE_GROUPS)[number]["id"]
 
+export const CURRICULUM_OPTIONS = [
+  { id: "play-based", label: "Play-Based" },
+  { id: "montessori", label: "Montessori" },
+  { id: "reggio", label: "Reggio Emilia" },
+  { id: "waldorf", label: "Waldorf" },
+  { id: "academic", label: "Academic" },
+  { id: "stem-focused", label: "STEM-Focused" },
+] as const
+
+export type CurriculumId = (typeof CURRICULUM_OPTIONS)[number]["id"]
+
 export const AMENITIES = [
   { id: "meals_included", label: "Meals Included" },
   { id: "outdoor_play_area", label: "Outdoor Play Area" },

@@ -26,6 +26,7 @@ export async function createCurriculum(input: CurriculumInput) {
   }
 
   revalidatePath(ADMIN_CURRICULUM_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function updateCurriculum(id: string, input: CurriculumInput) {
@@ -45,6 +46,7 @@ export async function updateCurriculum(id: string, input: CurriculumInput) {
   }
 
   revalidatePath(ADMIN_CURRICULUM_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function deleteCurriculum(id: string) {
@@ -57,4 +59,5 @@ export async function deleteCurriculum(id: string) {
   }
 
   revalidatePath(ADMIN_CURRICULUM_PATH)
+  revalidatePath("/admin/directory")
 }

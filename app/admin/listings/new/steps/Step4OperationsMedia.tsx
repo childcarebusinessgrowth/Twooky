@@ -5,6 +5,7 @@ import { Plus, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
@@ -21,6 +22,8 @@ function toFileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`
 }
 
+type CurrencyOption = { id: string; code: string; name: string; symbol: string }
+
 type Step4OperationsMediaProps = {
   openingTime: string
   setOpeningTime: (v: string) => void
@@ -30,6 +33,9 @@ type Step4OperationsMediaProps = {
   setMonthlyTuitionFrom: (v: string) => void
   monthlyTuitionTo: string
   setMonthlyTuitionTo: (v: string) => void
+  currencyId: string
+  setCurrencyId: (v: string) => void
+  currencies?: CurrencyOption[]
   totalCapacity: string
   setTotalCapacity: (v: string) => void
   virtualTourUrls: string[]
@@ -57,6 +63,9 @@ export function Step4OperationsMedia({
   setMonthlyTuitionFrom,
   monthlyTuitionTo,
   setMonthlyTuitionTo,
+  currencyId,
+  setCurrencyId,
+  currencies,
   totalCapacity,
   setTotalCapacity,
   virtualTourUrls,
@@ -135,9 +144,12 @@ export function Step4OperationsMedia({
       <Card className="border-border/60">
         <CardHeader className="pb-4">
           <CardTitle className="text-base">Tuition and Capacity</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            Select the currency for tuition amounts. Tuition will be displayed with the correct symbol (e.g. $ or £).
+          </p>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="monthlyTuitionFrom">Monthly Tuition From</Label>
               <Input
@@ -159,6 +171,22 @@ export function Step4OperationsMedia({
                 value={monthlyTuitionTo}
                 onChange={(e) => setMonthlyTuitionTo(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={currencyId || "none"} onValueChange={(v) => setCurrencyId(v === "none" ? "" : v)}>
+                <SelectTrigger id="currency">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select currency</SelectItem>
+                  {(currencies ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.code} ({c.symbol}) – {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="totalCapacity">Total Capacity</Label>

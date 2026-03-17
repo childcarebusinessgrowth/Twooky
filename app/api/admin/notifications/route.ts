@@ -4,7 +4,7 @@ import { resolveRoleForUser } from "@/lib/authz"
 
 export type AdminNotificationItem = {
   id: string
-  type: "provider_signup" | "contact_message" | "review_report" | "listing_pending"
+  type: "provider_signup" | "contact_message" | "review_report" | "listing_pending" | "claim_request"
   title: string
   message: string
   time: string

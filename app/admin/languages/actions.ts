@@ -26,6 +26,7 @@ export async function createLanguage(input: LanguageInput) {
   }
 
   revalidatePath(ADMIN_LANGUAGES_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function updateLanguage(id: string, input: LanguageInput) {
@@ -45,6 +46,7 @@ export async function updateLanguage(id: string, input: LanguageInput) {
   }
 
   revalidatePath(ADMIN_LANGUAGES_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function deleteLanguage(id: string) {
@@ -57,4 +59,5 @@ export async function deleteLanguage(id: string) {
   }
 
   revalidatePath(ADMIN_LANGUAGES_PATH)
+  revalidatePath("/admin/directory")
 }

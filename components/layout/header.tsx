@@ -101,9 +101,6 @@ export function Header() {
   }, [loading, role, user])
 
   const showDashboardAction = !loading && isAuthResolved && isServerAuthenticated
-  const isAdmin = showDashboardAction && dashboardHref === "/admin"
-  const isParent = showDashboardAction && dashboardHref === "/dashboard/parent"
-  const isProvider = showDashboardAction && !isAdmin && !isParent
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
@@ -169,22 +166,9 @@ export function Header() {
         {/* Desktop Actions */}
         <div className="hidden lg:flex lg:items-center lg:gap-3">
           {showDashboardAction ? (
-            <>
-              <Button variant="secondary" size="sm" asChild>
-                <Link href={dashboardHref}>Dashboard</Link>
-              </Button>
-              {isProvider ? (
-                <Button
-                  size="sm"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  asChild
-                >
-                  <Link href="/claim-listing" className="text-inherit">
-                    Claim Your Listing
-                  </Link>
-                </Button>
-              ) : null}
-            </>
+            <Button variant="secondary" size="sm" asChild>
+              <Link href={dashboardHref}>Dashboard</Link>
+            </Button>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
@@ -248,24 +232,11 @@ export function Header() {
           </div>
           <div className="flex flex-col gap-2 pt-4 border-t border-border">
             {showDashboardAction ? (
-              <>
-                <Button variant="secondary" className="justify-start" asChild>
-                  <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>
-                    Dashboard
-                  </Link>
-                </Button>
-                {isProvider ? (
-                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                    <Link
-                      href="/claim-listing"
-                      className="text-inherit"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Claim Your Listing
-                    </Link>
-                  </Button>
-                ) : null}
-              </>
+              <Button variant="secondary" className="justify-start" asChild>
+                <Link href={dashboardHref} onClick={() => setMobileMenuOpen(false)}>
+                  Dashboard
+                </Link>
+              </Button>
             ) : (
               <>
                 <Button variant="ghost" className="justify-start" asChild>

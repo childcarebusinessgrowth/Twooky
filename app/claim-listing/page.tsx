@@ -14,8 +14,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ClaimListingForm } from "./claim-form"
 
 export const metadata = {
   title: "Claim Your Listing | Early Learning Directory",
@@ -199,88 +198,7 @@ export default function ClaimListingPage() {
             </div>
 
             {/* Claim Form */}
-            <Card
-              id="claim-form"
-              className="border-border/70 bg-card/90 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.35)] backdrop-blur-sm"
-            >
-              <CardHeader className="space-y-3 pb-3">
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  Free Listing Setup
-                </div>
-                <CardTitle className="text-2xl">Claim Your Free Listing</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Complete this quick form and our team will help verify your listing so you can start
-                  receiving parent inquiries.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="business-name">Business Name</Label>
-                  <Input id="business-name" placeholder="Your childcare center name" />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" placeholder="your@email.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" type="tel" placeholder="(555) 123-4567" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Business Address</Label>
-                  <Input id="address" placeholder="123 Main Street, City, State" />
-                </div>
-
-                <label htmlFor="claim-consent" className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-                  <input
-                    id="claim-consent"
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
-                    required
-                  />
-                  <span>
-                    I consent to processing this claim request and contact details under the{" "}
-                    <Link href="/privacy" className="underline underline-offset-2">
-                      Privacy Policy
-                    </Link>
-                    .
-                  </span>
-                </label>
-
-                <Button className="w-full bg-primary hover:bg-primary/90" size="lg">
-                  Claim Your Listing
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-
-                <div className="grid grid-cols-1 gap-2 text-[11px] text-muted-foreground sm:grid-cols-2">
-                  <p className="inline-flex items-center gap-1.5">
-                    <Clock3 className="h-3.5 w-3.5 text-primary" />
-                    Average first response within 1 business day
-                  </p>
-                  <p className="inline-flex items-center gap-1.5">
-                    <Shield className="h-3.5 w-3.5 text-primary" />
-                    No obligation or payment required to submit
-                  </p>
-                </div>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  By claiming your listing, you agree to our{" "}
-                  <Link href="/terms" className="underline underline-offset-2">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="underline underline-offset-2">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
-              </CardContent>
-            </Card>
+            <ClaimListingForm />
           </div>
         </div>
       </section>

@@ -8,6 +8,7 @@ import {
   Filter,
   MoreVertical,
   Eye,
+  Pencil,
   Trash2,
   Star as StarIcon,
   MapPin,
@@ -540,6 +541,14 @@ export function AdminListingsTable({
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              router.push(`/admin/listings/${listing.profile_id}/edit`)
+                            }
+                          >
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>

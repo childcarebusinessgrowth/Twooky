@@ -63,6 +63,15 @@ type FeatureRow = {
   is_active: boolean
 }
 
+type CurrencyRow = {
+  id: string
+  code: string
+  name: string
+  symbol: string
+  sort_order: number
+  is_active: boolean
+}
+
 async function loadDirectoryData() {
   const supabase = getSupabaseAdminClient()
 
@@ -74,6 +83,7 @@ async function loadDirectoryData() {
     { data: languages, error: languagesError },
     { data: curriculum, error: curriculumError },
     { data: features, error: featuresError },
+    { data: currencies, error: currenciesError },
   ] = await Promise.all([
     supabase
       .from("countries")
@@ -112,6 +122,11 @@ async function loadDirectoryData() {
       .select("id, name, sort_order, is_active")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
+    supabase
+      .from("currencies")
+      .select("id, code, name, symbol, sort_order, is_active")
+      .order("sort_order", { ascending: true })
+      .order("code", { ascending: true }),
   ])
 
   if (countriesError) console.error("[admin/directory] Failed to load countries", countriesError.message)
@@ -121,6 +136,7 @@ async function loadDirectoryData() {
   if (languagesError) console.error("[admin/directory] Failed to load languages", languagesError.message)
   if (curriculumError) console.error("[admin/directory] Failed to load curriculum", curriculumError.message)
   if (featuresError) console.error("[admin/directory] Failed to load provider features", featuresError.message)
+  if (currenciesError) console.error("[admin/directory] Failed to load currencies", currenciesError.message)
 
   return {
     countries: (countries ?? []) as CountryRow[],
@@ -130,6 +146,7 @@ async function loadDirectoryData() {
     languages: (languages ?? []) as LanguageRow[],
     curriculum: (curriculum ?? []) as CurriculumRow[],
     features: (features ?? []) as FeatureRow[],
+    currencies: (currencies ?? []) as CurrencyRow[],
   }
 }
 
@@ -146,6 +163,7 @@ export default async function AdminDirectoryPage() {
         initialLanguages={initialData.languages}
         initialCurriculum={initialData.curriculum}
         initialFeatures={initialData.features}
+        initialCurrencies={initialData.currencies}
       />
     </Suspense>
   )

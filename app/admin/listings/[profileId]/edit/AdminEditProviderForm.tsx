@@ -9,28 +9,38 @@ import type {
   AdminProviderCurriculumOption,
   AdminProviderCurrencyOption,
   AdminProviderLanguageOption,
-} from "./actions"
-import { createAdminProvider } from "./actions"
-import { WIZARD_STEPS, type WizardStepId } from "./types"
-import { WizardProgress } from "./_components/WizardProgress"
-import { WizardFooter } from "./_components/WizardFooter"
-import { Step1Basics } from "./steps/Step1Basics"
-import { Step2LocationVisibility } from "./steps/Step2LocationVisibility"
-import { Step3ProgramDetails } from "./steps/Step3ProgramDetails"
-import { Step4OperationsMedia } from "./steps/Step4OperationsMedia"
-import { Step5ReviewSubmit } from "./steps/Step5ReviewSubmit"
+} from "../../new/actions"
+import type { AdminListingDetail } from "../../actions"
+import { updateAdminProvider } from "../../new/actions"
+import { WIZARD_STEPS, type WizardStepId } from "../../new/types"
+import { WizardProgress } from "../../new/_components/WizardProgress"
+import { WizardFooter } from "../../new/_components/WizardFooter"
+import { Step1Basics } from "../../new/steps/Step1Basics"
+import { Step2LocationVisibility } from "../../new/steps/Step2LocationVisibility"
+import { Step3ProgramDetails } from "../../new/steps/Step3ProgramDetails"
+import { Step4OperationsMedia } from "../../new/steps/Step4OperationsMedia"
+import { Step5ReviewSubmit } from "../../new/steps/Step5ReviewSubmit"
 
 function toFileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`
 }
 
-export function AdminCreateProviderForm({
+function parseLanguagesSpoken(value: string | null): string[] {
+  if (!value?.trim()) return []
+  return value.split(",").map((s) => s.trim()).filter(Boolean)
+}
+
+export function AdminEditProviderForm({
+  profileId,
+  initialData,
   countries,
   cities,
   languages,
   curriculum,
   currencies,
 }: {
+  profileId: string
+  initialData: AdminListingDetail
   countries: AdminProviderCountryOption[]
   cities: AdminProviderCityOption[]
   languages: AdminProviderLanguageOption[]
@@ -43,30 +53,54 @@ export function AdminCreateProviderForm({
   const [currentStep, setCurrentStep] = useState<WizardStepId>(1)
   const [error, setError] = useState<string | null>(null)
 
-  const [businessName, setBusinessName] = useState("")
-  const [phone, setPhone] = useState("")
-  const [website, setWebsite] = useState("")
-  const [description, setDescription] = useState("")
-  const [address, setAddress] = useState("")
-  const [city, setCity] = useState("")
-  const [countryId, setCountryIdState] = useState("")
-  const [cityId, setCityId] = useState("")
-  const [listingStatus, setListingStatus] = useState("active")
-  const [featured, setFeatured] = useState(false)
-  const [openingTime, setOpeningTime] = useState("")
-  const [closingTime, setClosingTime] = useState("")
-  const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState("")
-  const [monthlyTuitionTo, setMonthlyTuitionTo] = useState("")
-  const [currencyId, setCurrencyId] = useState("")
-  const [totalCapacity, setTotalCapacity] = useState("")
-  const [virtualTourUrls, setVirtualTourUrls] = useState<string[]>([""])
-  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>([])
+  const p = initialData.profile
+  const virtualUrls = p.virtual_tour_urls?.filter(Boolean) ?? (p.virtual_tour_url ? [p.virtual_tour_url] : [""])
+
+  const [businessName, setBusinessName] = useState(p.business_name ?? "")
+  const [phone, setPhone] = useState(p.phone ?? "")
+  const [website, setWebsite] = useState(p.website ?? "")
+  const [description, setDescription] = useState(p.description ?? "")
+  const [address, setAddress] = useState(p.address ?? "")
+  const [city, setCity] = useState(p.city ?? "")
+  const [countryId, setCountryIdState] = useState(p.country_id ?? "")
+  const [cityId, setCityId] = useState(p.city_id ?? "")
+  const [listingStatus, setListingStatus] = useState(p.listing_status ?? "active")
+  const [featured, setFeatured] = useState(p.featured ?? false)
+  const [openingTime, setOpeningTime] = useState(p.opening_time ?? "")
+  const [closingTime, setClosingTime] = useState(p.closing_time ?? "")
+  const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState(
+    p.monthly_tuition_from != null ? String(p.monthly_tuition_from) : ""
+  )
+  const [monthlyTuitionTo, setMonthlyTuitionTo] = useState(
+    p.monthly_tuition_to != null ? String(p.monthly_tuition_to) : ""
+  )
+  const [currencyId, setCurrencyId] = useState(p.currency_id ?? "")
+  const [totalCapacity, setTotalCapacity] = useState(
+    p.total_capacity != null ? String(p.total_capacity) : ""
+  )
+  const [virtualTourUrls, setVirtualTourUrls] = useState<string[]>(
+    virtualUrls.length > 0 ? virtualUrls : [""]
+  )
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>(
+    initialData.faqs.map((f, i) => ({
+      id: `faq-${i}-${Date.now()}`,
+      question: f.question ?? "",
+      answer: f.answer ?? "",
+    }))
+  )
   const [photoItems, setPhotoItems] = useState<Array<{ key: string; file: File; caption: string }>>([])
-  const [providerTypes, setProviderTypes] = useState<string[]>([])
-  const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>([])
-  const [selectedCurriculumTypes, setSelectedCurriculumTypes] = useState<string[]>([])
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
-  const [amenities, setAmenities] = useState<string[]>([])
+  const [providerTypes, setProviderTypes] = useState<string[]>(p.provider_types ?? [])
+  const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>(p.age_groups_served ?? [])
+  const [selectedCurriculumTypes, setSelectedCurriculumTypes] = useState<string[]>(() => {
+    const ct = p.curriculum_type as string[] | string | null | undefined
+    if (Array.isArray(ct) && ct.length > 0) return ct
+    if (typeof ct === "string" && ct.trim()) return [ct.trim()]
+    return []
+  })
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
+    parseLanguagesSpoken(p.languages_spoken)
+  )
+  const [amenities, setAmenities] = useState<string[]>(p.amenities ?? [])
   const [primaryPhotoIndex, setPrimaryPhotoIndex] = useState(0)
 
   const setCountryId = (value: string) => {
@@ -156,7 +190,7 @@ export function AdminCreateProviderForm({
   const handleBack = () => {
     if (currentStep > 1) setCurrentStep((currentStep - 1) as WizardStepId)
   }
-  const handleCancel = () => router.push("/admin/listings")
+  const handleCancel = () => router.push(`/admin/listings/${profileId}`)
 
   const handleSubmit = () => {
     setError(null)
@@ -191,18 +225,18 @@ export function AdminCreateProviderForm({
     for (const item of photoItems) formData.append("photos", item.file)
 
     startTransition(async () => {
-      const result = await createAdminProvider(formData)
+      const result = await updateAdminProvider(profileId, formData)
       if (!result.ok) {
         setError(result.error)
-        toast({ title: "Could not create provider", description: result.error, variant: "destructive" })
+        toast({ title: "Could not update listing", description: result.error, variant: "destructive" })
         return
       }
       toast({
-        title: "Provider created",
-        description: "The provider listing has been added successfully.",
+        title: "Listing updated",
+        description: "The provider listing has been updated successfully.",
         variant: "success",
       })
-      router.push(`/admin/listings/${result.profileId}`)
+      router.push(`/admin/listings/${profileId}`)
       router.refresh()
     })
   }
@@ -334,6 +368,7 @@ export function AdminCreateProviderForm({
         canProceed={canProceed}
         isPending={isPending}
         onCancel={handleCancel}
+        submitLabel="Edit"
       />
     </div>
   )

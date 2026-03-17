@@ -12,7 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2, Star, Trash2 } from "lucide-react"
+import Link from "next/link"
+import { Loader2, Pencil, Star, Trash2 } from "lucide-react"
 import {
   updateListingStatus,
   updateListingFeatured,
@@ -62,6 +63,12 @@ export function ListingDetailActions({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/admin/listings/${profileId}/edit`}>
+            <Pencil className="h-4 w-4 mr-1" />
+            Edit
+          </Link>
+        </Button>
         <Button
           variant={listingStatus === "active" ? "default" : "outline"}
           size="sm"

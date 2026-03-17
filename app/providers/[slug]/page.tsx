@@ -240,7 +240,15 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                         </div>
                         <h3 className="font-semibold">Curriculum</h3>
                       </div>
-                      <p className="text-muted-foreground">{p.curriculumType || "—"}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {p.curriculumTypes.length > 0 ? (
+                          p.curriculumTypes.map((c) => (
+                            <Badge key={c} variant="outline">{c}</Badge>
+                          ))
+                        ) : (
+                          <p className="text-muted-foreground">—</p>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>

@@ -21,7 +21,7 @@ import {
   Star,
   PlusCircle,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -39,22 +39,26 @@ import { RequireAuth } from "@/components/RequireAuth"
 import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
 import type { AdminNotificationItem } from "@/app/api/admin/notifications/route"
+import { getSupabaseClient } from "@/lib/supabaseClient"
 
-const sidebarItems = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Listings", href: "/admin/listings", icon: Building2 },
-  { label: "Add Provider", href: "/admin/listings/new", icon: PlusCircle },
-  { label: "Parents", href: "/admin/parents", icon: UsersRound },
-  { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
-  { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
-  { label: "Reviews", href: "/admin/reviews", icon: Star },
-  { label: "Claim Requests", href: "/admin/claims", icon: FileCheck, badge: 3 },
-  { label: "Directory", href: "/admin/directory", icon: FolderTree },
-  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-]
+function getSidebarItems(pendingClaimsCount: number) {
+  return [
+    { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { label: "Listings", href: "/admin/listings", icon: Building2 },
+    { label: "Add Provider", href: "/admin/listings/new", icon: PlusCircle },
+    { label: "Parents", href: "/admin/parents", icon: UsersRound },
+    { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
+    { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
+    { label: "Reviews", href: "/admin/reviews", icon: Star },
+    { label: "Claim Requests", href: "/admin/claims", icon: FileCheck, badge: pendingClaimsCount },
+    { label: "Directory", href: "/admin/directory", icon: FolderTree },
+    { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  ]
+}
 
-function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
+function SidebarNav({ onItemClick, pendingClaimsCount }: { onItemClick?: () => void; pendingClaimsCount: number }) {
   const pathname = usePathname()
+  const sidebarItems = getSidebarItems(pendingClaimsCount)
 
   return (
     <nav className="flex flex-col gap-1 px-3">
@@ -74,7 +78,7 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
               <item.icon className="h-5 w-5" />
               {item.label}
             </span>
-            {item.badge && (
+            {item.badge != null && item.badge > 0 && (
               <Badge variant={isActive ? "secondary" : "default"} className="flex h-5 min-w-5 items-center justify-center text-xs">
                 {item.badge}
               </Badge>
@@ -88,8 +92,10 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
 
 export function AdminLayoutClient({
   children,
+  pendingClaimsCount = 0,
 }: {
   children: React.ReactNode
+  pendingClaimsCount?: number
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([])
@@ -117,9 +123,24 @@ export function AdminLayoutClient({
     }
   }
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/notifications")
+      if (!res.ok) return
+      const data = await res.json()
+      if (Array.isArray(data.notifications)) {
+        setNotifications(data.notifications)
+      }
+    } catch {
+      setNotifications([])
+    } finally {
+      setNotificationsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
-    async function fetchNotifications() {
+    async function load() {
       try {
         const res = await fetch("/api/admin/notifications")
         if (!res.ok || cancelled) return
@@ -133,11 +154,40 @@ export function AdminLayoutClient({
         if (!cancelled) setNotificationsLoading(false)
       }
     }
-    fetchNotifications()
+    load()
     return () => {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    try {
+      const supabase = getSupabaseClient()
+      const channel = supabase
+        .channel("admin-notifications-realtime")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "admin_notifications" },
+          () => {
+            if (!cancelled) {
+              void fetchNotifications()
+              router.refresh()
+            }
+          }
+        )
+        .subscribe()
+
+      return () => {
+        cancelled = true
+        void supabase.removeChannel(channel)
+      }
+    } catch {
+      return () => {
+        cancelled = true
+      }
+    }
+  }, [fetchNotifications, router])
 
   const handleSignOut = async () => {
     await signOut()
@@ -159,7 +209,7 @@ export function AdminLayoutClient({
           </div>
 
           <div className="flex-1 overflow-y-auto py-4">
-            <SidebarNav />
+            <SidebarNav pendingClaimsCount={pendingClaimsCount} />
           </div>
 
           <div className="border-t border-border p-4">
@@ -192,7 +242,7 @@ export function AdminLayoutClient({
                   <span className="font-bold text-foreground">ELD Admin</span>
                 </div>
                 <div className="py-4">
-                  <SidebarNav onItemClick={() => setMobileMenuOpen(false)} />
+                  <SidebarNav onItemClick={() => setMobileMenuOpen(false)} pendingClaimsCount={pendingClaimsCount} />
                 </div>
               </SheetContent>
             </Sheet>
@@ -256,7 +306,9 @@ export function AdminLayoutClient({
                                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                                       : item.type === "listing_pending"
                                         ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                        : item.type === "claim_request"
+                                          ? "bg-teal-500/10 text-teal-600 dark:text-teal-400"
+                                          : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                                 )}
                               >
                                 {item.type === "provider_signup" ? (
@@ -265,6 +317,8 @@ export function AdminLayoutClient({
                                   <MessageCircle className="h-5 w-5" />
                                 ) : item.type === "listing_pending" ? (
                                   <CheckCircle className="h-5 w-5" />
+                                ) : item.type === "claim_request" ? (
+                                  <FileCheck className="h-5 w-5" />
                                 ) : (
                                   <Star className="h-5 w-5 fill-current" />
                                 )}
@@ -279,7 +333,9 @@ export function AdminLayoutClient({
                                         ? "text-emerald-600 dark:text-emerald-400"
                                         : item.type === "listing_pending"
                                           ? "text-amber-600 dark:text-amber-400"
-                                          : "text-rose-600 dark:text-rose-400"
+                                          : item.type === "claim_request"
+                                            ? "text-teal-600 dark:text-teal-400"
+                                            : "text-rose-600 dark:text-rose-400"
                                   )}
                                 >
                                   {item.type === "provider_signup"
@@ -288,7 +344,9 @@ export function AdminLayoutClient({
                                       ? "Contact"
                                       : item.type === "listing_pending"
                                         ? "Listing"
-                                        : "Moderation"}
+                                        : item.type === "claim_request"
+                                          ? "Claim request"
+                                          : "Moderation"}
                                 </span>
                                 <p className="text-sm font-medium text-foreground mt-0.5 truncate">
                                   {item.title}
@@ -328,6 +386,12 @@ export function AdminLayoutClient({
                       <Link href="/admin/contact-messages" className="flex items-center gap-2 text-sm font-medium text-foreground w-full">
                         <MessageCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                         View contact messages
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="rounded-md py-2.5">
+                      <Link href="/admin/claims" className="flex items-center gap-2 text-sm font-medium text-foreground w-full">
+                        <FileCheck className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                        View claim requests
                       </Link>
                     </DropdownMenuItem>
                   </div>

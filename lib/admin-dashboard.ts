@@ -94,6 +94,7 @@ export async function loadAdminDashboardData(): Promise<{
     providerProfilesRes,
     inquiriesCountRes,
     reviewsAggRes,
+    pendingClaimsRes,
   ] = await Promise.all([
     supabase.from("provider_profiles").select("profile_id", { count: "exact", head: true }),
     supabase
@@ -149,6 +150,10 @@ export async function loadAdminDashboardData(): Promise<{
       .select("provider_profile_id")
       .is("deleted_at", null),
     supabase.from("parent_reviews").select("provider_profile_id, rating"),
+    supabase
+      .from("provider_listing_claims")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
   ])
 
   const totalProviders = providersCountRes.count ?? 0
@@ -183,8 +188,8 @@ export async function loadAdminDashboardData(): Promise<{
     },
     {
       title: "Pending Claims",
-      value: "0",
-      change: "0",
+      value: String(pendingClaimsRes.count ?? 0),
+      change: String(pendingClaimsRes.count ?? 0),
       description: "need review",
       trend: "neutral",
     },

@@ -10,6 +10,7 @@ import { AdminProgramTypesPageClient } from "@/app/admin/program-types/pageClien
 import { AdminLanguagesPageClient } from "@/app/admin/languages/pageClient"
 import { AdminCurriculumPageClient } from "@/app/admin/curriculum/pageClient"
 import { AdminFeaturesPageClient } from "@/app/admin/features/pageClient"
+import { AdminCurrenciesPageClient } from "@/app/admin/currencies/pageClient"
 
 const TAB_VALUES = [
   "locations",
@@ -18,6 +19,7 @@ const TAB_VALUES = [
   "languages",
   "curriculum",
   "features",
+  "currencies",
 ] as const
 
 type TabValue = (typeof TAB_VALUES)[number]
@@ -88,6 +90,15 @@ type FeatureRow = {
   is_active: boolean
 }
 
+type CurrencyRow = {
+  id: string
+  code: string
+  name: string
+  symbol: string
+  sort_order: number
+  is_active: boolean
+}
+
 type AdminDirectoryPageClientProps = {
   initialCountries: CountryRow[]
   initialCities: CityRow[]
@@ -96,6 +107,7 @@ type AdminDirectoryPageClientProps = {
   initialLanguages: LanguageRow[]
   initialCurriculum: CurriculumRow[]
   initialFeatures: FeatureRow[]
+  initialCurrencies: CurrencyRow[]
 }
 
 export function AdminDirectoryPageClient({
@@ -106,6 +118,7 @@ export function AdminDirectoryPageClient({
   initialLanguages,
   initialCurriculum,
   initialFeatures,
+  initialCurrencies,
 }: AdminDirectoryPageClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -130,7 +143,7 @@ export function AdminDirectoryPageClient({
           Directory
         </h1>
         <p className="text-muted-foreground">
-          Manage locations, age groups, program types, languages, curriculum, and provider features used across the directory.
+          Manage locations, age groups, program types, languages, curriculum, provider features, and currencies used across the directory.
         </p>
       </div>
 
@@ -142,6 +155,7 @@ export function AdminDirectoryPageClient({
           <TabsTrigger value="languages">Languages</TabsTrigger>
           <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
           <TabsTrigger value="features">Provider features</TabsTrigger>
+          <TabsTrigger value="currencies">Currencies</TabsTrigger>
         </TabsList>
 
         <TabsContent value="locations" className="space-y-4 mt-4">
@@ -172,6 +186,10 @@ export function AdminDirectoryPageClient({
 
         <TabsContent value="features" className="space-y-4 mt-4">
           <AdminFeaturesPageClient initialFeatures={initialFeatures} />
+        </TabsContent>
+
+        <TabsContent value="currencies" className="space-y-4 mt-4">
+          <AdminCurrenciesPageClient initialCurrencies={initialCurrencies} />
         </TabsContent>
       </Tabs>
     </div>

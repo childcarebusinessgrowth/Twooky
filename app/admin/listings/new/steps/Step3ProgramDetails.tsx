@@ -2,13 +2,6 @@
 
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
 import { PROVIDER_TYPES } from "@/lib/provider-types"
@@ -20,8 +13,8 @@ type Step3ProgramDetailsProps = {
   setProviderTypes: (v: string[]) => void
   ageGroupsServed: string[]
   setAgeGroupsServed: (v: string[]) => void
-  selectedCurriculum: string
-  setSelectedCurriculum: (v: string) => void
+  selectedCurriculumTypes: string[]
+  setSelectedCurriculumTypes: (v: string[]) => void
   selectedLanguages: string[]
   setSelectedLanguages: (v: string[]) => void
   amenities: string[]
@@ -35,8 +28,8 @@ export function Step3ProgramDetails({
   setProviderTypes,
   ageGroupsServed,
   setAgeGroupsServed,
-  selectedCurriculum,
-  setSelectedCurriculum,
+  selectedCurriculumTypes,
+  setSelectedCurriculumTypes,
   selectedLanguages,
   setSelectedLanguages,
   amenities,
@@ -112,19 +105,25 @@ export function Step3ProgramDetails({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Curriculum Type</Label>
-            <Select value={selectedCurriculum || "none"} onValueChange={(v) => setSelectedCurriculum(v === "none" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Optional curriculum type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No curriculum selected</SelectItem>
-                {curriculum.map((item) => (
-                  <SelectItem key={item.id} value={item.name}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {curriculum.map((item) => (
+                <label key={item.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
+                  <Checkbox
+                    checked={selectedCurriculumTypes.includes(item.name)}
+                    onCheckedChange={(checked) =>
+                      setSelectedCurriculumTypes(
+                        checked
+                          ? selectedCurriculumTypes.includes(item.name)
+                            ? selectedCurriculumTypes
+                            : [...selectedCurriculumTypes, item.name]
+                          : selectedCurriculumTypes.filter((c) => c !== item.name),
+                      )
+                    }
+                  />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Languages Spoken</Label>

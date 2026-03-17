@@ -28,6 +28,7 @@ export async function createAgeGroup(input: AgeGroupInput) {
   }
 
   revalidatePath(ADMIN_AGE_GROUPS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function updateAgeGroup(id: string, input: AgeGroupInput) {
@@ -48,6 +49,7 @@ export async function updateAgeGroup(id: string, input: AgeGroupInput) {
   }
 
   revalidatePath(ADMIN_AGE_GROUPS_PATH)
+  revalidatePath("/admin/directory")
 }
 
 export async function deleteAgeGroup(id: string) {
@@ -60,4 +62,5 @@ export async function deleteAgeGroup(id: string) {
   }
 
   revalidatePath(ADMIN_AGE_GROUPS_PATH)
+  revalidatePath("/admin/directory")
 }

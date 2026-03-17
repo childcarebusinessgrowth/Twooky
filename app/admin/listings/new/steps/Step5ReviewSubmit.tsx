@@ -19,13 +19,15 @@ type Step5ReviewSubmitProps = {
   featured: boolean
   providerTypes: string[]
   ageGroupsServed: string[]
-  selectedCurriculum: string
+  selectedCurriculumTypes: string[]
   selectedLanguages: string[]
   amenities: string[]
   openingTime: string
   closingTime: string
   monthlyTuitionFrom: string
   monthlyTuitionTo: string
+  currencyId: string
+  currencies: { id: string; code: string; name: string; symbol: string }[]
   totalCapacity: string
   virtualTourUrls: string[]
   faqs: FaqItem[]
@@ -48,13 +50,15 @@ export function Step5ReviewSubmit({
   featured,
   providerTypes,
   ageGroupsServed,
-  selectedCurriculum,
+  selectedCurriculumTypes,
   selectedLanguages,
   amenities,
   openingTime,
   closingTime,
   monthlyTuitionFrom,
   monthlyTuitionTo,
+  currencyId,
+  currencies,
   totalCapacity,
   virtualTourUrls,
   faqs,
@@ -133,10 +137,12 @@ export function Step5ReviewSubmit({
               {ageGroupLabels.join(", ")}
             </div>
           )}
-          {selectedCurriculum && (
+          {selectedCurriculumTypes.length > 0 && (
             <div>
               <span className="text-muted-foreground">Curriculum: </span>
-              {curriculumOptions.find((c) => c.name === selectedCurriculum)?.name ?? selectedCurriculum}
+              {selectedCurriculumTypes
+                .map((c) => curriculumOptions.find((o) => o.name === c)?.name ?? c)
+                .join(", ")}
             </div>
           )}
           {selectedLanguages.length > 0 && (
@@ -153,7 +159,7 @@ export function Step5ReviewSubmit({
           )}
           {!providerTypeLabels.length &&
             !ageGroupLabels.length &&
-            !selectedCurriculum &&
+            selectedCurriculumTypes.length === 0 &&
             selectedLanguages.length === 0 &&
             !amenityLabels.length && (
               <p className="text-muted-foreground">No program details added.</p>
@@ -176,7 +182,15 @@ export function Step5ReviewSubmit({
           )}
           {(monthlyTuitionFrom || monthlyTuitionTo) && (
             <p>
-              Tuition: {formatValue(monthlyTuitionFrom)} – {formatValue(monthlyTuitionTo)}
+              Tuition:{" "}
+              {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
+              {formatValue(monthlyTuitionFrom)} – {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
+              {formatValue(monthlyTuitionTo)}
+              {currencyId && (
+                <span className="text-muted-foreground ml-1">
+                  ({(currencies ?? []).find((c) => c.id === currencyId)?.code ?? ""})
+                </span>
+              )}
             </p>
           )}
           {totalCapacity && <p>Capacity: {totalCapacity}</p>}

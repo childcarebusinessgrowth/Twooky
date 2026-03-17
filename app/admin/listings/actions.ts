@@ -262,7 +262,7 @@ export type AdminListingDetail = {
     description: string | null
     provider_types: string[] | null
     age_groups_served: string[] | null
-    curriculum_type: string | null
+    curriculum_type: string[] | null
     languages_spoken: string | null
     amenities: string[] | null
     opening_time: string | null
@@ -270,6 +270,7 @@ export type AdminListingDetail = {
     monthly_tuition_from: number | null
     monthly_tuition_to: number | null
     total_capacity: number | null
+    currency_id: string | null
     country_id: string | null
     city_id: string | null
     country_name: string | null
@@ -294,7 +295,7 @@ export async function getAdminListingDetail(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, phone, city, address, website, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, country_id, city_id, virtual_tour_url, virtual_tour_urls, listing_status, featured, created_at"
+      "profile_id, provider_slug, business_name, phone, city, address, website, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, currencies(symbol), country_id, city_id, virtual_tour_url, virtual_tour_urls, listing_status, featured, created_at"
     )
     .eq("profile_id", profileId)
     .single()

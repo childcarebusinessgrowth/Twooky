@@ -12,6 +12,7 @@ type WizardFooterProps = {
   canProceed: boolean
   isPending: boolean
   onCancel: () => void
+  submitLabel?: string
 }
 
 export function WizardFooter({
@@ -22,6 +23,7 @@ export function WizardFooter({
   canProceed,
   isPending,
   onCancel,
+  submitLabel = "Create Provider",
 }: WizardFooterProps) {
   const isFirst = currentStep === 1
   const isLast = currentStep === WIZARD_STEPS.length
@@ -43,7 +45,7 @@ export function WizardFooter({
           {isLast ? (
             <Button type="button" onClick={onSubmit} disabled={!canProceed || isPending}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Create Provider
+              {submitLabel}
             </Button>
           ) : (
             <Button type="button" onClick={onNext} disabled={!canProceed || isPending}>

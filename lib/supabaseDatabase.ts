@@ -443,7 +443,7 @@ export interface Database {
           address: string | null
           provider_types: string[] | null
           age_groups_served: string[] | null
-          curriculum_type: string | null
+          curriculum_type: string[] | null
           languages_spoken: string | null
           amenities: string[] | null
           opening_time: string | null
@@ -475,7 +475,7 @@ export interface Database {
           address?: string | null
           provider_types?: string[] | null
           age_groups_served?: string[] | null
-          curriculum_type?: string | null
+          curriculum_type?: string[] | null
           languages_spoken?: string | null
           amenities?: string[] | null
           opening_time?: string | null
@@ -507,7 +507,7 @@ export interface Database {
           address?: string | null
           provider_types?: string[] | null
           age_groups_served?: string[] | null
-          curriculum_type?: string | null
+          curriculum_type?: string[] | null
           languages_spoken?: string | null
           amenities?: string[] | null
           opening_time?: string | null
@@ -522,6 +522,99 @@ export interface Database {
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean
           created_at?: string
+        }
+        Relationships: []
+      }
+      provider_listing_claims: {
+        Row: {
+          id: string
+          claimant_name: string
+          email: string
+          phone: string
+          business_name: string
+          business_address: string
+          status: "pending" | "approved" | "rejected"
+          submitted_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          review_notes: string | null
+          match_status: "auto_matched" | "possible_match" | "unmatched" | null
+          match_score: number | null
+          matched_provider_profile_id: string | null
+          match_metadata: unknown
+          consent_version: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          claimant_name: string
+          email: string
+          phone: string
+          business_name: string
+          business_address: string
+          status?: "pending" | "approved" | "rejected"
+          submitted_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          review_notes?: string | null
+          match_status?: "auto_matched" | "possible_match" | "unmatched" | null
+          match_score?: number | null
+          matched_provider_profile_id?: string | null
+          match_metadata?: unknown
+          consent_version?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          claimant_name?: string
+          email?: string
+          phone?: string
+          business_name?: string
+          business_address?: string
+          status?: "pending" | "approved" | "rejected"
+          submitted_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          review_notes?: string | null
+          match_status?: "auto_matched" | "possible_match" | "unmatched" | null
+          match_score?: number | null
+          matched_provider_profile_id?: string | null
+          match_metadata?: unknown
+          consent_version?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_listing_claim_documents: {
+        Row: {
+          id: string
+          claim_id: string
+          document_type: string
+          storage_path: string
+          mime_type: string
+          file_size: number
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          claim_id: string
+          document_type: string
+          storage_path: string
+          mime_type: string
+          file_size: number
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          claim_id?: string
+          document_type?: string
+          storage_path?: string
+          mime_type?: string
+          file_size?: number
+          uploaded_at?: string
         }
         Relationships: []
       }

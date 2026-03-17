@@ -4,19 +4,23 @@ import { revalidatePath } from "next/cache"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
-type FeatureInput = {
+type CurrencyInput = {
+  code: string
   name: string
+  symbol: string
   sortOrder?: number
   isActive?: boolean
 }
 
-const ADMIN_FEATURES_PATH = "/admin/features"
+const ADMIN_CURRENCIES_PATH = "/admin/currencies"
 
-export async function createFeature(input: FeatureInput) {
+export async function createCurrency(input: CurrencyInput) {
   await assertServerRole("admin")
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase.from("provider_features").insert({
+  const { error } = await supabase.from("currencies").insert({
+    code: input.code.trim().toUpperCase(),
     name: input.name.trim(),
+    symbol: input.symbol.trim(),
     sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
   })
@@ -25,17 +29,19 @@ export async function createFeature(input: FeatureInput) {
     throw new Error(error.message)
   }
 
-  revalidatePath(ADMIN_FEATURES_PATH)
+  revalidatePath(ADMIN_CURRENCIES_PATH)
   revalidatePath("/admin/directory")
 }
 
-export async function updateFeature(id: string, input: FeatureInput) {
+export async function updateCurrency(id: string, input: CurrencyInput) {
   await assertServerRole("admin")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase
-    .from("provider_features")
+    .from("currencies")
     .update({
+      code: input.code.trim().toUpperCase(),
       name: input.name.trim(),
+      symbol: input.symbol.trim(),
       sort_order: input.sortOrder ?? 0,
       is_active: input.isActive ?? true,
     })
@@ -45,19 +51,19 @@ export async function updateFeature(id: string, input: FeatureInput) {
     throw new Error(error.message)
   }
 
-  revalidatePath(ADMIN_FEATURES_PATH)
+  revalidatePath(ADMIN_CURRENCIES_PATH)
   revalidatePath("/admin/directory")
 }
 
-export async function deleteFeature(id: string) {
+export async function deleteCurrency(id: string) {
   await assertServerRole("admin")
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase.from("provider_features").delete().eq("id", id)
+  const { error } = await supabase.from("currencies").delete().eq("id", id)
 
   if (error) {
     throw new Error(error.message)
   }
 
-  revalidatePath(ADMIN_FEATURES_PATH)
+  revalidatePath(ADMIN_CURRENCIES_PATH)
   revalidatePath("/admin/directory")
 }

@@ -37,7 +37,9 @@ import {
   getProviderTypeLabel,
   getAgeGroupLabel,
   getAmenityLabel,
+  getCurriculumLabel,
 } from "@/lib/listing-labels"
+import { formatTuitionRange } from "@/lib/currency"
 
 type PageProps = {
   params: Promise<{ profileId: string }>
@@ -248,7 +250,20 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
-          <Field label="Curriculum" value={profile.curriculum_type} />
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Curriculum
+            </p>
+            <div className="mt-1.5">
+              <BadgeList
+                ids={profile.curriculum_type ?? []}
+                getLabel={getCurriculumLabel}
+              />
+              {!profile.curriculum_type?.length && (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+          </div>
           <Field label="Languages" value={profile.languages_spoken} />
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -274,7 +289,11 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
             value={
               profile.monthly_tuition_from != null ||
               profile.monthly_tuition_to != null
-                ? `${profile.monthly_tuition_from ?? "—"} – ${profile.monthly_tuition_to ?? "—"}`
+                ? formatTuitionRange(
+                    profile.monthly_tuition_from,
+                    profile.monthly_tuition_to,
+                    (profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"
+                  )
                 : null
             }
           />

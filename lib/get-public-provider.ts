@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { fetchGooglePlaceReviewSummary } from "@/lib/google-place-reviews"
+import { formatTuitionRange } from "@/lib/currency"
 import {
   getReviewsByProviderProfileId,
   type PublicReviewRow,
@@ -27,7 +28,7 @@ export type PublicProviderView = {
   ageGroups: string[]
   hours: string
   languages: string[]
-  curriculumType: string
+  curriculumTypes: string[]
   website: string
   phone: string
   priceRange: string
@@ -56,7 +57,7 @@ export async function getActivePublicProviderBySlug(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, virtual_tour_url, virtual_tour_urls, is_admin_managed"
+      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), virtual_tour_url, virtual_tour_urls, is_admin_managed"
     )
     .ilike("provider_slug", slugTrimmed)
     .eq("listing_status", "active")
@@ -111,10 +112,9 @@ export async function getActivePublicProviderBySlug(
 
   const from = profile.monthly_tuition_from
   const to = profile.monthly_tuition_to
-  const priceRange =
-    from != null || to != null
-      ? `$${from ?? "—"} – $${to ?? "—"}`
-      : "Contact for pricing"
+  const currencySymbol =
+    (profile.currencies as { symbol?: string } | null)?.symbol ?? "$"
+  const priceRange = formatTuitionRange(from, to, currencySymbol)
 
   const hours =
     profile.opening_time && profile.closing_time
@@ -173,7 +173,7 @@ export async function getActivePublicProviderBySlug(
     ageGroups: profile.age_groups_served ?? [],
     hours,
     languages,
-    curriculumType: profile.curriculum_type ?? "",
+    curriculumTypes: Array.isArray(profile.curriculum_type) ? profile.curriculum_type : profile.curriculum_type ? [profile.curriculum_type] : [],
     website: profile.website ?? "",
     phone: profile.phone ?? "",
     priceRange,
