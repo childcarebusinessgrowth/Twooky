@@ -32,6 +32,7 @@ export type PublicProviderView = {
   website: string
   phone: string
   priceRange: string
+  currencyCode: string | null
   mealsIncluded: boolean
   outdoorSpace: boolean
   specialNeeds: boolean
@@ -57,7 +58,7 @@ export async function getActivePublicProviderBySlug(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), virtual_tour_url, virtual_tour_urls, is_admin_managed"
+      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed"
     )
     .ilike("provider_slug", slugTrimmed)
     .eq("listing_status", "active")
@@ -112,8 +113,9 @@ export async function getActivePublicProviderBySlug(
 
   const from = profile.monthly_tuition_from
   const to = profile.monthly_tuition_to
-  const currencySymbol =
-    (profile.currencies as { symbol?: string } | null)?.symbol ?? "$"
+  const currencyRow = profile.currencies as { symbol?: string; code?: string } | null
+  const currencySymbol = currencyRow?.symbol ?? "$"
+  const currencyCode = currencyRow?.code ?? null
   const priceRange = formatTuitionRange(from, to, currencySymbol)
 
   const hours =
@@ -177,6 +179,7 @@ export async function getActivePublicProviderBySlug(
     website: profile.website ?? "",
     phone: profile.phone ?? "",
     priceRange,
+    currencyCode,
     mealsIncluded,
     outdoorSpace,
     specialNeeds,

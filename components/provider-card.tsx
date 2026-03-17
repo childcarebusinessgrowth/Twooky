@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Star, MapPin, DollarSign, Tags, BadgeCheck } from "lucide-react"
+import { Star, MapPin, Banknote, Tags, BadgeCheck } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -68,7 +68,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                 <span className="line-clamp-1">{provider.location}</span>
               </p>
               <p className="flex items-center gap-1.5">
-                <DollarSign className="h-4 w-4 shrink-0" />
+                <Banknote className="h-4 w-4 shrink-0" />
                 <span>{provider.priceRange}</span>
               </p>
             </div>
@@ -160,7 +160,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
         </div>
 
         <div className="flex items-center gap-1 text-muted-foreground text-sm mb-3">
-          <DollarSign className="h-4 w-4 shrink-0" />
+          <Banknote className="h-4 w-4 shrink-0" />
           <span>{provider.priceRange}</span>
         </div>
 

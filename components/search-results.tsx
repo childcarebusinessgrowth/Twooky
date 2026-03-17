@@ -137,10 +137,11 @@ export function SearchResults({
     const minFee = sp.get("minFee")
     const maxFee = sp.get("maxFee")
     if (minFee || maxFee) {
+      const sym = filterOptions?.currencySymbol ?? "$"
       chips.push({
         key: `fees:${minFee ?? ""}-${maxFee ?? ""}`,
         param: "feeRange",
-        label: `$${minFee ?? "0"} - $${maxFee ?? "3000"}+`,
+        label: `${sym}${minFee ?? "0"} - ${sym}${maxFee ?? "3000"}+`,
       })
     }
 
@@ -218,7 +219,7 @@ export function SearchResults({
     }
 
     return chips
-  }, [defaultProviderType, searchParams])
+  }, [defaultProviderType, filterOptions, searchParams])
 
   const activeFilters = useMemo(() => buildActiveFilters(), [buildActiveFilters])
 

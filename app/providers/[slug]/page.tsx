@@ -441,7 +441,9 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 <CardContent className="space-y-4">
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
                     <p className="text-2xl font-bold text-foreground">{p.priceRange}</p>
-                    <p className="text-sm text-muted-foreground">Monthly Tuition</p>
+                    <p className="text-sm text-muted-foreground">
+                      Monthly Tuition{p.currencyCode ? ` (${p.currencyCode})` : ""}
+                    </p>
                   </div>
                   {p.phone ? (
                     <Button className="w-full bg-primary hover:bg-primary/90" asChild>

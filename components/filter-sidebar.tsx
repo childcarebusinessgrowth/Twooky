@@ -23,6 +23,8 @@ export type SearchFilterOptions = {
   features: FilterOption[]
   /** Slug-to-name map for resolving program param; used internally by search page */
   programTypesBySlug?: Record<string, string>
+  /** Currency symbol for tuition filter display (from DB) */
+  currencySymbol?: string
 }
 
 interface FilterSidebarProps {
@@ -193,8 +195,8 @@ export function FilterSidebar({ onFilterChange, filterOptions, className = "" }:
               className="mb-4"
             />
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>${filters.tuitionRange[0]}</span>
-              <span>${filters.tuitionRange[1]}+</span>
+              <span>{(filterOptions?.currencySymbol ?? "$")}{filters.tuitionRange[0]}</span>
+              <span>{(filterOptions?.currencySymbol ?? "$")}{filters.tuitionRange[1]}+</span>
             </div>
           </div>
         </FilterSection>
