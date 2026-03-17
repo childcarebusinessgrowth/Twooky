@@ -411,6 +411,71 @@ export async function updateListingFeatured(
   return {}
 }
 
+export async function deleteListingPhoto(
+  profileId: string,
+  photoId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+
+  const { data: photoRow, error: selectError } = await supabase
+    .from("provider_photos")
+    .select("id, storage_path, is_primary")
+    .eq("id", photoId)
+    .eq("provider_profile_id", profileId)
+    .maybeSingle()
+
+  if (selectError) return { ok: false, error: selectError.message }
+  if (!photoRow) return { ok: false, error: "Photo not found." }
+
+  const { error: deleteError } = await supabase
+    .from("provider_photos")
+    .delete()
+    .eq("id", photoId)
+    .eq("provider_profile_id", profileId)
+
+  if (deleteError) return { ok: false, error: deleteError.message }
+
+  if (photoRow.is_primary) {
+    const { data: remaining } = await supabase
+      .from("provider_photos")
+      .select("id")
+      .eq("provider_profile_id", profileId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (remaining) {
+      await supabase
+        .from("provider_photos")
+        .update({ is_primary: true })
+        .eq("id", remaining.id)
+        .eq("provider_profile_id", profileId)
+    }
+  }
+
+  try {
+    await supabase.storage.from(PROVIDER_PHOTOS_BUCKET).remove([photoRow.storage_path])
+  } catch {
+    // Best-effort cleanup; row already deleted
+  }
+
+  const { data: profile } = await supabase
+    .from("provider_profiles")
+    .select("provider_slug")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/search")
+  if (profile?.provider_slug) {
+    revalidatePath(`/providers/${profile.provider_slug}`)
+  }
+  return { ok: true }
+}
+
 /** Delete all objects in the provider-photos bucket under the given profile id prefix. */
 async function deleteProviderPhotoStorage(profileId: string): Promise<void> {
   const supabase = getSupabaseAdminClient()

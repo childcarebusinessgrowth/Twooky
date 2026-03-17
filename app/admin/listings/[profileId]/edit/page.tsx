@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { getAdminListingDetail } from "../../actions"
 import { getAdminProviderCreateOptions } from "../../new/actions"
+import { AdminListingPhotosSection } from "../AdminListingPhotosSection"
 import { AdminEditProviderForm } from "./AdminEditProviderForm"
 
 type PageProps = {
@@ -72,6 +73,11 @@ export default async function AdminEditListingPage({ params }: PageProps) {
           />
         </CardContent>
       </Card>
+
+      <AdminListingPhotosSection
+        profileId={profileId}
+        photos={data.photos}
+      />
     </div>
   )
 }

@@ -1,4 +1,3 @@
-import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
@@ -9,7 +8,6 @@ import {
   Globe,
   GraduationCap,
   HelpCircle,
-  ImageIcon,
   MapPin,
   Phone,
   Video,
@@ -31,8 +29,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { getAdminListingDetail } from "../actions"
+import { AdminListingPhotosSection } from "./AdminListingPhotosSection"
 import { ListingDetailActions } from "./ListingDetailActions"
-import { ListingPhotoUploader } from "./ListingPhotoUploader"
 import {
   getProviderTypeLabel,
   getAgeGroupLabel,
@@ -355,55 +353,10 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
         </Card>
       )}
 
-      <Card className="border-border/60">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ImageIcon className="h-4 w-4 text-muted-foreground" />
-              Photos ({photos.length})
-            </CardTitle>
-            <ListingPhotoUploader profileId={profile.profile_id} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {photos.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border bg-muted/30 py-12 text-center">
-              <p className="text-sm text-muted-foreground">
-                No photos yet. Add photos to showcase your listing.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-              {photos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="group relative aspect-video overflow-hidden rounded-lg bg-muted"
-                >
-                  <Image
-                    src={photo.url}
-                    alt={photo.caption ?? "Provider photo"}
-                    fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-white">
-                      {photo.is_primary && (
-                        <Badge className="mr-1 border-0 bg-white/20 text-xs text-white hover:bg-white/20">
-                          Primary
-                        </Badge>
-                      )}
-                      <span className="line-clamp-2">
-                        {photo.caption ?? "—"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <AdminListingPhotosSection
+        profileId={profile.profile_id}
+        photos={photos}
+      />
 
       <p className="text-xs text-muted-foreground">
         Created: {new Date(profile.created_at).toLocaleString()}
