@@ -33,6 +33,55 @@ import { ProfileTour } from "@/components/provider/ProfileTour"
 
 const DEFAULT_ADDRESS = "123 Sunshine Lane, San Francisco, CA 94102"
 const AUTO_ADDRESS_SUCCESS_KEY = "eld:auto-address-success"
+const LISTING_DRAFT_STORAGE_KEY = "eld:provider-listing-draft"
+
+type ListingDraftSnapshot = {
+  businessName: string
+  virtualTourUrls: string[]
+  address: string
+  description: string
+  phone: string
+  email: string
+  website: string
+  providerTypes: ProviderTypeId[]
+  ageGroupsServed: string[]
+  curriculumTypes: string[]
+  languagesSpoken: string
+  amenities: string[]
+  openingTime: string
+  closingTime: string
+  monthlyTuitionFrom: string
+  monthlyTuitionTo: string
+  currencyId: string
+  totalCapacity: string
+  listingStatus: string
+}
+
+function saveDraftToStorage(snapshot: ListingDraftSnapshot) {
+  try {
+    window.sessionStorage.setItem(LISTING_DRAFT_STORAGE_KEY, JSON.stringify(snapshot))
+  } catch {
+    // Ignore storage errors (quota, private mode, etc.)
+  }
+}
+
+function loadDraftFromStorage(): ListingDraftSnapshot | null {
+  try {
+    const raw = window.sessionStorage.getItem(LISTING_DRAFT_STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as ListingDraftSnapshot
+  } catch {
+    return null
+  }
+}
+
+function clearDraftFromStorage() {
+  try {
+    window.sessionStorage.removeItem(LISTING_DRAFT_STORAGE_KEY)
+  } catch {
+    // Ignore
+  }
+}
 
 function parseOptionalInteger(value: string): number | null {
   const trimmed = value.trim()
@@ -219,6 +268,32 @@ export default function ManageListingPage() {
         if (data?.monthly_tuition_to != null) setMonthlyTuitionTo(String(data.monthly_tuition_to))
         if (data?.currency_id != null) setCurrencyId(data.currency_id)
         if (data?.total_capacity != null) setTotalCapacity(String(data.total_capacity))
+
+        // Restore unsaved draft from sessionStorage when returning from another page (e.g. Photos)
+        const isDraft = !data?.listing_status || data.listing_status === "draft"
+        if (isDraft) {
+          const stored = loadDraftFromStorage()
+          if (stored) {
+            setBusinessName(stored.businessName ?? "")
+            setPhone(stored.phone ?? "")
+            setEmail(stored.email ?? "")
+            setDescription(stored.description ?? "")
+            setWebsite(stored.website ?? "")
+            setAddress(stored.address ?? DEFAULT_ADDRESS)
+            if (stored.virtualTourUrls?.length) setVirtualTourUrls(stored.virtualTourUrls)
+            if (stored.providerTypes?.length) setProviderTypes(stored.providerTypes)
+            if (stored.ageGroupsServed?.length) setAgeGroupsServed(stored.ageGroupsServed)
+            if (stored.curriculumTypes?.length) setCurriculumTypes(stored.curriculumTypes)
+            if (stored.languagesSpoken != null) setLanguagesSpoken(stored.languagesSpoken)
+            if (stored.amenities?.length) setAmenities(stored.amenities)
+            if (stored.openingTime != null) setOpeningTime(stored.openingTime)
+            if (stored.closingTime != null) setClosingTime(stored.closingTime)
+            if (stored.monthlyTuitionFrom != null) setMonthlyTuitionFrom(stored.monthlyTuitionFrom)
+            if (stored.monthlyTuitionTo != null) setMonthlyTuitionTo(stored.monthlyTuitionTo)
+            if (stored.currencyId != null) setCurrencyId(stored.currencyId)
+            if (stored.totalCapacity != null) setTotalCapacity(stored.totalCapacity)
+          }
+        }
       } catch (err) {
         if (isMounted) {
           const message = err instanceof Error ? err.message : "Unknown error"
@@ -248,6 +323,54 @@ export default function ManageListingPage() {
       isMounted = false
     }
   }, [user])
+
+  // Persist draft to sessionStorage on unmount so data survives navigation (e.g. to Photos)
+  useEffect(() => {
+    return () => {
+      if (typeof window === "undefined") return
+      saveDraftToStorage({
+        businessName,
+        virtualTourUrls,
+        address,
+        description,
+        phone,
+        email,
+        website,
+        providerTypes,
+        ageGroupsServed,
+        curriculumTypes,
+        languagesSpoken,
+        amenities,
+        openingTime,
+        closingTime,
+        monthlyTuitionFrom,
+        monthlyTuitionTo,
+        currencyId,
+        totalCapacity,
+        listingStatus,
+      })
+    }
+  }, [
+    businessName,
+    virtualTourUrls,
+    address,
+    description,
+    phone,
+    email,
+    website,
+    providerTypes,
+    ageGroupsServed,
+    curriculumTypes,
+    languagesSpoken,
+    amenities,
+    openingTime,
+    closingTime,
+    monthlyTuitionFrom,
+    monthlyTuitionTo,
+    currencyId,
+    totalCapacity,
+    listingStatus,
+  ])
 
   useEffect(() => {
     if (!user) return
@@ -469,6 +592,7 @@ export default function ManageListingPage() {
       if (isDraftListing) {
         setListingStatus("pending")
       }
+      clearDraftFromStorage()
       let successMessage = isDraftListing
         ? "Thank you. Your profile has been submitted and is now under admin review."
         : "All listing details have been saved."
