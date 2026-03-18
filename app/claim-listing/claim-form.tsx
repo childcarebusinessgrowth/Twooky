@@ -199,7 +199,7 @@ export function ClaimListingForm() {
               name="claimant_name"
               placeholder="Jane Smith"
               required
-              disabled={status === "submitting"}
+              disabled={false}
             />
           </div>
 
@@ -210,7 +210,7 @@ export function ClaimListingForm() {
               name="business_name"
               placeholder="Your childcare center name"
               required
-              disabled={status === "submitting"}
+              disabled={false}
             />
           </div>
 
@@ -223,7 +223,7 @@ export function ClaimListingForm() {
                 type="email"
                 placeholder="your@email.com"
                 required
-                disabled={status === "submitting"}
+                disabled={false}
               />
             </div>
             <div className="space-y-2">
@@ -234,7 +234,7 @@ export function ClaimListingForm() {
                 type="tel"
                 placeholder="(555) 123-4567"
                 required
-                disabled={status === "submitting"}
+                disabled={false}
               />
             </div>
           </div>
@@ -246,7 +246,7 @@ export function ClaimListingForm() {
               name="business_address"
               placeholder="123 Main Street, City, State"
               required
-              disabled={status === "submitting"}
+              disabled={false}
             />
           </div>
 
@@ -256,7 +256,7 @@ export function ClaimListingForm() {
               id="document_type"
               name="document_type"
               required
-              disabled={status === "submitting"}
+              disabled={false}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {DOCUMENT_TYPES.map((t) => (
@@ -281,7 +281,7 @@ export function ClaimListingForm() {
               accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
               multiple
               required
-              disabled={status === "submitting"}
+              disabled={false}
               className="cursor-pointer"
             />
             <p className="text-xs text-muted-foreground">
@@ -299,7 +299,7 @@ export function ClaimListingForm() {
               type="checkbox"
               className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
               required
-              disabled={status === "submitting"}
+              disabled={false}
             />
             <span>
               I consent to processing this claim request and contact details under the{" "}
@@ -318,9 +318,9 @@ export function ClaimListingForm() {
             type="submit"
             className="w-full bg-primary hover:bg-primary/90"
             size="lg"
-            disabled={status === "submitting"}
+            disabled={false}
           >
-            {status === "submitting" ? "Submitting…" : "Claim Your Listing"}
+            Claim Your Listing
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </form>
