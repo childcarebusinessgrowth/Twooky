@@ -4,6 +4,8 @@ import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import { fetchGooglePlaceReviewSummary } from "./google-place-reviews"
 import { geocodeAddressToCoordinates } from "./geocode-server"
 import { formatTuitionRange } from "./currency"
+import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
+import { getSupabaseAdminClient } from "./supabaseAdmin"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -28,6 +30,7 @@ export type ActiveProviderRow = {
   review_count: number
   avg_rating: number | null
   featured: boolean
+  saved_by_parent_count: number
 }
 
 export type ProviderCardDataFromDb = {
@@ -46,6 +49,7 @@ export type ProviderCardDataFromDb = {
   longitude: number
   address: string
   featured?: boolean
+  savedByParentCount: number
 }
 
 function buildPhotoPublicUrl(storagePath: string, baseUrl: string): string {
@@ -79,7 +83,7 @@ export async function getActiveProvidersFromDb(
 
   const profileIds = profiles.map((p) => p.profile_id)
 
-  const [photosResult, reviewsResult] = await Promise.all([
+  const [photosResult, reviewsResult, favoritesResult] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("provider_profile_id, storage_path")
@@ -88,6 +92,10 @@ export async function getActiveProvidersFromDb(
     supabase
       .from("parent_reviews")
       .select("provider_profile_id, rating")
+      .in("provider_profile_id", profileIds),
+    supabase
+      .from("parent_favorites")
+      .select("provider_profile_id, parent_profile_id")
       .in("provider_profile_id", profileIds),
   ])
 
@@ -103,6 +111,19 @@ export async function getActiveProvidersFromDb(
     cur.sum += row.rating
     reviewStatsByProfile[row.provider_profile_id] = cur
   })
+
+  const seenByProvider: Record<string, Set<string>> = {}
+  ;(favoritesResult.data ?? []).forEach((row) => {
+    const providerId = row.provider_profile_id
+    const parentId = row.parent_profile_id
+    if (!providerId || !parentId) return
+    if (!seenByProvider[providerId]) seenByProvider[providerId] = new Set()
+    seenByProvider[providerId].add(parentId)
+  })
+  const savedByParentCountByProfile: Record<string, number> = {}
+  for (const [providerId, parents] of Object.entries(seenByProvider)) {
+    savedByParentCountByProfile[providerId] = parents.size
+  }
 
   const googleSummaryByProfile: Record<
     string,
@@ -180,6 +201,7 @@ export async function getActiveProvidersFromDb(
       review_count: count,
       avg_rating: avgRating,
       featured: (p as { featured?: boolean }).featured ?? false,
+      saved_by_parent_count: savedByParentCountByProfile[p.profile_id] ?? 0,
     }
   })
 }
@@ -316,8 +338,89 @@ function formatAgeGroupLabel(value: string): string {
     prek: "Pre-K",
     school: "School Age",
     schoolage: "School Age",
+    school_age: "School Age",
   }
   return map[lower] ?? value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+/** Map age_groups_served to program-type display labels for provider cards. */
+function ageGroupsToProgramLabels(ageGroups: string[] | null): string[] {
+  if (!ageGroups?.length) return []
+  const labelMap: Record<string, string> = {
+    infant: "Infant Care",
+    toddler: "Toddler Care",
+    preschool: "Preschool",
+    prek: "Pre-K",
+    school_age: "After School",
+    schoolage: "After School",
+  }
+  const seen = new Set<string>()
+  return ageGroups
+    .map((g) => labelMap[g.trim().toLowerCase()] ?? formatAgeGroupLabel(g))
+    .filter((label) => {
+      if (seen.has(label)) return false
+      seen.add(label)
+      return true
+    })
+}
+
+/**
+ * Map age group name from DB to age_groups_served format used by provider_profiles.
+ */
+function ageGroupNameToTag(name: string): string {
+  const lower = name.trim().toLowerCase()
+  const map: Record<string, string> = {
+    infant: "infant",
+    toddler: "toddler",
+    preschool: "preschool",
+    "pre-k": "prek",
+    "school age": "school_age",
+    schoolage: "school_age",
+  }
+  return map[lower] ?? lower.replace(/\s+/g, "_")
+}
+
+/**
+ * Fetch featured providers for a program type, filtered by age groups served.
+ * Used on program detail pages for the "Featured Providers" section.
+ */
+export async function getFeaturedProvidersForProgram(
+  programSlug: string,
+  limit = 3
+): Promise<ProviderCardDataFromDb[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const supabase = getSupabaseAdminClient()
+
+  const [programType, ageGroupsById, activeRows] = await Promise.all([
+    getProgramTypeBySlug(programSlug),
+    getAgeGroupsById(),
+    getActiveProvidersFromDb(supabase),
+  ])
+
+  if (!programType) return []
+
+  let ageTags: string[] | undefined
+  const ageGroupIds = programType.age_group_ids ?? []
+
+  if (ageGroupIds.length > 0 && ageGroupsById.size > 0) {
+    ageTags = ageGroupIds
+      .map((id) => ageGroupsById.get(id)?.name)
+      .filter((n): n is string => !!n)
+      .map(ageGroupNameToTag)
+      .filter(Boolean)
+  }
+
+  const filtered = filterActiveProviders(activeRows, { ageTags } as SearchCriteria)
+  const sorted = [...filtered].sort((a, b) => {
+    const featuredDiff = Number(b.featured) - Number(a.featured)
+    if (featuredDiff !== 0) return featuredDiff
+    const ratingDiff = (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
+    if (ratingDiff !== 0) return ratingDiff
+    return (b.review_count ?? 0) - (a.review_count ?? 0)
+  })
+
+  const top = sorted.slice(0, limit)
+  return top.map((row) => activeProviderRowToCardData(row, baseUrl))
 }
 
 /**
@@ -373,9 +476,7 @@ export function activeProviderRowToCardData(
   const image = row.primary_photo_storage_path
     ? buildPhotoPublicUrl(row.primary_photo_storage_path, baseUrl)
     : PLACEHOLDER_IMAGE
-  const languagesParsed = (row.languages_spoken ?? "")
-    .split(/[\s,;]+/)
-    .filter(Boolean)
+  const programTypes = ageGroupsToProgramLabels(row.age_groups_served)
 
   return {
     id: row.profile_id,
@@ -386,12 +487,13 @@ export function activeProviderRowToCardData(
     location,
     priceRange,
     providerTypes: toProviderTypeIds(row.provider_types),
-    programTypes: languagesParsed,
+    programTypes,
     shortDescription: (row.description ?? "").slice(0, 200),
     image,
     latitude: row.latitude ?? 0,
     longitude: row.longitude ?? 0,
     address: row.address ?? "",
     featured: row.featured ?? false,
+    savedByParentCount: row.saved_by_parent_count ?? 0,
   }
 }

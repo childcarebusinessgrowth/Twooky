@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowRight, BadgeCheck, Clock3, FileText, Shield, CheckCircle2 } from "lucide-react"
+import { ArrowRight, BadgeCheck, Clock3, FileText, Shield, CheckCircle2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -132,6 +132,37 @@ export function ClaimListingForm() {
             We&apos;ve received your claim and verification documents. Our team will review your
             submission and contact you at the email address you provided.
           </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (status === "submitting") {
+    return (
+      <Card
+        id="claim-form"
+        className="border-border/70 bg-card/90 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.35)] backdrop-blur-sm"
+      >
+        <CardContent className="flex min-h-[320px] flex-col items-center justify-center py-16">
+          <div className="relative">
+            <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </div>
+          <p className="mt-6 text-lg font-medium text-foreground">Submitting your claim</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Uploading documents and preparing your listing…
+          </p>
+          <div className="mt-8 flex gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60"
+                style={{ animationDelay: `${i * 150}ms` }}
+              />
+            ))}
+          </div>
         </CardContent>
       </Card>
     )

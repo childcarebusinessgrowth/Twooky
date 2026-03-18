@@ -6,6 +6,7 @@ const footerLinks = {
     { name: "About", href: "/about" },
     { name: "Blog", href: "/blogs" },
     { name: "Contact", href: "/contact" },
+    { name: "Browse Locations", href: "/childcare/locations" },
     { name: "Privacy", href: "/privacy" },
     { name: "Terms", href: "/terms" },
     { name: "Provider Sign Up", href: "/claim-listing" },
@@ -18,7 +19,7 @@ const footerLinks = {
     { name: "San Diego", href: "/locations/san-diego" },
   ],
   searches: [
-    { name: "Daycare Near Me", href: "/search?type=daycare" },
+    { name: "Daycare Near Me", href: "/search" },
     { name: "Preschools", href: "/programs/preschool" },
     { name: "Montessori Programs", href: "/programs/montessori" },
     { name: "Infant Care", href: "/programs/infant-care" },
@@ -29,12 +30,12 @@ const footerLinks = {
 export function Footer() {
   const currentYear = new Date().getFullYear()
   return (
-    <footer className="border-t border-border bg-muted/30">
-      <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+    <footer className="border-t border-border bg-muted/50">
+      <div className="mx-auto max-w-7xl px-4 py-14 lg:px-8 lg:py-16">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
                 <Baby className="h-6 w-6 text-primary-foreground" />
               </div>
@@ -49,13 +50,15 @@ export function Footer() {
 
           {/* Company Links */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Company</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
+              Company
+            </h3>
             <ul className="mt-4 space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -66,13 +69,15 @@ export function Footer() {
 
           {/* Popular Cities */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Popular Cities</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
+              Popular Cities
+            </h3>
             <ul className="mt-4 space-y-3">
               {footerLinks.cities.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -83,13 +88,15 @@ export function Footer() {
 
           {/* Popular Searches */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Popular Searches</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
+              Popular Searches
+            </h3>
             <ul className="mt-4 space-y-3">
               {footerLinks.searches.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -100,15 +107,21 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-12 border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="mt-14 border-t border-border pt-8 pb-2 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground text-center md:text-left">
             © {currentYear} Early Learning Directory. All rights reserved. This platform is GDPR compliant.
           </p>
           <div className="flex gap-6">
-            <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/privacy"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+            >
               Privacy Policy
             </Link>
-            <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/terms"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+            >
               Terms of Service
             </Link>
           </div>

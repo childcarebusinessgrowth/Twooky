@@ -11,7 +11,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { ProviderCard } from "@/components/provider-card"
-import { providers } from "@/lib/mock-data"
+import { getFeaturedProvidersForProgram } from "@/lib/search-providers-db"
 import {
   getActiveProgramTypes,
   getAgeGroupsById,
@@ -73,13 +73,8 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
     .slice(0, 5)
     .map((row) => programTypeToCardShape(row, ageGroupsById))
 
-  // Featured providers (mock for now - plan says out of scope)
-  const programTitle = row.name.toLowerCase()
-  const relevantProviders = providers.filter((p) =>
-    p.programTypes.some((type) =>
-      type.toLowerCase().includes(programTitle.split(" ")[0])
-    )
-  ).slice(0, 3)
+  // Featured providers from database, filtered by program age groups
+  const featuredProviders = await getFeaturedProvidersForProgram(slug, 3)
 
   return (
     <div className="min-h-screen bg-background">
@@ -239,11 +234,12 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(relevantProviders.length > 0
-              ? relevantProviders
-              : providers.slice(0, 3)
-            ).map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} />
+            {featuredProviders.map((provider) => (
+              <ProviderCard
+                key={provider.id}
+                provider={provider}
+                featured={provider.featured}
+              />
             ))}
           </div>
         </div>

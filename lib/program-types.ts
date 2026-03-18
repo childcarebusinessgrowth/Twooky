@@ -167,7 +167,7 @@ export async function getProgramTypeBySlug(
 
   const { data: row, error } = await supabase
     .from("program_types")
-    .select("id, name, slug, short_description, about_text, key_benefits, sort_order, is_active")
+    .select("id, name, slug, short_description, about_text, key_benefits, age_group_ids, sort_order, is_active")
     .eq("is_active", true)
     .eq("slug", slug)
     .maybeSingle()

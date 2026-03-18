@@ -81,6 +81,14 @@ function SearchBarContent({
     return "Google Maps API key is not configured. We can detect coordinates but not city/state."
   }, [mapsApiKey])
 
+  const displayError = useMemo(() => {
+    if (!locationError) return null
+    const deniedMsg = getGeolocationErrorMessage("permission-denied")
+    const lower = locationError.toLowerCase()
+    if (locationError === deniedMsg || (lower.includes("permission") && lower.includes("denied"))) return null
+    return locationError
+  }, [locationError])
+
   const locationFromUrl = useMemo(() => {
     const directLocation = searchParams.get("location")?.trim()
     if (directLocation) return directLocation
@@ -139,6 +147,10 @@ function SearchBarContent({
         }
       }
     } catch (error) {
+      if (error instanceof GeolocationError && error.code === "permission-denied") {
+        setLocationError(null)
+        return
+      }
       if (error instanceof GeolocationError) {
         setLocationError(error.message)
       } else if (error instanceof Error) {
@@ -208,13 +220,19 @@ function SearchBarContent({
   if (variant === "compact") {
     return (
       <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-[200px]">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Location (city or zip)"
             className="pl-10 pr-10 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                handleSearch()
+              }
+            }}
           />
           {isDetectingLocation && (
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -240,9 +258,9 @@ function SearchBarContent({
           <Search className="h-4 w-4" />
           <span className="ml-2">{searchButtonLabel ?? "Search"}</span>
         </Button>
-        {(locationError || geolocationHint) && (
+        {(displayError || geolocationHint) && (
           <p className="sm:basis-full text-xs text-muted-foreground">
-            {locationError ?? geolocationHint}
+            {displayError ?? geolocationHint}
           </p>
         )}
       </div>
@@ -268,7 +286,7 @@ function SearchBarContent({
         {/* Fields row */}
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Location */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-[200px]">
             <label className={`text-xs font-medium mb-2 block ${labelClassName}`}>
               Location
             </label>
@@ -279,14 +297,20 @@ function SearchBarContent({
                 className={`w-full pl-10 pr-10 h-11 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${inputClassName}`}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleSearch()
+                  }
+                }}
               />
               {isDetectingLocation && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
               )}
             </div>
-            {(locationError || geolocationHint) && (
+            {(displayError || geolocationHint) && (
               <p className="text-xs text-muted-foreground mt-1">
-                {locationError ?? geolocationHint}
+                {displayError ?? geolocationHint}
               </p>
             )}
           </div>
