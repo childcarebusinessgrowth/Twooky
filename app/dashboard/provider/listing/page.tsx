@@ -28,6 +28,8 @@ import {
   reverseGeocodeCoordinates,
 } from "@/lib/location-client"
 import { useToast } from "@/hooks/use-toast"
+import { Suspense } from "react"
+import { ProfileTour } from "@/components/provider/ProfileTour"
 
 const DEFAULT_ADDRESS = "123 Sunshine Lane, San Francisco, CA 94102"
 const AUTO_ADDRESS_SUCCESS_KEY = "eld:auto-address-success"
@@ -72,6 +74,7 @@ export default function ManageListingPage() {
   const [addressError, setAddressError] = useState<string | null>(null)
   const [description, setDescription] = useState("")
   const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("")
   const [website, setWebsite] = useState("")
   const [providerTypes, setProviderTypes] = useState<ProviderTypeId[]>(["nursery", "preschool"])
   const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>(["infant", "toddler", "preschool", "prek"])
@@ -112,7 +115,7 @@ export default function ManageListingPage() {
       const supabase = getSupabaseClient()
 
       const selectWithStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, email, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
       const selectWithoutStatus =
         "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id"
 
@@ -187,6 +190,9 @@ export default function ManageListingPage() {
         const nameFromDb = data?.business_name
         setBusinessName(nameFromDb ?? nameFromSignup ?? "")
         setPhone(data?.phone ?? phoneFromSignup ?? "")
+        const emailFromDb = data?.email
+        const emailFromAuth = typeof user?.email === "string" ? user.email.trim() : ""
+        setEmail(emailFromDb ?? emailFromAuth ?? "")
         if (data?.description != null) setDescription(data.description)
         if (data?.website != null) setWebsite(data.website)
         if (data?.address != null) setAddress(data.address)
@@ -540,6 +546,9 @@ export default function ManageListingPage() {
 
   return (
     <div className="space-y-6 max-w-4xl pb-24">
+      <Suspense fallback={null}>
+        <ProfileTour isReady={!isLoadingProfile} />
+      </Suspense>
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
@@ -587,7 +596,7 @@ export default function ManageListingPage() {
           )}
         </div>
         {!isPendingListing && (
-          <Button onClick={handleSave} disabled={isSaving || isLoadingProfile} className="shrink-0">
+          <Button onClick={handleSave} disabled={isSaving || isLoadingProfile} className="shrink-0" data-tour-submit>
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? (isDraftListing ? "Submitting..." : "Saving...") : primaryActionLabel}
           </Button>
@@ -629,15 +638,15 @@ export default function ManageListingPage() {
       <fieldset disabled={isPendingListing || isSaving || isLoadingProfile} className="space-y-6">
       <Tabs defaultValue="business" className="w-full">
         <TabsList className="w-full sm:w-auto flex flex-wrap h-auto gap-1 p-1 bg-muted/60">
-          <TabsTrigger value="business" className="flex items-center gap-2">
+          <TabsTrigger value="business" className="flex items-center gap-2" data-tour-tab-business>
             <Building2 className="h-4 w-4" />
             Business Info
           </TabsTrigger>
-          <TabsTrigger value="program" className="flex items-center gap-2">
+          <TabsTrigger value="program" className="flex items-center gap-2" data-tour-tab-program>
             <GraduationCap className="h-4 w-4" />
             Program Details
           </TabsTrigger>
-          <TabsTrigger value="operating" className="flex items-center gap-2">
+          <TabsTrigger value="operating" className="flex items-center gap-2" data-tour-tab-operating>
             <Clock className="h-4 w-4" />
             Operating Details
           </TabsTrigger>

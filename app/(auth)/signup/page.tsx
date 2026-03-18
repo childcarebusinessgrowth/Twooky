@@ -248,9 +248,12 @@ export default function SignupPage() {
       return
     }
 
-    const roleRedirect = await resolveRoleRedirect()
-    const fallbackRedirect = step === "provider" ? "/dashboard/provider" : "/dashboard/parent"
-    router.push(roleRedirect ?? fallbackRedirect)
+    if (step === "provider") {
+      router.push("/dashboard/provider/listing?tour=1")
+    } else {
+      const roleRedirect = await resolveRoleRedirect()
+      router.push(roleRedirect ?? "/dashboard/parent")
+    }
   }
 
   if (step === "select") {

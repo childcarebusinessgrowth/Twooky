@@ -102,37 +102,50 @@ export default async function AdminDashboardPage() {
               {recentActivity.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No new activity today</p>
               ) : (
-                recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      {activity.type === "claim" && <FileCheck className="h-4 w-4 text-muted-foreground" />}
-                      {activity.type === "review" && <Star className="h-4 w-4 text-muted-foreground" />}
-                      {activity.type === "listing" && <Building2 className="h-4 w-4 text-muted-foreground" />}
-                      {activity.type === "user" && <PlusCircle className="h-4 w-4 text-muted-foreground" />}
-                      {activity.type === "flagged" && <Star className="h-4 w-4 text-muted-foreground" />}
-                      {activity.type === "contact" && <MessageCircle className="h-4 w-4 text-muted-foreground" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">{activity.message}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{activity.time}</span>
-                        <Badge
-                          variant={
-                            activity.status === "pending" ? "secondary" :
-                            activity.status === "flagged" ? "destructive" :
-                            activity.status === "approved" ? "default" :
-                            activity.status === "rejected" ? "outline" :
-                            "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {activity.status}
-                        </Badge>
+                recentActivity.map((activity) => {
+                  const content = (
+                    <>
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        {activity.type === "claim" && <FileCheck className="h-4 w-4 text-muted-foreground" />}
+                        {activity.type === "review" && <Star className="h-4 w-4 text-muted-foreground" />}
+                        {activity.type === "listing" && <Building2 className="h-4 w-4 text-muted-foreground" />}
+                        {activity.type === "user" && <PlusCircle className="h-4 w-4 text-muted-foreground" />}
+                        {activity.type === "flagged" && <Star className="h-4 w-4 text-muted-foreground" />}
+                        {activity.type === "contact" && <MessageCircle className="h-4 w-4 text-muted-foreground" />}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground">{activity.message}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">{activity.time}</span>
+                          <Badge
+                            variant={
+                              activity.status === "pending" ? "secondary" :
+                              activity.status === "flagged" ? "destructive" :
+                              activity.status === "approved" ? "default" :
+                              activity.status === "rejected" ? "outline" :
+                              "secondary"
+                            }
+                            className="text-xs"
+                          >
+                            {activity.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </>
+                  )
+                  return (
+                    <div key={activity.id} className="flex items-start gap-3">
+                      {activity.type === "claim" ? (
+                        <Link href="/admin/claims" className="flex items-start gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                          {content}
+                        </Link>
+                      ) : (
+                        content
+                      )}
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </CardContent>

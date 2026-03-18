@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Menu,
   Search,
+  Store,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ const sidebarItems = [
   { label: "My Inquiries", href: "/dashboard/parent/inquiries", icon: MessageSquare },
   { label: "My Reviews", href: "/dashboard/parent/reviews", icon: Star },
   { label: "Compare Providers", href: "/dashboard/parent/compare", icon: Scale },
+  { label: "Local Services & Deals", href: "/dashboard/parent/local-services", icon: Store },
   { label: "Account Settings", href: "/dashboard/parent/settings", icon: Settings },
 ]
 

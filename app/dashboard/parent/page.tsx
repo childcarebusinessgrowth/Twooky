@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
 import Image from "next/image"
-import { Heart, Mail, Star, MapPin, Baby, ArrowRight } from "lucide-react"
+import { Heart, Mail, Star, MapPin, Baby, ArrowRight, Store } from "lucide-react"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import {
@@ -636,6 +636,33 @@ export default async function ParentDashboardPage() {
                   ) : null}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Local Services & Deals teaser */}
+        <section>
+          <Card className="rounded-3xl border border-border/60 bg-gradient-to-r from-secondary/10 via-primary/5 to-secondary/10 shadow-sm">
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5 lg:p-6">
+              <div className="flex items-start gap-4">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 shrink-0">
+                  <Store className="h-6 w-6 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-base font-semibold text-foreground">
+                    Discover local providers and exclusive deals
+                  </h2>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Swimming schools, baby classes, music, and more — plus discounts for Early Learning families.
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="lg" className="rounded-full shrink-0">
+                <Link href="/dashboard/parent/local-services">
+                  View Local Services & Deals
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </section>

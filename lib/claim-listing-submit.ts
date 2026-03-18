@@ -18,7 +18,7 @@ const submitSchema = z.object({
   email: z.string().email("Valid email is required"),
   phone: z.string().min(1, "Phone is required").max(50),
   business_address: z.string().min(1, "Business address is required").max(500),
-  consent: z.literal(true, { errorMap: () => ({ message: "Consent is required" }) }),
+  consent: z.literal(true, { error: "Consent is required" }),
   document_type: z.enum(DOCUMENT_TYPES),
 })
 

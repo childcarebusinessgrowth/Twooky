@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Save, Bell, Shield, Trash2 } from "lucide-react"
+import Link from "next/link"
+import { Save, Bell, Shield, Trash2, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
@@ -211,6 +212,22 @@ export default function SettingsPage() {
               disabled={prefsLoading || prefsSaving}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Help */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            Profile Tour
+          </CardTitle>
+          <CardDescription>Replay the walkthrough for updating your listing</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/provider/listing?tour=1">Show profile tour</Link>
+          </Button>
         </CardContent>
       </Card>
 

@@ -1,0 +1,129 @@
+/* Profile tour popover - matches app design system */
+.driver-popover.profile-tour-popover {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  min-width: 280px;
+  max-width: 360px;
+  box-shadow: 0 10px 40px -10px rgb(0 0 0 / 0.2), 0 0 0 1px rgb(0 0 0 / 0.05);
+  animation: profile-tour-popover-in 0.25s ease-out;
+}
+
+@keyframes profile-tour-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.driver-popover.profile-tour-popover .driver-popover-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);
+  margin-bottom: 0.5rem;
+}
+
+.driver-popover.profile-tour-popover .driver-popover-description {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-progress-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  gap: 0.5rem;
+}
+
+.driver-popover.profile-tour-popover .driver-popover-navigation-btns {
+  gap: 0.5rem;
+}
+
+.driver-popover.profile-tour-popover .driver-popover-footer button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s, color 0.15s;
+  text-shadow: none;
+}
+
+.driver-popover.profile-tour-popover .driver-popover-prev-btn {
+  background: transparent;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-prev-btn:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-next-btn {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+  text-shadow: none;
+  min-width: 4.5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-next-btn:hover {
+  background: color-mix(in oklab, var(--primary) 90%, black);
+  border-color: color-mix(in oklab, var(--primary) 90%, black);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.15);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-close-btn {
+  color: var(--muted-foreground);
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+}
+
+.driver-popover.profile-tour-popover .driver-popover-close-btn:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+/* Arrow colors to match popover */
+.driver-popover.profile-tour-popover.driver-popover-arrow-side-left .driver-popover-arrow {
+  border-left-color: var(--card);
+}
+
+.driver-popover.profile-tour-popover.driver-popover-arrow-side-right .driver-popover-arrow {
+  border-right-color: var(--card);
+}
+
+.driver-popover.profile-tour-popover.driver-popover-arrow-side-top .driver-popover-arrow {
+  border-top-color: var(--card);
+}
+
+.driver-popover.profile-tour-popover.driver-popover-arrow-side-bottom .driver-popover-arrow {
+  border-bottom-color: var(--card);
+}
+
+/* Softer overlay */
+.driver-overlay {
+  background-color: rgb(0 0 0 / 0.45);
+}
+
+/* Highlighted element - subtle glow */
+.driver-active-element {
+  box-shadow: 0 0 0 3px var(--primary);
+}

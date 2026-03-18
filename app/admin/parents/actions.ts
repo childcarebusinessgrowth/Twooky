@@ -74,6 +74,8 @@ export async function deleteParent(profileId: string): Promise<ParentActionResul
     return { ok: false, error: "Only parent accounts can be deleted from this page." }
   }
 
+  // deleteUser removes the auth user; profiles.id references auth.users(id) on delete cascade,
+  // so the profile and all parent-related data (parent_profiles, favorites, inquiries, etc.) cascade delete.
   const { error } = await admin.auth.admin.deleteUser(profileId)
   if (error) {
     return { ok: false, error: error.message }

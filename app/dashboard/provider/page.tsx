@@ -8,6 +8,7 @@ import { RequireAuth } from "@/components/RequireAuth"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getProviderOverviewData, type RecentInquiryRow } from "@/lib/provider-dashboard"
+import { ProviderOnboardingWelcome } from "@/components/provider/ProviderOnboardingWelcome"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -38,14 +39,19 @@ export default async function ProviderDashboardPage() {
   let dashboardPhotos: { id: string; url: string; caption: string | null }[] = []
   let overview: Awaited<ReturnType<typeof getProviderOverviewData>>
   let listingStatus: string | null = null
+  let isNewProvider = false
   if (user) {
     overview = await getProviderOverviewData(supabase, user.id)
     const { data: profileRow } = await supabase
       .from("provider_profiles")
-      .select("listing_status")
+      .select("listing_status, onboarding_tour_shown_at")
       .eq("profile_id", user.id)
       .maybeSingle()
     listingStatus = profileRow?.listing_status ?? null
+    isNewProvider =
+      profileRow != null &&
+      profileRow.onboarding_tour_shown_at == null &&
+      (profileRow.listing_status === "draft" || profileRow.listing_status == null)
     const { data: rows } = await supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
@@ -116,6 +122,7 @@ export default async function ProviderDashboardPage() {
 
   return (
     <RequireAuth>
+      <ProviderOnboardingWelcome isNewProvider={isNewProvider} />
       <div className="space-y-6">
       {/* Draft/Pending listing banner */}
       {listingStatus === "draft" && (

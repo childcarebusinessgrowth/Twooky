@@ -26,6 +26,7 @@ type AuthContextValue = {
     },
   ) => Promise<{ error?: string }>
   signOut: () => Promise<{ error?: string }>
+  signOutLocal: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -160,6 +161,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const signOutLocal: AuthContextValue["signOutLocal"] = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      await supabase.auth.signOut({ scope: "local" })
+      setUser(null)
+      setAuthError(null)
+    } catch (error) {
+      console.error("Supabase local sign-out error", error)
+      setUser(null)
+      setAuthError(null)
+    }
+  }
+
   const signOut: AuthContextValue["signOut"] = async () => {
     try {
       const supabase = getSupabaseClient()
@@ -186,7 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (serverError || clientError) {
         const message = serverError ?? clientError?.message ?? "Unable to sign out right now."
         console.error("Supabase sign-out error", serverError ?? clientError)
-        return { error: message }
+        await signOutLocal()
+        return {}
       }
 
       setUser(null)
@@ -194,7 +209,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return {}
     } catch (error) {
       console.error("Supabase sign-out initialization error", error)
-      return { error: "Unable to sign out right now. Please try again later." }
+      await signOutLocal()
+      return {}
     }
   }
 
@@ -207,6 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithEmail,
         signUpWithEmail,
         signOut,
+        signOutLocal,
       }}
     >
       {children}

@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { Spinner } from "@/components/ui/spinner"
+import { useAuth } from "@/components/AuthProvider"
 import { getDefaultRouteForRole, isAppRole } from "@/lib/authz"
 
 type RequireAuthProps = {
@@ -15,6 +16,7 @@ type RequireAuthProps = {
 export function RequireAuth({ children, redirectTo = "/login", fallback, allowedRoles }: RequireAuthProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const { signOutLocal } = useAuth()
   const [isCheckingAccess, setIsCheckingAccess] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const hasRoleConstraints = Array.isArray(allowedRoles) && allowedRoles.length > 0
@@ -37,6 +39,7 @@ export function RequireAuth({ children, redirectTo = "/login", fallback, allowed
         if (cancelled) return
 
         if (!response.ok) {
+          await signOutLocal()
           const queryParams = new URLSearchParams()
           if (payload.unresolvedRole) {
             queryParams.set("error", "role_unresolved")
@@ -75,7 +78,7 @@ export function RequireAuth({ children, redirectTo = "/login", fallback, allowed
     return () => {
       cancelled = true
     }
-  }, [allowedRoleSet, hasRoleConstraints, pathname, redirectTo, router])
+  }, [allowedRoleSet, hasRoleConstraints, pathname, redirectTo, router, signOutLocal])
 
   if (isCheckingAccess || !isAuthorized) {
     if (fallback) return <>{fallback}</>

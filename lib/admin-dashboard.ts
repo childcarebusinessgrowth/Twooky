@@ -95,6 +95,8 @@ export async function loadAdminDashboardData(): Promise<{
     inquiriesCountRes,
     reviewsAggRes,
     pendingClaimsRes,
+    pendingClaimsForActivityRes,
+    processedClaimsRes,
   ] = await Promise.all([
     supabase.from("provider_profiles").select("profile_id", { count: "exact", head: true }),
     supabase
@@ -154,6 +156,19 @@ export async function loadAdminDashboardData(): Promise<{
       .from("provider_listing_claims")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending"),
+    supabase
+      .from("provider_listing_claims")
+      .select("id, claimant_name, business_name, submitted_at")
+      .eq("status", "pending")
+      .order("submitted_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("provider_listing_claims")
+      .select("id, claimant_name, business_name, status, reviewed_at")
+      .neq("status", "pending")
+      .not("reviewed_at", "is", null)
+      .order("reviewed_at", { ascending: false })
+      .limit(20),
   ])
 
   const totalProviders = providersCountRes.count ?? 0
@@ -259,6 +274,28 @@ export async function loadAdminDashboardData(): Promise<{
       time: c.created_at,
       type: "contact",
       status: "new",
+    })
+  })
+
+  const pendingClaims = (pendingClaimsForActivityRes.data ?? []) as { id: string; claimant_name: string; business_name: string; submitted_at: string }[]
+  pendingClaims.forEach((c) => {
+    activities.push({
+      id: `claim-${c.id}`,
+      message: `Claim request from ${c.claimant_name?.trim() || "Unknown"} for ${c.business_name?.trim() || "Unnamed"}`,
+      time: c.submitted_at,
+      type: "claim",
+      status: "pending",
+    })
+  })
+
+  const processedClaims = (processedClaimsRes.data ?? []) as { id: string; claimant_name: string; business_name: string; status: string; reviewed_at: string }[]
+  processedClaims.forEach((c) => {
+    activities.push({
+      id: `claim-${c.id}`,
+      message: `Claim ${c.status} for ${c.business_name?.trim() || "Unnamed"}`,
+      time: c.reviewed_at,
+      type: "claim",
+      status: c.status,
     })
   })
 

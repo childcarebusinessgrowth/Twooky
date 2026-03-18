@@ -491,6 +491,7 @@ export interface Database {
           notify_new_inquiries: boolean
           notify_new_reviews: boolean
           notify_weekly_analytics: boolean
+          onboarding_tour_shown_at: string | null
           created_at: string
         }
         Insert: {
@@ -524,6 +525,7 @@ export interface Database {
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean
+          onboarding_tour_shown_at?: string | null
           created_at?: string
         }
         Update: {
@@ -557,6 +559,7 @@ export interface Database {
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean
+          onboarding_tour_shown_at?: string | null
           created_at?: string
         }
         Relationships: []

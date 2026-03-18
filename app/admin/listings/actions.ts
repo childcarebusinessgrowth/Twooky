@@ -515,6 +515,17 @@ export async function deleteListing(profileId: string): Promise<{ error?: string
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to delete provider photos from storage" }
   }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", profileId)
+    .maybeSingle()
+  if (profile?.role === "provider") {
+    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(profileId)
+    if (deleteUserError) {
+      return { error: deleteUserError.message }
+    }
+  }
   const { error } = await supabase
     .from("provider_profiles")
     .delete()
