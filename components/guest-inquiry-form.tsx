@@ -22,6 +22,10 @@ type Props = {
   onOpenChange: (open: boolean) => void
   providerSlug: string
   providerName?: string
+  /** Lead source: directory (default) or compare */
+  source?: "directory" | "compare"
+  /** Optional program interest for the lead record */
+  programInterest?: string
 }
 
 function parseDate(value: string): string | null {
@@ -36,10 +40,13 @@ export function GuestInquiryForm({
   onOpenChange,
   providerSlug,
   providerName,
+  source = "directory",
+  programInterest: programInterestProp,
 }: Props) {
   const { toast } = useToast()
   const [childDob, setChildDob] = useState("")
   const [idealStartDate, setIdealStartDate] = useState("")
+  const [programInterest, setProgramInterest] = useState("")
   const [message, setMessage] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -107,6 +114,8 @@ export function GuestInquiryForm({
           email: email.trim().toLowerCase(),
           telephone: telephone.trim(),
           consentToContact: true,
+          source,
+          programInterest: programInterest.trim() || programInterestProp?.trim() || undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -179,6 +188,20 @@ export function GuestInquiryForm({
                     disabled={submitting}
                   />
                 </div>
+              </div>
+              <div>
+                <label htmlFor="guest-program-interest" className="block text-sm font-medium text-foreground mb-1">
+                  Program Interest (optional)
+                </label>
+                <Input
+                  id="guest-program-interest"
+                  type="text"
+                  className={inputClass}
+                  placeholder="e.g. Preschool, Daycare, After-school"
+                  value={programInterest}
+                  onChange={(e) => setProgramInterest(e.target.value)}
+                  disabled={submitting}
+                />
               </div>
               <div>
                 <label htmlFor="guest-message" className="block text-sm font-medium text-foreground mb-1">

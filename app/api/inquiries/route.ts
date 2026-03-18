@@ -7,6 +7,7 @@ type CreateInquiryPayload = {
   subject?: string
   message?: string
   consentToContact?: boolean
+  source?: string
 }
 
 export async function POST(request: Request) {
@@ -37,6 +38,10 @@ export async function POST(request: Request) {
     const subject =
       typeof body.subject === "string" ? body.subject.trim() : null
     const consentToContact = body.consentToContact === true
+    const source =
+      typeof body.source === "string" && ["directory", "compare"].includes(body.source.trim())
+        ? body.source.trim()
+        : "directory"
 
     if (!providerSlug) {
       return NextResponse.json(
@@ -90,6 +95,7 @@ export async function POST(request: Request) {
         p_inquiry_subject: subject ?? "",
         p_message_plain: message,
         p_consent_to_contact: true,
+        p_source: source,
       }
     )
 

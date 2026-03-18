@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
     const { data: row, error: fetchError } = await supabase
       .from("guest_inquiries")
-      .select("id, provider_profile_id, child_dob, ideal_start_date, first_name, last_name, email, telephone, created_at")
+      .select("id, provider_profile_id, child_dob, ideal_start_date, first_name, last_name, email, telephone, created_at, source, program_interest")
       .eq("id", guestId)
       .single()
 
@@ -47,6 +47,8 @@ export async function GET(_request: Request, context: RouteContext) {
       email: row.email,
       telephone: row.telephone,
       createdAt: row.created_at,
+      source: row.source ?? null,
+      programInterest: row.program_interest ?? null,
     })
   } catch (e) {
     console.error("Get guest inquiry API error:", e)

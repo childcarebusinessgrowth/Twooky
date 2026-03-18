@@ -755,6 +755,8 @@ export interface Database {
           created_at: string
           updated_at: string
           lead_status: string
+          source: string | null
+          first_provider_response_at: string | null
         }
         Insert: {
           id?: string
@@ -834,6 +836,8 @@ export interface Database {
           consent_version: string
           consented_at: string
           created_at: string
+          source: string | null
+          program_interest: string | null
         }
         Insert: {
           id?: string
@@ -849,6 +853,8 @@ export interface Database {
           consent_version?: string
           consented_at?: string
           created_at?: string
+          source?: string | null
+          program_interest?: string | null
         }
         Update: {
           id?: string
@@ -864,6 +870,59 @@ export interface Database {
           consent_version?: string
           consented_at?: string
           created_at?: string
+          source?: string | null
+          program_interest?: string | null
+        }
+        Relationships: []
+      }
+      lead_notes: {
+        Row: {
+          id: string
+          lead_id: string
+          lead_type: string
+          provider_profile_id: string
+          note_text: string
+          created_at: string
+          created_by: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          lead_type: string
+          provider_profile_id: string
+          note_text: string
+          created_at?: string
+          created_by: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          lead_type?: string
+          provider_profile_id?: string
+          note_text?: string
+          created_at?: string
+          created_by?: string
+        }
+        Relationships: []
+      }
+      lead_follow_up_sent: {
+        Row: {
+          lead_id: string
+          lead_type: string
+          provider_profile_id: string
+          sent_at: string
+        }
+        Insert: {
+          lead_id: string
+          lead_type: string
+          provider_profile_id: string
+          sent_at?: string
+        }
+        Update: {
+          lead_id?: string
+          lead_type?: string
+          provider_profile_id?: string
+          sent_at?: string
         }
         Relationships: []
       }

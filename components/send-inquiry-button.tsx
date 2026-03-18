@@ -12,9 +12,11 @@ type Props = {
   providerSlug: string
   providerName?: string
   className?: string
+  /** Lead source: directory (default) or compare */
+  source?: "directory" | "compare"
 }
 
-export function SendInquiryButton({ providerSlug, providerName, className }: Props) {
+export function SendInquiryButton({ providerSlug, providerName, className, source = "directory" }: Props) {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const [role, setRole] = useState<"parent" | "provider" | "admin" | null>(null)
@@ -45,7 +47,9 @@ export function SendInquiryButton({ providerSlug, providerName, className }: Pro
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
-    const next = `/dashboard/parent/inquiries?provider=${encodeURIComponent(providerSlug)}`
+    const params = new URLSearchParams({ provider: providerSlug })
+    if (source === "compare") params.set("source", "compare")
+    const next = `/dashboard/parent/inquiries?${params.toString()}`
     if (role === "parent") {
       router.push(next)
       return
@@ -57,9 +61,11 @@ export function SendInquiryButton({ providerSlug, providerName, className }: Pro
     router.push("/contact")
   }
 
+  const parentParams = new URLSearchParams({ provider: providerSlug })
+  if (source === "compare") parentParams.set("source", "compare")
   const href =
     role === "parent"
-      ? `/dashboard/parent/inquiries?provider=${encodeURIComponent(providerSlug)}`
+      ? `/dashboard/parent/inquiries?${parentParams.toString()}`
       : !user
         ? "#"
         : "/contact"
@@ -91,6 +97,7 @@ export function SendInquiryButton({ providerSlug, providerName, className }: Pro
         onOpenChange={setGuestModalOpen}
         providerSlug={providerSlug}
         providerName={providerName}
+        source={source}
       />
     </>
   )

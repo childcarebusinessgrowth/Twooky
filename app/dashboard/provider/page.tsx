@@ -129,7 +129,7 @@ export default async function ProviderDashboardPage() {
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="pt-6">
             <p className="text-sm text-foreground">
-              Complete your profile in <Link href="/dashboard/provider/listing" className="font-medium text-primary underline underline-offset-2">Manage Listing &amp; Tour</Link> and submit it for admin approval. You&apos;ll be notified once your listing is live.
+              Complete your profile in <Link href="/dashboard/provider/listing" className="font-medium text-primary underline underline-offset-2">Manage Listing &amp; Tour</Link> and submit it for admin approval. After submitting, add photos in the Photos section to showcase your space. You&apos;ll be notified once your listing is live.
             </p>
           </CardContent>
         </Card>
@@ -138,7 +138,7 @@ export default async function ProviderDashboardPage() {
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="pt-6">
             <p className="text-sm text-foreground">
-              Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live.
+              Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live. In the meantime, add photos in the Photos section—photos help families see your space.
             </p>
           </CardContent>
         </Card>

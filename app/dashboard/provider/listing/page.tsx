@@ -30,6 +30,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Suspense } from "react"
 import { ProfileTour } from "@/components/provider/ProfileTour"
+import { PostSubmitPhotosTour } from "@/components/provider/PostSubmitPhotosTour"
 
 const DEFAULT_ADDRESS = "123 Sunshine Lane, San Francisco, CA 94102"
 const AUTO_ADDRESS_SUCCESS_KEY = "eld:auto-address-success"
@@ -269,29 +270,31 @@ export default function ManageListingPage() {
         if (data?.currency_id != null) setCurrencyId(data.currency_id)
         if (data?.total_capacity != null) setTotalCapacity(String(data.total_capacity))
 
-        // Restore unsaved draft from sessionStorage when returning from another page (e.g. Photos)
+        // Restore unsaved draft from sessionStorage when returning from another page (e.g. Photos).
+        // Only overwrite with stored values when they are non-empty, so we don't replace DB/signup
+        // data with empty strings from a draft saved before the initial load completed.
         const isDraft = !data?.listing_status || data.listing_status === "draft"
         if (isDraft) {
           const stored = loadDraftFromStorage()
           if (stored) {
-            setBusinessName(stored.businessName ?? "")
-            setPhone(stored.phone ?? "")
-            setEmail(stored.email ?? "")
-            setDescription(stored.description ?? "")
-            setWebsite(stored.website ?? "")
-            setAddress(stored.address ?? DEFAULT_ADDRESS)
+            if ((stored.businessName ?? "").trim()) setBusinessName(stored.businessName ?? "")
+            if ((stored.phone ?? "").trim()) setPhone(stored.phone ?? "")
+            if ((stored.email ?? "").trim()) setEmail(stored.email ?? "")
+            if ((stored.description ?? "").trim()) setDescription(stored.description ?? "")
+            if ((stored.website ?? "").trim()) setWebsite(stored.website ?? "")
+            if ((stored.address ?? "").trim() && stored.address !== DEFAULT_ADDRESS) setAddress(stored.address ?? DEFAULT_ADDRESS)
             if (stored.virtualTourUrls?.length) setVirtualTourUrls(stored.virtualTourUrls)
             if (stored.providerTypes?.length) setProviderTypes(stored.providerTypes)
             if (stored.ageGroupsServed?.length) setAgeGroupsServed(stored.ageGroupsServed)
             if (stored.curriculumTypes?.length) setCurriculumTypes(stored.curriculumTypes)
-            if (stored.languagesSpoken != null) setLanguagesSpoken(stored.languagesSpoken)
+            if (stored.languagesSpoken != null && stored.languagesSpoken.trim()) setLanguagesSpoken(stored.languagesSpoken)
             if (stored.amenities?.length) setAmenities(stored.amenities)
-            if (stored.openingTime != null) setOpeningTime(stored.openingTime)
-            if (stored.closingTime != null) setClosingTime(stored.closingTime)
-            if (stored.monthlyTuitionFrom != null) setMonthlyTuitionFrom(stored.monthlyTuitionFrom)
-            if (stored.monthlyTuitionTo != null) setMonthlyTuitionTo(stored.monthlyTuitionTo)
-            if (stored.currencyId != null) setCurrencyId(stored.currencyId)
-            if (stored.totalCapacity != null) setTotalCapacity(stored.totalCapacity)
+            if (stored.openingTime != null && stored.openingTime.trim()) setOpeningTime(stored.openingTime)
+            if (stored.closingTime != null && stored.closingTime.trim()) setClosingTime(stored.closingTime)
+            if (stored.monthlyTuitionFrom != null && stored.monthlyTuitionFrom.trim()) setMonthlyTuitionFrom(stored.monthlyTuitionFrom)
+            if (stored.monthlyTuitionTo != null && stored.monthlyTuitionTo.trim()) setMonthlyTuitionTo(stored.monthlyTuitionTo)
+            if (stored.currencyId != null && stored.currencyId.trim()) setCurrencyId(stored.currencyId)
+            if (stored.totalCapacity != null && stored.totalCapacity.trim()) setTotalCapacity(stored.totalCapacity)
           }
         }
       } catch (err) {
@@ -324,53 +327,79 @@ export default function ManageListingPage() {
     }
   }, [user])
 
-  // Persist draft to sessionStorage on unmount so data survives navigation (e.g. to Photos)
+  const draftSnapshot = useMemo(
+    () => ({
+      businessName,
+      virtualTourUrls,
+      address,
+      description,
+      phone,
+      email,
+      website,
+      providerTypes,
+      ageGroupsServed,
+      curriculumTypes,
+      languagesSpoken,
+      amenities,
+      openingTime,
+      closingTime,
+      monthlyTuitionFrom,
+      monthlyTuitionTo,
+      currencyId,
+      totalCapacity,
+      listingStatus,
+    }),
+    [
+      businessName,
+      virtualTourUrls,
+      address,
+      description,
+      phone,
+      email,
+      website,
+      providerTypes,
+      ageGroupsServed,
+      curriculumTypes,
+      languagesSpoken,
+      amenities,
+      openingTime,
+      closingTime,
+      monthlyTuitionFrom,
+      monthlyTuitionTo,
+      currencyId,
+      totalCapacity,
+      listingStatus,
+    ],
+  )
+
+  // Debounced save: persist draft as user types so data survives navigation before submit
+  const DRAFT_SAVE_DEBOUNCE_MS = 400
+  useEffect(() => {
+    if (isLoadingProfile || listingStatus !== "draft") return
+    const t = setTimeout(() => {
+      if (typeof window === "undefined") return
+      saveDraftToStorage(draftSnapshot)
+    }, DRAFT_SAVE_DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [draftSnapshot, isLoadingProfile, listingStatus])
+
+  // Save on visibility change (tab switch / navigate away) as backup
+  useEffect(() => {
+    const onHide = () => {
+      if (typeof window === "undefined" || isLoadingProfile || listingStatus !== "draft") return
+      saveDraftToStorage(draftSnapshot)
+    }
+    document.addEventListener("visibilitychange", onHide)
+    return () => document.removeEventListener("visibilitychange", onHide)
+  }, [draftSnapshot, isLoadingProfile, listingStatus])
+
+  // Save on unmount when navigating to another page (e.g. Reviews, Photos)
   useEffect(() => {
     return () => {
       if (typeof window === "undefined") return
-      saveDraftToStorage({
-        businessName,
-        virtualTourUrls,
-        address,
-        description,
-        phone,
-        email,
-        website,
-        providerTypes,
-        ageGroupsServed,
-        curriculumTypes,
-        languagesSpoken,
-        amenities,
-        openingTime,
-        closingTime,
-        monthlyTuitionFrom,
-        monthlyTuitionTo,
-        currencyId,
-        totalCapacity,
-        listingStatus,
-      })
+      saveDraftToStorage(draftSnapshot)
     }
-  }, [
-    businessName,
-    virtualTourUrls,
-    address,
-    description,
-    phone,
-    email,
-    website,
-    providerTypes,
-    ageGroupsServed,
-    curriculumTypes,
-    languagesSpoken,
-    amenities,
-    openingTime,
-    closingTime,
-    monthlyTuitionFrom,
-    monthlyTuitionTo,
-    currencyId,
-    totalCapacity,
-    listingStatus,
-  ])
+  }, [draftSnapshot])
 
   useEffect(() => {
     if (!user) return
@@ -402,7 +431,6 @@ export default function ManageListingPage() {
       parseOptionalInteger(monthlyTuitionFrom) != null,
       parseOptionalInteger(monthlyTuitionTo) != null,
       parseOptionalInteger(totalCapacity) != null,
-      photoCount >= 1,
     ]
     const filled = checks.filter(Boolean).length
     return Math.round((filled / checks.length) * 100)
@@ -423,7 +451,6 @@ export default function ManageListingPage() {
     monthlyTuitionFrom,
     monthlyTuitionTo,
     totalCapacity,
-    photoCount,
   ])
 
   const [showStickySave, setShowStickySave] = useState(false)
@@ -452,7 +479,6 @@ export default function ManageListingPage() {
       tuitionFrom: number | null
       tuitionTo: number | null
       capacity: number | null
-      photoCount: number
     },
   ): string | null {
     const missing: string[] = []
@@ -471,7 +497,6 @@ export default function ManageListingPage() {
     if (values.tuitionFrom == null) missing.push("Monthly Tuition (From)")
     if (values.tuitionTo == null) missing.push("Monthly Tuition (To)")
     if (values.capacity == null) missing.push("Total Capacity")
-    if (values.photoCount < 1) missing.push("At least one uploaded photo")
     if (missing.length === 0) return null
     return `Before submitting, please complete: ${missing.join(", ")}.`
   }
@@ -517,25 +542,24 @@ export default function ManageListingPage() {
     const tuitionTo = parseOptionalInteger(monthlyTuitionTo)
     const capacity = parseOptionalInteger(totalCapacity)
 
-    if (isDraftListing) {
-      const validationError = validateDraftSubmission({
-        businessName: trimmedBusinessName,
-        description,
-        phone,
-        website,
-        address,
-        providerTypes,
-        ageGroupsServed,
-        curriculumTypes,
-        languagesSpoken,
-        amenities,
-        openingTime,
-        closingTime,
-        tuitionFrom,
-        tuitionTo,
-        capacity,
-        photoCount,
-      })
+      if (isDraftListing) {
+        const validationError = validateDraftSubmission({
+          businessName: trimmedBusinessName,
+          description,
+          phone,
+          website,
+          address,
+          providerTypes,
+          ageGroupsServed,
+          curriculumTypes,
+          languagesSpoken,
+          amenities,
+          openingTime,
+          closingTime,
+          tuitionFrom,
+          tuitionTo,
+          capacity,
+        })
       if (validationError) {
         setSaveError(validationError)
         setIsSaving(false)
@@ -591,13 +615,18 @@ export default function ManageListingPage() {
       setVirtualTourUrls(normalizedVirtualTourUrls.length > 0 ? normalizedVirtualTourUrls : [""])
       if (isDraftListing) {
         setListingStatus("pending")
+        try {
+          sessionStorage.removeItem("eld:post-submit-photos-tour-shown")
+        } catch {
+          // ignore
+        }
       }
       clearDraftFromStorage()
       let successMessage = isDraftListing
         ? "Thank you. Your profile has been submitted and is now under admin review."
         : "All listing details have been saved."
       if (photoCount === 0)
-        successMessage += " Consider adding photos in the Photos section to improve your listing."
+        successMessage += " Important: Add photos in the Photos section to complete your listing."
       setSaveSuccess(successMessage)
       toast({
         title: isDraftListing ? "Submitted" : "Listing saved",
@@ -708,11 +737,11 @@ export default function ManageListingPage() {
               <Progress value={completionProgress} className="h-2" />
               {photoCount === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Add at least one photo in{" "}
+                  After submitting, add photos in{" "}
                   <Link href="/dashboard/provider/photos" className="text-primary hover:underline">
                     Photos
                   </Link>{" "}
-                  to complete.
+                  to showcase your space.
                 </p>
               )}
             </div>
@@ -746,10 +775,14 @@ export default function ManageListingPage() {
           <Info className="h-4 w-4 text-primary" />
           <AlertTitle>Under review</AlertTitle>
           <AlertDescription>
-            Thank you. Your listing is under review. We&apos;ll notify you when it&apos;s live on the directory.
+            Thank you. Your listing is under review. We&apos;ll notify you when it&apos;s live on the directory. Next step: Add photos in the Photos section to showcase your facility.
           </AlertDescription>
         </Alert>
       )}
+      <PostSubmitPhotosTour
+        show={isPendingListing && photoCount === 0}
+        isReady={!isLoadingProfile}
+      />
 
       {isLoadingProfile ? (
         <div className="space-y-6">
@@ -815,7 +848,7 @@ export default function ManageListingPage() {
 
               <Field>
                 <FieldLabel>Website</FieldLabel>
-                <Input value={website} onChange={(e) => setWebsite(e.target.value)} />
+                <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://" />
               </Field>
             </div>
 

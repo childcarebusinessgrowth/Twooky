@@ -46,23 +46,23 @@ const TOUR_STEPS: DriveStep[] = [
     },
   },
   {
-    element: "[data-tour-photos]",
-    popover: {
-      title: "Photos",
-      description:
-        "Add at least one photo in the Photos section. Photos help families visualize your space.",
-      side: "bottom",
-      align: "center",
-    },
-  },
-  {
     element: "[data-tour-submit]",
     popover: {
       title: "Submit for approval",
       description:
-        "When everything looks good, click Submit. We'll review and notify you when your listing is live.",
+        "Submit your listing first. We'll review and notify you when it's live.",
       side: "top",
       align: "end",
+    },
+  },
+  {
+    element: "[data-tour-photos]",
+    popover: {
+      title: "Photos",
+      description:
+        "After submitting, go to Photos to add images. Photos are very important—families use them to visualize your space.",
+      side: "bottom",
+      align: "center",
     },
   },
 ]

@@ -42,7 +42,7 @@ const sidebarItems = [
   { label: "Overview", href: "/dashboard/provider", icon: LayoutDashboard },
   { label: "Manage Listing & Tour", href: "/dashboard/provider/listing", icon: FileEdit },
   { label: "Reviews", href: "/dashboard/provider/reviews", icon: Star },
-  { label: "Inquiries", href: "/dashboard/provider/inquiries", icon: MessageSquare },
+  { label: "Leads (CRM)", href: "/dashboard/provider/inquiries", icon: MessageSquare },
   { label: "Photos", href: "/dashboard/provider/photos", icon: Image },
   { label: "FAQs", href: "/dashboard/provider/faqs", icon: HelpCircle },
   { label: "Analytics", href: "/dashboard/provider/analytics", icon: BarChart3 },

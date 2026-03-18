@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Image from "next/image"
-import { Upload, Pencil, Trash2, MoreVertical, ImageIcon, Loader2 } from "lucide-react"
+import { Upload, Pencil, Trash2, MoreVertical, ImageIcon, Loader2, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/components/AuthProvider"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { getSupabaseClient } from "@/lib/supabaseClient"
@@ -133,6 +134,20 @@ export default function PhotosPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null)
+  const [listingStatus, setListingStatus] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    const supabase = getSupabaseClient()
+    supabase
+      .from("provider_profiles")
+      .select("listing_status")
+      .eq("profile_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setListingStatus(data?.listing_status ?? null)
+      })
+  }, [user])
 
   const fetchPhotos = useCallback(async () => {
     if (!user) {
@@ -398,8 +413,24 @@ export default function PhotosPage() {
     </div>
   )
 
+  const showPhotosInstructionBanner =
+    (listingStatus === "pending" || listingStatus === "active") &&
+    !loading &&
+    photos.length === 0
+
   return (
     <div className="space-y-6">
+      {showPhotosInstructionBanner && (
+        <Alert className="border-amber-500/40 bg-amber-500/5">
+          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-amber-800 dark:text-amber-200">
+            Add photos to showcase your facility
+          </AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            After submitting your listing, upload photos here to showcase your facility to families. Photos are important for attracting parents.
+          </AlertDescription>
+        </Alert>
+      )}
       <Dialog
         open={uploadDialogOpen}
         onOpenChange={(open) => {

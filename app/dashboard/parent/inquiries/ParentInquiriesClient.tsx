@@ -34,6 +34,7 @@ type Props = {
   inquiries: ParentInquiryPreviewRow[]
   initialOpenId: string | null
   composeFor: ComposeFor | null
+  composeSource?: "directory" | "compare"
 }
 
 function formatDate(s: string): string {
@@ -52,6 +53,7 @@ export function ParentInquiriesClient({
   inquiries,
   initialOpenId,
   composeFor: initialComposeFor,
+  composeSource = "directory",
 }: Props) {
   const router = useRouter()
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -195,6 +197,7 @@ export function ParentInquiriesClient({
           subject: composeSubject.trim() || undefined,
           message: composeMessage.trim(),
           consentToContact: true,
+          source: composeSource,
         }),
       })
       const data = await res.json().catch(() => ({}))

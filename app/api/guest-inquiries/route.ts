@@ -11,6 +11,8 @@ type GuestInquiryPayload = {
   email?: string
   telephone?: string
   consentToContact?: boolean
+  source?: string
+  programInterest?: string
 }
 
 function isValidEmail(value: string): boolean {
@@ -29,6 +31,12 @@ export async function POST(request: Request) {
     const email = typeof body.email === "string" ? body.email.trim() : ""
     const telephone = typeof body.telephone === "string" ? body.telephone.trim() : ""
     const consentToContact = body.consentToContact === true
+    const source =
+      typeof body.source === "string" && ["directory", "compare"].includes(body.source.trim())
+        ? body.source.trim()
+        : "directory"
+    const programInterest =
+      typeof body.programInterest === "string" ? body.programInterest.trim() || null : null
 
     if (!providerSlug) {
       return NextResponse.json({ error: "Provider is required." }, { status: 400 })
@@ -98,6 +106,8 @@ export async function POST(request: Request) {
       p_email: email,
       p_telephone: telephone,
       p_consent_to_contact: true,
+      p_source: source,
+      p_program_interest: programInterest,
     })
 
     if (rpcError) {

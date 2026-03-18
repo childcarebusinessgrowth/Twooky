@@ -33,8 +33,8 @@ export default async function ProviderInquiriesPage({ searchParams }: PageProps)
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Inquiries</h1>
-        <p className="text-muted-foreground">View and reply to parent messages</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Lead Management</h1>
+        <p className="text-muted-foreground">View and manage leads from directory and compare tool</p>
       </div>
 
       <ProviderInquiriesClient

@@ -221,35 +221,17 @@ async function getFirstResponseTimes(
 }> {
   const { data: inquiries } = await supabase
     .from("inquiries")
-    .select("id, created_at")
+    .select("id, created_at, first_provider_response_at")
     .eq("provider_profile_id", providerProfileId)
     .is("deleted_at", null)
     .gte("created_at", rangeStartIso)
     .lte("created_at", rangeEndIso)
 
-  const inquiryIds = (inquiries ?? []).map((r) => r.id)
-  if (inquiryIds.length === 0) {
-    return { avgResponseTimeHours: null }
-  }
-
-  const { data: messages } = await supabase
-    .from("inquiry_messages")
-    .select("inquiry_id, created_at")
-    .in("inquiry_id", inquiryIds)
-    .eq("sender_type", "provider")
-    .order("created_at", { ascending: true })
-
-  const firstReplyByInquiry = new Map<string, string>()
-  for (const m of messages ?? []) {
-    if (!firstReplyByInquiry.has(m.inquiry_id)) firstReplyByInquiry.set(m.inquiry_id, m.created_at)
-  }
-
   const deltas: number[] = []
-  const inquiryByCreated = new Map((inquiries ?? []).map((i) => [i.id, i.created_at]))
-  for (const [inquiryId, firstReplyAt] of firstReplyByInquiry) {
-    const created = inquiryByCreated.get(inquiryId)
-    if (created) {
-      const ms = new Date(firstReplyAt).getTime() - new Date(created).getTime()
+  for (const i of inquiries ?? []) {
+    const firstReplyAt = i.first_provider_response_at
+    if (firstReplyAt && i.created_at) {
+      const ms = new Date(firstReplyAt).getTime() - new Date(i.created_at).getTime()
       if (ms >= 0) deltas.push(ms / (1000 * 60 * 60))
     }
   }

@@ -657,6 +657,9 @@ export type ProviderInquiryPreviewRow = {
   parent_display_name: string | null
   parent_email: string | null
   lead_status: string
+  child_age_group: string | null
+  source: string | null
+  first_provider_response_at: string | null
 }
 
 export async function getInquiriesByProviderProfileId(
@@ -667,19 +670,35 @@ export async function getInquiriesByProviderProfileId(
   const { data: rows, error } = await supabase.rpc("get_provider_inquiry_previews")
   if (error || !rows || rows.length === 0) return []
 
-  const filteredRows = rows.filter((row) => row != null && row.parent_profile_id != null)
-  return filteredRows
-    .filter((row) => row != null)
-    .map((row) => ({
-      id: row.id,
-      parent_profile_id: row.parent_profile_id,
-      inquiry_subject: row.inquiry_subject ?? null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      parent_display_name: row.parent_display_name ?? null,
-      parent_email: row.parent_email ?? null,
-      lead_status: row.lead_status ?? "new",
-    }))
+  type RpcRow = {
+    id: string
+    parent_profile_id: string
+    inquiry_subject: string | null
+    created_at: string
+    updated_at: string
+    parent_display_name: string | null
+    parent_email: string | null
+    lead_status: string | null
+    child_age_group: string | null
+    source?: string | null
+    first_provider_response_at?: string | null
+  }
+  const filteredRows = (rows ?? []).filter(
+    (row): row is RpcRow => row != null && row.parent_profile_id != null
+  )
+  return filteredRows.map((row) => ({
+    id: row.id,
+    parent_profile_id: row.parent_profile_id,
+    inquiry_subject: row.inquiry_subject ?? null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    parent_display_name: row.parent_display_name ?? null,
+    parent_email: row.parent_email ?? null,
+    lead_status: row.lead_status ?? "new",
+    child_age_group: row.child_age_group ?? null,
+    source: row.source ?? null,
+    first_provider_response_at: row.first_provider_response_at ?? null,
+  }))
 }
 
 /**
@@ -691,6 +710,8 @@ export type GuestInquiryPreviewRow = {
   first_name: string
   last_name: string
   message_preview: string | null
+  source: string | null
+  program_interest: string | null
 }
 
 export async function getGuestInquiriesByProviderProfileId(
@@ -699,7 +720,7 @@ export async function getGuestInquiriesByProviderProfileId(
 ): Promise<GuestInquiryPreviewRow[]> {
   const { data: rows, error } = await supabase
     .from("guest_inquiries")
-    .select("id, created_at, first_name, last_name")
+    .select("id, created_at, first_name, last_name, source, program_interest")
     .eq("provider_profile_id", providerProfileId)
     .order("created_at", { ascending: false })
   if (error || !rows || rows.length === 0) return []
@@ -709,5 +730,7 @@ export async function getGuestInquiriesByProviderProfileId(
     first_name: row.first_name,
     last_name: row.last_name,
     message_preview: null,
+    source: row.source ?? null,
+    program_interest: row.program_interest ?? null,
   }))
 }

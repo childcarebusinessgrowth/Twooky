@@ -58,7 +58,7 @@ export function ProviderOnboardingWelcome({ isNewProvider }: ProviderOnboardingW
           </div>
           <DialogTitle className="text-xl">Welcome to your provider dashboard</DialogTitle>
           <DialogDescription className="text-base leading-relaxed">
-            Let&apos;s get your listing ready for families. We&apos;ll walk you through each section of your profile so you can add your business details, program info, and photos. Once complete, you&apos;ll submit for approval and we&apos;ll notify you when your listing is live.
+            First, complete and submit your listing in Manage Listing &amp; Tour. After submission, add photos in the Photos section to showcase your space. We&apos;ll notify you when your listing is live.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">

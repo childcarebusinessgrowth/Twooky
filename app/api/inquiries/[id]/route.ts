@@ -28,6 +28,7 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Inquiry not found." }, { status: 404 })
     }
 
+    const meta = inquiry as { source?: string | null }
     return NextResponse.json({
       id: inquiry.id,
       inquirySubject: inquiry.inquiry_subject ?? null,
@@ -38,6 +39,7 @@ export async function GET(_request: Request, context: RouteContext) {
       createdAt: inquiry.created_at,
       updatedAt: inquiry.updated_at,
       leadStatus: inquiry.lead_status ?? "new",
+      source: meta.source ?? null,
     })
   } catch (e) {
     console.error("Get inquiry API error:", e)

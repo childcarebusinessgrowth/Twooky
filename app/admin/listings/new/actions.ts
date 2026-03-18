@@ -627,12 +627,14 @@ export async function updateAdminProvider(
 
   const { data: existingProfile, error: fetchError } = await supabase
     .from("provider_profiles")
-    .select("profile_id, provider_slug")
+    .select("profile_id, provider_slug, listing_status")
     .eq("profile_id", profileId)
     .maybeSingle()
 
   if (fetchError) return { ok: false, error: fetchError.message }
   if (!existingProfile) return { ok: false, error: "Listing not found." }
+
+  const previousStatus = (existingProfile.listing_status ?? "pending") as string
 
   const { error: updateProfileError } = await supabase
     .from("provider_profiles")
@@ -664,6 +666,18 @@ export async function updateAdminProvider(
     .eq("profile_id", profileId)
 
   if (updateProfileError) return { ok: false, error: updateProfileError.message }
+
+  if (listingStatus === "active" && previousStatus !== "active") {
+    await supabase.from("provider_notifications").insert({
+      provider_profile_id: profileId,
+      type: "listing_confirmed",
+      title: "Your listing is live",
+      message: "Your provider profile has been approved and is now visible on the directory.",
+      href: "/dashboard/provider",
+    })
+    revalidatePath("/dashboard/provider")
+    revalidatePath("/dashboard/provider/listing")
+  }
 
   const { error: deleteFaqsError } = await supabase
     .from("provider_faqs")

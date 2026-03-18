@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Star, MapPin, CalendarClock, Globe2, Search, Scale } from "lucide-react"
+import { SendInquiryButton } from "@/components/send-inquiry-button"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getCompareProvidersByParentProfileId } from "@/lib/parent-engagement"
 
@@ -123,16 +124,24 @@ export default async function ParentComparePage() {
                         {provider.reviewCount} reviews
                       </Badge>
                     </CardHeader>
-                    <CardContent className="pt-0">
+                    <CardContent className="pt-0 space-y-2">
                       {provider.slug ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full rounded-full border-border/60 text-xs text-muted-foreground"
-                          asChild
-                        >
-                          <Link href={`/providers/${provider.slug}`}>View full profile</Link>
-                        </Button>
+                        <>
+                          <SendInquiryButton
+                            providerSlug={provider.slug}
+                            providerName={provider.name}
+                            source="compare"
+                            className="w-full rounded-full text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full rounded-full border-border/60 text-xs text-muted-foreground"
+                            asChild
+                          >
+                            <Link href={`/providers/${provider.slug}`}>View full profile</Link>
+                          </Button>
+                        </>
                       ) : (
                         <Button
                           size="sm"

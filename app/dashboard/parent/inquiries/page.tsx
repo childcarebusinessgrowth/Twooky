@@ -8,13 +8,15 @@ import {
 import { ParentInquiriesClient } from "./ParentInquiriesClient"
 
 type PageProps = {
-  searchParams: Promise<{ provider?: string; open?: string }>
+  searchParams: Promise<{ provider?: string; open?: string; source?: string }>
 }
 
 export default async function ParentInquiriesPage({ searchParams }: PageProps) {
   const params = await searchParams
   const providerSlug = typeof params.provider === "string" ? params.provider.trim() : null
   const openId = typeof params.open === "string" ? params.open.trim() : null
+  const composeSource =
+    typeof params.source === "string" && params.source.trim() === "compare" ? "compare" : "directory"
 
   const supabase = await createSupabaseServerClient()
   const {
@@ -70,6 +72,7 @@ export default async function ParentInquiriesPage({ searchParams }: PageProps) {
           inquiries={inquiries}
           initialOpenId={initialOpenId}
           composeFor={composeFor}
+          composeSource={composeSource}
         />
       </div>
     </RequireAuth>
