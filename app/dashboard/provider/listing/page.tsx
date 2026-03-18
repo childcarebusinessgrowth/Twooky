@@ -115,7 +115,7 @@ export default function ManageListingPage() {
       const supabase = getSupabaseClient()
 
       const selectWithStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, email, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
       const selectWithoutStatus =
         "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id"
 
@@ -156,7 +156,7 @@ export default function ManageListingPage() {
               .eq("profile_id", user.id)
               .maybeSingle()
             if (!fallback.error && fallback.data) {
-              data = { ...fallback.data, listing_status: "draft" }
+              data = { ...fallback.data, listing_status: "draft" } as typeof profileResult.data
               error = null
               setListingStatus("draft")
             }
@@ -190,9 +190,8 @@ export default function ManageListingPage() {
         const nameFromDb = data?.business_name
         setBusinessName(nameFromDb ?? nameFromSignup ?? "")
         setPhone(data?.phone ?? phoneFromSignup ?? "")
-        const emailFromDb = data?.email
         const emailFromAuth = typeof user?.email === "string" ? user.email.trim() : ""
-        setEmail(emailFromDb ?? emailFromAuth ?? "")
+        setEmail(emailFromAuth ?? "")
         if (data?.description != null) setDescription(data.description)
         if (data?.website != null) setWebsite(data.website)
         if (data?.address != null) setAddress(data.address)
