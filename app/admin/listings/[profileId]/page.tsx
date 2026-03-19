@@ -116,7 +116,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
   const data = await getAdminListingDetail(profileId)
   if (!data) notFound()
 
-  const { profile, photos, faqs } = data
+  const { profile, photos, faqs, documents } = data
   const name = profile.business_name || profile.provider_slug || profileId
 
   const hasVirtualTour =
@@ -297,6 +297,29 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
           />
           <Field label="Total capacity" value={profile.total_capacity} />
         </Section>
+
+        {documents.length > 0 && (
+          <Section title="Verification Documents" icon={FileText}>
+            <div className="flex flex-wrap gap-2">
+              {documents.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.signed_url ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-primary hover:bg-muted hover:underline"
+                >
+                  <FileText className="h-4 w-4" />
+                  {doc.document_type}
+                  <ExternalLink className="h-3 w-3" />
+                  <span className="text-muted-foreground text-xs">
+                    ({(doc.file_size / 1024).toFixed(1)} KB)
+                  </span>
+                </a>
+              ))}
+            </div>
+          </Section>
+        )}
 
         {hasVirtualTour && (
           <Section title="Virtual tour" icon={Video}>

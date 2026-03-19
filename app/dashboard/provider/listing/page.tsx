@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
-import { Plus, Save, Trash2, Loader2, MapPin, Building2, GraduationCap, Clock, CheckCircle, AlertCircle, Info, ChevronUp } from "lucide-react"
+import { Plus, Save, Trash2, Loader2, MapPin, Building2, GraduationCap, Clock, CheckCircle, AlertCircle, Info, ChevronUp, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -31,6 +31,12 @@ import { useToast } from "@/hooks/use-toast"
 import { Suspense } from "react"
 import { ProfileTour } from "@/components/provider/ProfileTour"
 import { PostSubmitPhotosTour } from "@/components/provider/PostSubmitPhotosTour"
+import {
+  PROVIDER_DOCUMENTS_BUCKET,
+  MAX_FILE_SIZE_BYTES,
+} from "@/lib/provider-documents-constants"
+
+const DOCUMENT_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"] as const
 
 const DEFAULT_ADDRESS = "123 Sunshine Lane, San Francisco, CA 94102"
 const AUTO_ADDRESS_SUCCESS_KEY = "eld:auto-address-success"
@@ -140,6 +146,8 @@ export default function ManageListingPage() {
   const [totalCapacity, setTotalCapacity] = useState<string>("60")
   const [listingStatus, setListingStatus] = useState<string>("draft")
   const [photoCount, setPhotoCount] = useState<number>(0)
+  const [documentType, setDocumentType] = useState<string>("Business License")
+  const [documentFiles, setDocumentFiles] = useState<File[]>([])
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
   async function fetchPhotoCount(userId: string) {
@@ -431,6 +439,7 @@ export default function ManageListingPage() {
       parseOptionalInteger(monthlyTuitionFrom) != null,
       parseOptionalInteger(monthlyTuitionTo) != null,
       parseOptionalInteger(totalCapacity) != null,
+      documentFiles.length > 0,
     ]
     const filled = checks.filter(Boolean).length
     return Math.round((filled / checks.length) * 100)
@@ -451,6 +460,7 @@ export default function ManageListingPage() {
     monthlyTuitionFrom,
     monthlyTuitionTo,
     totalCapacity,
+    documentFiles.length,
   ])
 
   const [showStickySave, setShowStickySave] = useState(false)
@@ -479,6 +489,7 @@ export default function ManageListingPage() {
       tuitionFrom: number | null
       tuitionTo: number | null
       capacity: number | null
+      documentFiles: File[]
     },
   ): string | null {
     const missing: string[] = []
@@ -497,6 +508,7 @@ export default function ManageListingPage() {
     if (values.tuitionFrom == null) missing.push("Monthly Tuition (From)")
     if (values.tuitionTo == null) missing.push("Monthly Tuition (To)")
     if (values.capacity == null) missing.push("Total Capacity")
+    if (values.documentFiles.length === 0) missing.push("Verification Documents")
     if (missing.length === 0) return null
     return `Before submitting, please complete: ${missing.join(", ")}.`
   }
@@ -559,15 +571,72 @@ export default function ManageListingPage() {
           tuitionFrom,
           tuitionTo,
           capacity,
+          documentFiles,
         })
       if (validationError) {
         setSaveError(validationError)
         setIsSaving(false)
         return
       }
+      for (const f of documentFiles) {
+        if (f.size > MAX_FILE_SIZE_BYTES) {
+          setSaveError(`File "${f.name}" exceeds 10MB limit.`)
+          setIsSaving(false)
+          return
+        }
+      }
     }
 
     try {
+      if (isDraftListing && documentFiles.length > 0) {
+        const initRes = await fetch("/api/provider/listing-documents/init", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document_type: documentType,
+            files: documentFiles.map((f) => ({ name: f.name, size: f.size, type: f.type })),
+          }),
+        })
+        const initJson = await initRes.json()
+        if (!initJson.success) {
+          setSaveError(initJson.error ?? "Failed to prepare document upload.")
+          setIsSaving(false)
+          return
+        }
+        const { uploads } = initJson
+        const supabase = getSupabaseClient()
+        for (let i = 0; i < documentFiles.length; i++) {
+          const { path, token } = uploads[i]
+          const file = documentFiles[i]
+          const { error: uploadError } = await supabase.storage
+            .from(PROVIDER_DOCUMENTS_BUCKET)
+            .uploadToSignedUrl(path, token, file, { contentType: file.type })
+          if (uploadError) {
+            setSaveError(`Failed to upload "${file.name}": ${uploadError.message}`)
+            setIsSaving(false)
+            return
+          }
+        }
+        const completeRes = await fetch("/api/provider/listing-documents/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document_type: documentType,
+            documents: documentFiles.map((f, i) => ({
+              path: uploads[i].path,
+              mime_type: f.type,
+              file_size: f.size,
+            })),
+          }),
+        })
+        const completeJson = await completeRes.json()
+        if (!completeJson.success) {
+          setSaveError(completeJson.error ?? "Failed to save document records.")
+          setIsSaving(false)
+          return
+        }
+      }
+
       const resolvedGooglePlaceId = await resolveGooglePlaceId(
         trimmedBusinessName,
         address,
@@ -615,6 +684,7 @@ export default function ManageListingPage() {
       setVirtualTourUrls(normalizedVirtualTourUrls.length > 0 ? normalizedVirtualTourUrls : [""])
       if (isDraftListing) {
         setListingStatus("pending")
+        setDocumentFiles([])
         try {
           sessionStorage.removeItem("eld:post-submit-photos-tour-shown")
         } catch {
@@ -936,6 +1006,64 @@ export default function ManageListingPage() {
                 <p className="text-xs text-destructive mt-2" role="alert">{virtualTourError}</p>
               )}
             </Field>
+
+            {isDraftListing && (
+              <>
+                <Separator />
+                <Field>
+                  <FieldLabel>
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Verification Documents (required to submit)
+                    </span>
+                  </FieldLabel>
+                  <FieldDescription>
+                    Upload at least one document for admin verification. PDF or images (JPEG, PNG, WebP). Max 10MB per file.
+                  </FieldDescription>
+                  <div className="mt-2 space-y-2">
+                    <div>
+                      <label
+                        htmlFor="document_type"
+                        className="text-xs font-medium text-muted-foreground mb-1.5 block"
+                      >
+                        Document Type
+                      </label>
+                      <select
+                        id="document_type"
+                        value={documentType}
+                        onChange={(e) => setDocumentType(e.target.value)}
+                        disabled={isPendingListing}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {DOCUMENT_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Input
+                        id="documents"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                        multiple
+                        className="cursor-pointer"
+                        onChange={(e) => {
+                          const files = e.target.files
+                          if (files) setDocumentFiles(Array.from(files))
+                        }}
+                      />
+                      {documentFiles.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {documentFiles.length} file{documentFiles.length !== 1 ? "s" : ""} selected
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Field>
+              </>
+            )}
           </FieldGroup>
         </CardContent>
       </Card>

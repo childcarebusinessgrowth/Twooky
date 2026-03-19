@@ -1,5 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
+import { headers } from "next/headers"
 import { ShieldCheck, Star, GitCompareArrows, MessageSquare, ArrowRight, Users, Clock, Award, MapPin } from "lucide-react"
 import { SearchBar } from "@/components/search-bar"
 import { ProviderCard } from "@/components/provider-card"
@@ -12,11 +13,12 @@ import {
 } from "@/lib/program-types"
 import { getRecentPublishedBlogs } from "@/lib/blogs"
 import { getPopularLocations } from "@/lib/popular-locations"
-import {
-  activeProviderRowToCardData,
-  getActiveProvidersFromDb,
-} from "@/lib/search-providers-db"
+import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
+import { activeProviderRowToCardData, getActiveProvidersFromDb } from "@/lib/search-providers-db"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { parseVisitorGeoFromHeaders } from "@/lib/visitor-geo"
+
+export const dynamic = "force-dynamic"
 
 const trustFeatures = [
   {
@@ -51,6 +53,7 @@ const heroStats = [
 export default async function HomePage() {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
   const supabase = getSupabaseAdminClient()
+  const visitorGeo = parseVisitorGeoFromHeaders(await headers())
 
   const [programRows, ageGroupsById, activeProviderRows, featuredBlogs, popularLocations] = await Promise.all([
     getActiveProgramTypes(),
@@ -60,19 +63,10 @@ export default async function HomePage() {
     getPopularLocations(),
   ])
 
-  const featuredProviders = activeProviderRows
-    .filter((provider) => provider.featured)
-    .sort((a, b) => {
-      const ratingDiff = (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
-      if (ratingDiff !== 0) return ratingDiff
-
-      const reviewDiff = (b.review_count ?? 0) - (a.review_count ?? 0)
-      if (reviewDiff !== 0) return reviewDiff
-
-      return (a.business_name ?? "").localeCompare(b.business_name ?? "")
-    })
-    .slice(0, 3)
-    .map((provider) => activeProviderRowToCardData(provider, baseUrl))
+  const featuredProviders = selectFeaturedProviders(activeProviderRows, {
+    visitorGeo,
+    limit: 3,
+  }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
 
   const displayPrograms = programRows
     .slice(0, 6)

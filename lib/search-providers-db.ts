@@ -6,6 +6,8 @@ import { geocodeAddressToCoordinates } from "./geocode-server"
 import { formatTuitionRange } from "./currency"
 import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
 import { getSupabaseAdminClient } from "./supabaseAdmin"
+import { selectFeaturedProviders } from "./featured-providers-selection"
+import type { VisitorGeo } from "./visitor-geo"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -31,6 +33,8 @@ export type ActiveProviderRow = {
   avg_rating: number | null
   featured: boolean
   saved_by_parent_count: number
+  /** ISO 3166-1 alpha-2 from `countries.code` when `country_id` is set */
+  country_code: string | null
 }
 
 export type ProviderCardDataFromDb = {
@@ -74,7 +78,7 @@ export async function getActiveProvidersFromDb(
   const { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), featured"
+      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), featured, country_id, countries(code)"
     )
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
@@ -180,6 +184,12 @@ export async function getActiveProvidersFromDb(
     const count = googleSummary?.reviewCount ?? platformCount
     const avgRating = googleSummary?.rating ?? platformAvgRating
 
+    const countriesRel = (p as { countries?: { code?: string } | null }).countries
+    const countryCode =
+      countriesRel && typeof countriesRel.code === "string" && countriesRel.code.trim()
+        ? countriesRel.code.trim().toUpperCase()
+        : null
+
     return {
       profile_id: p.profile_id,
       provider_slug: p.provider_slug,
@@ -202,6 +212,7 @@ export async function getActiveProvidersFromDb(
       avg_rating: avgRating,
       featured: (p as { featured?: boolean }).featured ?? false,
       saved_by_parent_count: savedByParentCountByProfile[p.profile_id] ?? 0,
+      country_code: countryCode,
     }
   })
 }
@@ -386,7 +397,8 @@ function ageGroupNameToTag(name: string): string {
  */
 export async function getFeaturedProvidersForProgram(
   programSlug: string,
-  limit = 3
+  limit = 3,
+  visitorGeo: VisitorGeo | null = null
 ): Promise<ProviderCardDataFromDb[]> {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
   const supabase = getSupabaseAdminClient()
@@ -410,18 +422,11 @@ export async function getFeaturedProvidersForProgram(
       .filter(Boolean)
   }
 
-  const filtered = filterActiveProviders(activeRows, { ageTags } as SearchCriteria)
-  const sorted = [...filtered].sort((a, b) => {
-    const featuredDiff = Number(b.featured) - Number(a.featured)
-    if (featuredDiff !== 0) return featuredDiff
-    const ratingDiff = (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
-    if (ratingDiff !== 0) return ratingDiff
-    return (b.review_count ?? 0) - (a.review_count ?? 0)
-  })
-
-  const top = sorted.slice(0, limit)
-  return top.map((row) => activeProviderRowToCardData(row, baseUrl))
+  const selected = selectFeaturedProviders(activeRows, { visitorGeo, limit, ageTags })
+  return selected.map((row) => activeProviderRowToCardData(row, baseUrl))
 }
+
+export type { VisitorGeo } from "./visitor-geo"
 
 /**
  * Fetch recommended providers for parent dashboard: active, listed providers

@@ -6,6 +6,8 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
+const PROVIDER_DOCUMENTS_BUCKET = "provider-documents"
+const SIGNED_URL_EXPIRY_SECONDS = 3600
 const LISTINGS_PATH = "/admin/listings"
 const DEFAULT_PAGE_SIZE = 10
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
@@ -249,6 +251,13 @@ export type AdminListingDetailFaq = {
   answer: string
 }
 
+export type AdminListingDetailDocument = {
+  id: string
+  document_type: string
+  signed_url: string | null
+  file_size: number
+}
+
 export type AdminListingDetail = {
   profile: {
     profile_id: string
@@ -283,6 +292,7 @@ export type AdminListingDetail = {
   }
   photos: AdminListingDetailPhoto[]
   faqs: AdminListingDetailFaq[]
+  documents: AdminListingDetailDocument[]
 }
 
 export async function getAdminListingDetail(
@@ -321,7 +331,7 @@ export async function getAdminListingDetail(
       : Promise.resolve({ data: null }),
   ])
 
-  const [{ data: photoRows }, { data: faqRows }] = await Promise.all([
+  const [{ data: photoRows }, { data: faqRows }, { data: docRows }] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption, is_primary, sort_order")
@@ -334,7 +344,25 @@ export async function getAdminListingDetail(
       .select("question, answer")
       .eq("provider_profile_id", profileId)
       .order("sort_order", { ascending: true }),
+    supabase
+      .from("provider_listing_documents")
+      .select("id, document_type, storage_path, file_size")
+      .eq("provider_profile_id", profileId)
+      .order("uploaded_at", { ascending: true }),
   ])
+
+  const documents: AdminListingDetailDocument[] = []
+  for (const d of docRows ?? []) {
+    const { data: signed } = await supabase.storage
+      .from(PROVIDER_DOCUMENTS_BUCKET)
+      .createSignedUrl(d.storage_path, SIGNED_URL_EXPIRY_SECONDS)
+    documents.push({
+      id: d.id,
+      document_type: d.document_type,
+      signed_url: signed?.signedUrl ?? null,
+      file_size: d.file_size,
+    })
+  }
 
   const photos: AdminListingDetailPhoto[] = (photoRows ?? []).map((row) => ({
     id: row.id,
@@ -359,6 +387,7 @@ export async function getAdminListingDetail(
     },
     photos,
     faqs,
+    documents,
   }
 }
 

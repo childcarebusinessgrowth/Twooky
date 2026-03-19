@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { DM_Sans, Inter } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import { AnalyticsConsentGate } from '@/components/analytics-consent-gate'
 import { AuthProvider } from '@/components/AuthProvider'
+import { CookieConsentBanner } from '@/components/cookie-consent-banner'
 import { AppShell } from '@/components/layout/app-shell'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
@@ -54,7 +55,8 @@ export default function RootLayout({
             {children}
           </AppShell>
           <Toaster />
-          <Analytics />
+          <CookieConsentBanner />
+          <AnalyticsConsentGate />
         </AuthProvider>
       </body>
     </html>

@@ -657,6 +657,36 @@ export interface Database {
         }
         Relationships: []
       }
+      provider_listing_documents: {
+        Row: {
+          id: string
+          provider_profile_id: string
+          document_type: string
+          storage_path: string
+          mime_type: string
+          file_size: number
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          provider_profile_id: string
+          document_type: string
+          storage_path: string
+          mime_type: string
+          file_size: number
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          provider_profile_id?: string
+          document_type?: string
+          storage_path?: string
+          mime_type?: string
+          file_size?: number
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
       provider_photos: {
         Row: {
           id: string
