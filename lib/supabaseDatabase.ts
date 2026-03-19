@@ -499,6 +499,8 @@ export interface Database {
           early_learning_excellence_badge: boolean
           verified_provider_badge: boolean
           verified_provider_badge_color: string
+          availability_status: "openings" | "waitlist" | "full"
+          available_spots_count: number | null
           is_admin_managed: boolean
           notify_new_inquiries: boolean
           notify_new_reviews: boolean
@@ -545,6 +547,8 @@ export interface Database {
           early_learning_excellence_badge?: boolean
           verified_provider_badge?: boolean
           verified_provider_badge_color?: string
+          availability_status?: "openings" | "waitlist" | "full"
+          available_spots_count?: number | null
           is_admin_managed?: boolean
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
@@ -591,6 +595,8 @@ export interface Database {
           early_learning_excellence_badge?: boolean
           verified_provider_badge?: boolean
           verified_provider_badge_color?: string
+          availability_status?: "openings" | "waitlist" | "full"
+          available_spots_count?: number | null
           is_admin_managed?: boolean
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean

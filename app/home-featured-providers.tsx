@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
 import {
   activeProviderRowToCardData,
-  getCachedActiveProvidersFromDb,
+  getActiveProvidersFromDb,
 } from "@/lib/search-providers-db"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 export function FeaturedProvidersSectionSkeleton() {
   return (
@@ -38,7 +39,7 @@ export function FeaturedProvidersSectionSkeleton() {
 
 export async function HomeFeaturedProvidersSection() {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const activeProviderRows = await getCachedActiveProvidersFromDb()
+  const activeProviderRows = await getActiveProvidersFromDb(getSupabaseAdminClient())
   const featuredProviders = selectFeaturedProviders(activeProviderRows, {
     visitorGeo: null,
     limit: 3,

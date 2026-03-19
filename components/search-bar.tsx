@@ -19,7 +19,7 @@ import {
   reverseGeocodeCoordinates,
 } from "@/lib/location-client"
 
-interface SearchBarProps {
+export interface SearchBarProps {
   variant?: "hero" | "compact"
   surface?: "default" | "overlay"
   className?: string
@@ -49,7 +49,7 @@ export function SearchBar({
   )
 }
 
-function SearchBarFallback({ className = "" }: Pick<SearchBarProps, "className">) {
+export function SearchBarFallback({ className = "" }: Pick<SearchBarProps, "className">) {
   return (
     <div className={`rounded-3xl border p-5 md:p-6 bg-card border-border shadow-lg ${className}`}>
       <div className="h-12 rounded-full bg-muted/60" />
