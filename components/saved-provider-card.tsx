@@ -8,6 +8,8 @@ import { MapPin } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
+import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { removeFavorite } from "@/lib/parent-engagement"
@@ -60,9 +62,20 @@ export function SavedProviderCard({ parentProfileId, favorite }: Props) {
         )}
       </div>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold text-foreground line-clamp-1">
-          {name}
-        </CardTitle>
+        <div className="flex flex-col gap-1.5">
+          <CardTitle className="text-base font-semibold text-foreground line-clamp-1">
+            {name}
+          </CardTitle>
+          {favorite.verified_provider_badge && (
+            <VerifiedProviderBadge
+              size="sm"
+              color={favorite.verified_provider_badge_color}
+            />
+          )}
+          {favorite.early_learning_excellence_badge && (
+            <EarlyLearningExcellenceBadge size="sm" />
+          )}
+        </div>
         <CardDescription className="flex items-center gap-1 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5 text-primary" />
           View profile to learn more

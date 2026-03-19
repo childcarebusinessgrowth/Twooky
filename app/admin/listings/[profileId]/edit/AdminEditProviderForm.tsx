@@ -68,12 +68,25 @@ export function AdminEditProviderForm({
   const [featured, setFeatured] = useState(p.featured ?? false)
   const [openingTime, setOpeningTime] = useState(p.opening_time ?? "")
   const [closingTime, setClosingTime] = useState(p.closing_time ?? "")
-  const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState(
-    p.monthly_tuition_from != null ? String(p.monthly_tuition_from) : ""
+  const [dailyFeeFrom, setDailyFeeFrom] = useState(
+    p.daily_fee_from != null ? String(p.daily_fee_from) : ""
   )
-  const [monthlyTuitionTo, setMonthlyTuitionTo] = useState(
-    p.monthly_tuition_to != null ? String(p.monthly_tuition_to) : ""
+  const [dailyFeeTo, setDailyFeeTo] = useState(
+    p.daily_fee_to != null ? String(p.daily_fee_to) : ""
   )
+  const [registrationFee, setRegistrationFee] = useState(
+    p.registration_fee != null ? String(p.registration_fee) : ""
+  )
+  const [depositFee, setDepositFee] = useState(
+    p.deposit_fee != null ? String(p.deposit_fee) : ""
+  )
+  const [mealsFee, setMealsFee] = useState(
+    p.meals_fee != null ? String(p.meals_fee) : ""
+  )
+  const [serviceTransport, setServiceTransport] = useState(p.service_transport ?? false)
+  const [serviceExtendedHours, setServiceExtendedHours] = useState(p.service_extended_hours ?? false)
+  const [servicePickupDropoff, setServicePickupDropoff] = useState(p.service_pickup_dropoff ?? false)
+  const [serviceExtracurriculars, setServiceExtracurriculars] = useState(p.service_extracurriculars ?? false)
   const [currencyId, setCurrencyId] = useState(p.currency_id ?? "")
   const [totalCapacity, setTotalCapacity] = useState(
     p.total_capacity != null ? String(p.total_capacity) : ""
@@ -83,7 +96,7 @@ export function AdminEditProviderForm({
   )
   const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>(
     initialData.faqs.map((f, i) => ({
-      id: `faq-${i}-${Date.now()}`,
+      id: `faq-${i}`,
       question: f.question ?? "",
       answer: f.answer ?? "",
     }))
@@ -209,8 +222,15 @@ export function AdminEditProviderForm({
     formData.set("languagesSpoken", selectedLanguages.join(", "))
     formData.set("openingTime", openingTime.trim())
     formData.set("closingTime", closingTime.trim())
-    formData.set("monthlyTuitionFrom", monthlyTuitionFrom.trim())
-    formData.set("monthlyTuitionTo", monthlyTuitionTo.trim())
+    formData.set("dailyFeeFrom", dailyFeeFrom.trim())
+    formData.set("dailyFeeTo", dailyFeeTo.trim())
+    formData.set("registrationFee", registrationFee.trim())
+    formData.set("depositFee", depositFee.trim())
+    formData.set("mealsFee", mealsFee.trim())
+    formData.set("serviceTransport", serviceTransport ? "true" : "false")
+    formData.set("serviceExtendedHours", serviceExtendedHours ? "true" : "false")
+    formData.set("servicePickupDropoff", servicePickupDropoff ? "true" : "false")
+    formData.set("serviceExtracurriculars", serviceExtracurriculars ? "true" : "false")
     formData.set("currencyId", currencyId)
     formData.set("totalCapacity", totalCapacity.trim())
     formData.set("faqsJson", JSON.stringify(faqs))
@@ -299,10 +319,24 @@ export function AdminEditProviderForm({
             setOpeningTime={setOpeningTime}
             closingTime={closingTime}
             setClosingTime={setClosingTime}
-            monthlyTuitionFrom={monthlyTuitionFrom}
-            setMonthlyTuitionFrom={setMonthlyTuitionFrom}
-            monthlyTuitionTo={monthlyTuitionTo}
-            setMonthlyTuitionTo={setMonthlyTuitionTo}
+            dailyFeeFrom={dailyFeeFrom}
+            setDailyFeeFrom={setDailyFeeFrom}
+            dailyFeeTo={dailyFeeTo}
+            setDailyFeeTo={setDailyFeeTo}
+            registrationFee={registrationFee}
+            setRegistrationFee={setRegistrationFee}
+            depositFee={depositFee}
+            setDepositFee={setDepositFee}
+            mealsFee={mealsFee}
+            setMealsFee={setMealsFee}
+            serviceTransport={serviceTransport}
+            setServiceTransport={setServiceTransport}
+            serviceExtendedHours={serviceExtendedHours}
+            setServiceExtendedHours={setServiceExtendedHours}
+            servicePickupDropoff={servicePickupDropoff}
+            setServicePickupDropoff={setServicePickupDropoff}
+            serviceExtracurriculars={serviceExtracurriculars}
+            setServiceExtracurriculars={setServiceExtracurriculars}
             currencyId={currencyId}
             setCurrencyId={setCurrencyId}
             currencies={currencies}
@@ -341,8 +375,15 @@ export function AdminEditProviderForm({
             amenities={amenities}
             openingTime={openingTime}
             closingTime={closingTime}
-            monthlyTuitionFrom={monthlyTuitionFrom}
-            monthlyTuitionTo={monthlyTuitionTo}
+            dailyFeeFrom={dailyFeeFrom}
+            dailyFeeTo={dailyFeeTo}
+            registrationFee={registrationFee}
+            depositFee={depositFee}
+            mealsFee={mealsFee}
+            serviceTransport={serviceTransport}
+            serviceExtendedHours={serviceExtendedHours}
+            servicePickupDropoff={servicePickupDropoff}
+            serviceExtracurriculars={serviceExtracurriculars}
             currencyId={currencyId}
             currencies={currencies}
             totalCapacity={totalCapacity}

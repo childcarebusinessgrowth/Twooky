@@ -24,10 +24,30 @@ export type AdminListingRow = {
   address: string | null
   listing_status: string
   featured: boolean
+  early_learning_excellence_badge: boolean
+  verified_provider_badge: boolean
+  verified_provider_badge_color: string | null
   created_at: string
   review_count: number
   rating: number | null
   primary_photo_url: string | null
+}
+
+const VERIFIED_BADGE_COLORS = [
+  "emerald",
+  "blue",
+  "purple",
+  "rose",
+  "amber",
+] as const
+
+type VerifiedBadgeColor = (typeof VERIFIED_BADGE_COLORS)[number]
+
+function normalizeVerifiedBadgeColor(color: string | null | undefined): VerifiedBadgeColor {
+  if (color && VERIFIED_BADGE_COLORS.includes(color as VerifiedBadgeColor)) {
+    return color as VerifiedBadgeColor
+  }
+  return "emerald"
 }
 
 const MAX_IDS_FOR_FILTER = 2000
@@ -94,7 +114,7 @@ export async function getAdminListings(
   const selectOpts = useRatingReviewsFilter ? {} : { count: "exact" as const }
   let query = supabase
     .from("provider_profiles")
-    .select("profile_id, provider_slug, business_name, phone, city, address, listing_status, featured, created_at", selectOpts)
+    .select("profile_id, provider_slug, business_name, phone, city, address, listing_status, featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, created_at", selectOpts)
     .order("created_at", { ascending: false })
 
   if (options.status && options.status !== "all") {
@@ -126,7 +146,7 @@ export async function getAdminListings(
   }
 
   let profileIds: string[]
-  let allRows: { profile_id: string; provider_slug: string | null; business_name: string | null; phone: string | null; city: string | null; address: string | null; listing_status: string; featured: boolean; created_at: string }[]
+  let allRows: { profile_id: string; provider_slug: string | null; business_name: string | null; phone: string | null; city: string | null; address: string | null; listing_status: string; featured: boolean; early_learning_excellence_badge: boolean; verified_provider_badge: boolean; verified_provider_badge_color: string | null; created_at: string }[]
 
   if (useRatingReviewsFilter) {
     const { data: allData, error } = await query.limit(MAX_IDS_FOR_FILTER)
@@ -168,6 +188,9 @@ export async function getAdminListings(
         ...row,
         listing_status: row.listing_status ?? "pending",
         featured: row.featured ?? false,
+        early_learning_excellence_badge: row.early_learning_excellence_badge ?? false,
+        verified_provider_badge: row.verified_provider_badge ?? false,
+        verified_provider_badge_color: normalizeVerifiedBadgeColor(row.verified_provider_badge_color),
         review_count: reviewCount,
         rating,
         primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
@@ -229,6 +252,9 @@ export async function getAdminListings(
       ...row,
       listing_status: row.listing_status ?? "pending",
       featured: row.featured ?? false,
+      early_learning_excellence_badge: row.early_learning_excellence_badge ?? false,
+      verified_provider_badge: row.verified_provider_badge ?? false,
+      verified_provider_badge_color: normalizeVerifiedBadgeColor(row.verified_provider_badge_color),
       review_count: reviewCount,
       rating,
       primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
@@ -278,6 +304,15 @@ export type AdminListingDetail = {
     closing_time: string | null
     monthly_tuition_from: number | null
     monthly_tuition_to: number | null
+    daily_fee_from: number | null
+    daily_fee_to: number | null
+    registration_fee: number | null
+    deposit_fee: number | null
+    meals_fee: number | null
+    service_transport: boolean
+    service_extended_hours: boolean
+    service_pickup_dropoff: boolean
+    service_extracurriculars: boolean
     total_capacity: number | null
     currency_id: string | null
     country_id: string | null
@@ -288,6 +323,9 @@ export type AdminListingDetail = {
     virtual_tour_urls: string[] | null
     listing_status: string
     featured: boolean
+    early_learning_excellence_badge: boolean
+    verified_provider_badge: boolean
+    verified_provider_badge_color: string | null
     created_at: string
   }
   photos: AdminListingDetailPhoto[]
@@ -305,7 +343,7 @@ export async function getAdminListingDetail(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, phone, city, address, website, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, currencies(symbol), country_id, city_id, virtual_tour_url, virtual_tour_urls, listing_status, featured, created_at"
+      "profile_id, provider_slug, business_name, phone, city, address, website, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id, currencies(symbol), country_id, city_id, virtual_tour_url, virtual_tour_urls, listing_status, featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, created_at"
     )
     .eq("profile_id", profileId)
     .single()
@@ -384,6 +422,9 @@ export async function getAdminListingDetail(
       city_name: cityRow?.name ?? null,
       listing_status: profile.listing_status ?? "pending",
       featured: profile.featured ?? false,
+      early_learning_excellence_badge: profile.early_learning_excellence_badge ?? false,
+      verified_provider_badge: profile.verified_provider_badge ?? false,
+      verified_provider_badge_color: normalizeVerifiedBadgeColor(profile.verified_provider_badge_color),
     },
     photos,
     faqs,
@@ -437,6 +478,76 @@ export async function updateListingFeatured(
   if (error) return { error: error.message }
   revalidatePath(LISTINGS_PATH)
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  return {}
+}
+
+export async function updateListingEarlyLearningExcellenceBadge(
+  profileId: string,
+  earlyLearningExcellenceBadge: boolean
+): Promise<{ error?: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("provider_profiles")
+    .update({ early_learning_excellence_badge: earlyLearningExcellenceBadge })
+    .eq("profile_id", profileId)
+    .select("provider_slug")
+    .maybeSingle()
+  if (error) return { error: error.message }
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/search")
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
+  return {}
+}
+
+export async function updateListingVerifiedProviderBadge(
+  profileId: string,
+  verifiedProviderBadge: boolean
+): Promise<{ error?: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("provider_profiles")
+    .update({ verified_provider_badge: verifiedProviderBadge })
+    .eq("profile_id", profileId)
+    .select("provider_slug")
+    .maybeSingle()
+  if (error) return { error: error.message }
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/search")
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
+  return {}
+}
+
+export async function updateListingVerifiedProviderBadgeColor(
+  profileId: string,
+  badgeColor: string
+): Promise<{ error?: string }> {
+  await assertServerRole("admin")
+  const supabase = getSupabaseAdminClient()
+  const normalizedColor = normalizeVerifiedBadgeColor(badgeColor)
+  const { data, error } = await supabase
+    .from("provider_profiles")
+    .update({ verified_provider_badge_color: normalizedColor })
+    .eq("profile_id", profileId)
+    .select("provider_slug")
+    .maybeSingle()
+  if (error) return { error: error.message }
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/search")
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
   return {}
 }
 

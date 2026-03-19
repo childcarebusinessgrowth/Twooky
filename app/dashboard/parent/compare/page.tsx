@@ -28,7 +28,7 @@ export default async function ParentComparePage() {
             Compare providers
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            See your top choices side by side. Look at rating, tuition, curriculum, and hours to
+            See your top choices side by side. Look at rating, daily fee, curriculum, and hours to
             find the best fit for your family.
           </p>
         </div>
@@ -42,7 +42,7 @@ export default async function ParentComparePage() {
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">No saved providers yet</p>
                 <p className="text-xs text-muted-foreground max-w-md">
-                  Save providers first, then compare them side by side by tuition, schedule,
+                  Save providers first, then compare them side by side by daily fee, schedule,
                   curriculum, and ratings.
                 </p>
               </div>
@@ -165,7 +165,7 @@ export default async function ParentComparePage() {
                   },
                   {
                     key: "tuition",
-                    label: "Tuition range",
+                    label: "Daily fee range",
                     value: (provider: (typeof comparisonProviders)[number]) => provider.tuitionRange,
                   },
                   {

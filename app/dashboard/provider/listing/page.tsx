@@ -876,6 +876,10 @@ export default function ManageListingPage() {
             <Clock className="h-4 w-4" />
             Operating Details
           </TabsTrigger>
+          <TabsTrigger value="availability" className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            Availability
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="business" className="mt-6">
@@ -1297,16 +1301,46 @@ export default function ManageListingPage() {
                   </Select>
                 </Field>
 
-                <Field>
-                  <FieldLabel>Total Capacity</FieldLabel>
-                  <Input
-                    type="number"
-                    value={totalCapacity}
-                    onChange={(e) => setTotalCapacity(e.target.value)}
-                  />
-                </Field>
               </div>
             </div>
+          </FieldGroup>
+        </CardContent>
+      </Card>
+        </TabsContent>
+
+        <TabsContent value="availability" className="mt-6">
+      <Card className="border-border/50">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <CheckCircle className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Availability</CardTitle>
+              <CardDescription>
+                Set your total capacity (number of available places for enrollment planning).
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>Total Capacity</FieldLabel>
+              <FieldDescription>
+                Enter the total number of places your center can host.
+              </FieldDescription>
+              <div className="mt-3 max-w-xs">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={totalCapacity}
+                  onChange={(e) => setTotalCapacity(e.target.value)}
+                  placeholder="e.g. 60"
+                />
+              </div>
+            </Field>
           </FieldGroup>
         </CardContent>
       </Card>

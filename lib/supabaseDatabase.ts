@@ -484,9 +484,21 @@ export interface Database {
           closing_time: string | null
           monthly_tuition_from: number | null
           monthly_tuition_to: number | null
+          daily_fee_from: number | null
+          daily_fee_to: number | null
+          registration_fee: number | null
+          deposit_fee: number | null
+          meals_fee: number | null
+          service_transport: boolean
+          service_extended_hours: boolean
+          service_pickup_dropoff: boolean
+          service_extracurriculars: boolean
           total_capacity: number | null
           listing_status: string
           featured: boolean
+          early_learning_excellence_badge: boolean
+          verified_provider_badge: boolean
+          verified_provider_badge_color: string
           is_admin_managed: boolean
           notify_new_inquiries: boolean
           notify_new_reviews: boolean
@@ -518,9 +530,21 @@ export interface Database {
           closing_time?: string | null
           monthly_tuition_from?: number | null
           monthly_tuition_to?: number | null
+          daily_fee_from?: number | null
+          daily_fee_to?: number | null
+          registration_fee?: number | null
+          deposit_fee?: number | null
+          meals_fee?: number | null
+          service_transport?: boolean
+          service_extended_hours?: boolean
+          service_pickup_dropoff?: boolean
+          service_extracurriculars?: boolean
           total_capacity?: number | null
           listing_status?: string
           featured?: boolean
+          early_learning_excellence_badge?: boolean
+          verified_provider_badge?: boolean
+          verified_provider_badge_color?: string
           is_admin_managed?: boolean
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
@@ -552,9 +576,21 @@ export interface Database {
           closing_time?: string | null
           monthly_tuition_from?: number | null
           monthly_tuition_to?: number | null
+          daily_fee_from?: number | null
+          daily_fee_to?: number | null
+          registration_fee?: number | null
+          deposit_fee?: number | null
+          meals_fee?: number | null
+          service_transport?: boolean
+          service_extended_hours?: boolean
+          service_pickup_dropoff?: boolean
+          service_extracurriculars?: boolean
           total_capacity?: number | null
           listing_status?: string
           featured?: boolean
+          early_learning_excellence_badge?: boolean
+          verified_provider_badge?: boolean
+          verified_provider_badge_color?: string
           is_admin_managed?: boolean
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean

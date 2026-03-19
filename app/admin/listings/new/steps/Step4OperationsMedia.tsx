@@ -3,6 +3,7 @@
 import { useRef, type ChangeEvent, useCallback } from "react"
 import { Plus, Trash2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,10 +19,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
 import type { FaqItem, PhotoItem } from "../types"
 
-function toFileKey(file: File): string {
-  return `${file.name}:${file.size}:${file.lastModified}`
-}
-
 type CurrencyOption = { id: string; code: string; name: string; symbol: string }
 
 type Step4OperationsMediaProps = {
@@ -29,10 +26,24 @@ type Step4OperationsMediaProps = {
   setOpeningTime: (v: string) => void
   closingTime: string
   setClosingTime: (v: string) => void
-  monthlyTuitionFrom: string
-  setMonthlyTuitionFrom: (v: string) => void
-  monthlyTuitionTo: string
-  setMonthlyTuitionTo: (v: string) => void
+  dailyFeeFrom: string
+  setDailyFeeFrom: (v: string) => void
+  dailyFeeTo: string
+  setDailyFeeTo: (v: string) => void
+  registrationFee: string
+  setRegistrationFee: (v: string) => void
+  depositFee: string
+  setDepositFee: (v: string) => void
+  mealsFee: string
+  setMealsFee: (v: string) => void
+  serviceTransport: boolean
+  setServiceTransport: (v: boolean) => void
+  serviceExtendedHours: boolean
+  setServiceExtendedHours: (v: boolean) => void
+  servicePickupDropoff: boolean
+  setServicePickupDropoff: (v: boolean) => void
+  serviceExtracurriculars: boolean
+  setServiceExtracurriculars: (v: boolean) => void
   currencyId: string
   setCurrencyId: (v: string) => void
   currencies?: CurrencyOption[]
@@ -59,10 +70,24 @@ export function Step4OperationsMedia({
   setOpeningTime,
   closingTime,
   setClosingTime,
-  monthlyTuitionFrom,
-  setMonthlyTuitionFrom,
-  monthlyTuitionTo,
-  setMonthlyTuitionTo,
+  dailyFeeFrom,
+  setDailyFeeFrom,
+  dailyFeeTo,
+  setDailyFeeTo,
+  registrationFee,
+  setRegistrationFee,
+  depositFee,
+  setDepositFee,
+  mealsFee,
+  setMealsFee,
+  serviceTransport,
+  setServiceTransport,
+  serviceExtendedHours,
+  setServiceExtendedHours,
+  servicePickupDropoff,
+  setServicePickupDropoff,
+  serviceExtracurriculars,
+  setServiceExtracurriculars,
   currencyId,
   setCurrencyId,
   currencies,
@@ -143,33 +168,67 @@ export function Step4OperationsMedia({
 
       <Card className="border-border/60">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Tuition and Capacity</CardTitle>
+          <CardTitle className="text-base">Pricing and Capacity</CardTitle>
           <p className="text-sm text-muted-foreground font-normal">
-            Select the currency for tuition amounts. Tuition will be displayed with the correct symbol (e.g. $ or £).
+            Select the currency for fee amounts. Daily fee and pricing components will be displayed with the
+            selected symbol.
           </p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="monthlyTuitionFrom">Monthly Tuition From</Label>
+              <Label htmlFor="dailyFeeFrom">Daily Fee From</Label>
               <Input
-                id="monthlyTuitionFrom"
-                name="monthlyTuitionFrom"
+                id="dailyFeeFrom"
+                name="dailyFeeFrom"
                 type="number"
                 min={0}
-                value={monthlyTuitionFrom}
-                onChange={(e) => setMonthlyTuitionFrom(e.target.value)}
+                value={dailyFeeFrom}
+                onChange={(e) => setDailyFeeFrom(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="monthlyTuitionTo">Monthly Tuition To</Label>
+              <Label htmlFor="dailyFeeTo">Daily Fee To</Label>
               <Input
-                id="monthlyTuitionTo"
-                name="monthlyTuitionTo"
+                id="dailyFeeTo"
+                name="dailyFeeTo"
                 type="number"
                 min={0}
-                value={monthlyTuitionTo}
-                onChange={(e) => setMonthlyTuitionTo(e.target.value)}
+                value={dailyFeeTo}
+                onChange={(e) => setDailyFeeTo(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="registrationFee">Registration Fee</Label>
+              <Input
+                id="registrationFee"
+                name="registrationFee"
+                type="number"
+                min={0}
+                value={registrationFee}
+                onChange={(e) => setRegistrationFee(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="depositFee">Deposit</Label>
+              <Input
+                id="depositFee"
+                name="depositFee"
+                type="number"
+                min={0}
+                value={depositFee}
+                onChange={(e) => setDepositFee(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mealsFee">Meals Fee</Label>
+              <Input
+                id="mealsFee"
+                name="mealsFee"
+                type="number"
+                min={0}
+                value={mealsFee}
+                onChange={(e) => setMealsFee(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -198,6 +257,39 @@ export function Step4OperationsMedia({
                 value={totalCapacity}
                 onChange={(e) => setTotalCapacity(e.target.value)}
               />
+            </div>
+          </div>
+          <div className="mt-5 space-y-3">
+            <Label>Additional Services</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={serviceTransport}
+                  onCheckedChange={(checked) => setServiceTransport(Boolean(checked))}
+                />
+                Transport
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={serviceExtendedHours}
+                  onCheckedChange={(checked) => setServiceExtendedHours(Boolean(checked))}
+                />
+                Extended Hours
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={servicePickupDropoff}
+                  onCheckedChange={(checked) => setServicePickupDropoff(Boolean(checked))}
+                />
+                Pickup / Drop-off
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={serviceExtracurriculars}
+                  onCheckedChange={(checked) => setServiceExtracurriculars(Boolean(checked))}
+                />
+                Extracurriculars
+              </label>
             </div>
           </div>
         </CardContent>

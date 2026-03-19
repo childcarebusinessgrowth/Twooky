@@ -183,8 +183,8 @@ export function FilterSidebar({ onFilterChange, filterOptions, className = "" }:
           </div>
         </FilterSection>
 
-        {/* Tuition Range */}
-        <FilterSection title="Monthly Tuition">
+        {/* Daily Fee Range */}
+        <FilterSection title="Daily Fee">
           <div className="pt-2 px-1">
             <Slider
               value={filters.tuitionRange}

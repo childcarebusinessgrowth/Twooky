@@ -289,6 +289,9 @@ export type ParentFavoriteRow = {
   provider_business_name: string | null
   provider_slug: string | null
   provider_primary_image_url: string | null
+  early_learning_excellence_badge?: boolean
+  verified_provider_badge?: boolean
+  verified_provider_badge_color?: string | null
 }
 
 export type ParentCompareProviderRow = {
@@ -368,7 +371,7 @@ export async function getCompareProvidersByParentProfileId(
     supabase
       .from("provider_profiles")
       .select(
-        "profile_id, provider_slug, business_name, city, address, age_groups_served, curriculum_type, opening_time, closing_time, languages_spoken, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), listing_status"
+        "profile_id, provider_slug, business_name, city, address, age_groups_served, curriculum_type, opening_time, closing_time, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), listing_status"
       )
       .in("profile_id", providerIds)
       .eq("listing_status", "active"),
@@ -424,8 +427,8 @@ export async function getCompareProvidersByParentProfileId(
         rating,
         reviewCount,
         tuitionRange: formatCompareTuitionRange(
-          profile.monthly_tuition_from ?? null,
-          profile.monthly_tuition_to ?? null,
+          profile.daily_fee_from ?? null,
+          profile.daily_fee_to ?? null,
           (profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"
         ),
         ageGroups: formatCompareListText(profile.age_groups_served ?? null),
@@ -455,7 +458,7 @@ export async function getFavoritesByParentProfileId(
   const [profilesResult, photosResult] = await Promise.all([
     supabase
       .from("provider_profiles")
-      .select("profile_id, business_name, provider_slug")
+      .select("profile_id, business_name, provider_slug, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color")
       .in("profile_id", providerIds),
     supabase
       .from("provider_photos")
@@ -465,7 +468,19 @@ export async function getFavoritesByParentProfileId(
   ])
   const providerProfiles = profilesResult.data ?? []
   const infoBy = new Map(
-    providerProfiles.map((p) => [p.profile_id, { business_name: p.business_name, provider_slug: p.provider_slug }])
+    providerProfiles.map((p) => [
+      p.profile_id,
+      {
+        business_name: p.business_name,
+        provider_slug: p.provider_slug,
+        early_learning_excellence_badge: (p as { early_learning_excellence_badge?: boolean })
+          .early_learning_excellence_badge ?? false,
+        verified_provider_badge: (p as { verified_provider_badge?: boolean })
+          .verified_provider_badge ?? false,
+        verified_provider_badge_color: (p as { verified_provider_badge_color?: string | null })
+          .verified_provider_badge_color ?? "emerald",
+      },
+    ])
   )
   const primaryPhotoByProvider: Record<string, string> = {}
   ;(photosResult.data ?? []).forEach((row) => {
@@ -484,6 +499,9 @@ export async function getFavoritesByParentProfileId(
       provider_business_name: info?.business_name ?? null,
       provider_slug: info?.provider_slug ?? null,
       provider_primary_image_url,
+      early_learning_excellence_badge: info?.early_learning_excellence_badge ?? false,
+      verified_provider_badge: info?.verified_provider_badge ?? false,
+      verified_provider_badge_color: info?.verified_provider_badge_color ?? "emerald",
     }
   })
 }

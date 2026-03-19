@@ -1,6 +1,6 @@
 "use client"
 
-import { Building2, MapPin, Clock, DollarSign, Image, HelpCircle } from "lucide-react"
+import { Building2, MapPin, Clock, ImageIcon, HelpCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
 import { Badge } from "@/components/ui/badge"
@@ -24,8 +24,15 @@ type Step5ReviewSubmitProps = {
   amenities: string[]
   openingTime: string
   closingTime: string
-  monthlyTuitionFrom: string
-  monthlyTuitionTo: string
+  dailyFeeFrom: string
+  dailyFeeTo: string
+  registrationFee: string
+  depositFee: string
+  mealsFee: string
+  serviceTransport: boolean
+  serviceExtendedHours: boolean
+  servicePickupDropoff: boolean
+  serviceExtracurriculars: boolean
   currencyId: string
   currencies: { id: string; code: string; name: string; symbol: string }[]
   totalCapacity: string
@@ -55,8 +62,15 @@ export function Step5ReviewSubmit({
   amenities,
   openingTime,
   closingTime,
-  monthlyTuitionFrom,
-  monthlyTuitionTo,
+  dailyFeeFrom,
+  dailyFeeTo,
+  registrationFee,
+  depositFee,
+  mealsFee,
+  serviceTransport,
+  serviceExtendedHours,
+  servicePickupDropoff,
+  serviceExtracurriculars,
   currencyId,
   currencies,
   totalCapacity,
@@ -180,12 +194,12 @@ export function Step5ReviewSubmit({
               {formatValue(openingTime)} – {formatValue(closingTime)}
             </p>
           )}
-          {(monthlyTuitionFrom || monthlyTuitionTo) && (
+          {(dailyFeeFrom || dailyFeeTo) && (
             <p>
-              Tuition:{" "}
+              Daily fee:{" "}
               {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
-              {formatValue(monthlyTuitionFrom)} – {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
-              {formatValue(monthlyTuitionTo)}
+              {formatValue(dailyFeeFrom)} – {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
+              {formatValue(dailyFeeTo)}
               {currencyId && (
                 <span className="text-muted-foreground ml-1">
                   ({(currencies ?? []).find((c) => c.id === currencyId)?.code ?? ""})
@@ -193,8 +207,50 @@ export function Step5ReviewSubmit({
               )}
             </p>
           )}
+          {registrationFee && (
+            <p>
+              Registration fee: {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
+              {formatValue(registrationFee)}
+            </p>
+          )}
+          {depositFee && (
+            <p>
+              Deposit: {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
+              {formatValue(depositFee)}
+            </p>
+          )}
+          {mealsFee && (
+            <p>
+              Meals fee: {(currencies ?? []).find((c) => c.id === currencyId)?.symbol ?? "$"}
+              {formatValue(mealsFee)}
+            </p>
+          )}
+          {(serviceTransport || serviceExtendedHours || servicePickupDropoff || serviceExtracurriculars) && (
+            <p>
+              Additional services:{" "}
+              {[
+                serviceTransport ? "Transport" : null,
+                serviceExtendedHours ? "Extended Hours" : null,
+                servicePickupDropoff ? "Pickup / Drop-off" : null,
+                serviceExtracurriculars ? "Extracurriculars" : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          )}
           {totalCapacity && <p>Capacity: {totalCapacity}</p>}
-          {!openingTime && !closingTime && !monthlyTuitionFrom && !monthlyTuitionTo && !totalCapacity && (
+          {!openingTime &&
+            !closingTime &&
+            !dailyFeeFrom &&
+            !dailyFeeTo &&
+            !registrationFee &&
+            !depositFee &&
+            !mealsFee &&
+            !serviceTransport &&
+            !serviceExtendedHours &&
+            !servicePickupDropoff &&
+            !serviceExtracurriculars &&
+            !totalCapacity && (
             <p className="text-muted-foreground">No operating details added.</p>
           )}
         </CardContent>
@@ -203,7 +259,7 @@ export function Step5ReviewSubmit({
       <Card className="border-border/60">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Image className="h-4 w-4" />
+            <ImageIcon className="h-4 w-4" />
             Media
           </CardTitle>
         </CardHeader>

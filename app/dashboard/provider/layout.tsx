@@ -41,6 +41,7 @@ import type { ProviderNotificationItem } from "@/app/api/provider/notifications/
 const sidebarItems = [
   { label: "Overview", href: "/dashboard/provider", icon: LayoutDashboard },
   { label: "Manage Listing & Tour", href: "/dashboard/provider/listing", icon: FileEdit },
+  { label: "Availability", href: "/dashboard/provider/availability", icon: CheckCircle },
   { label: "Reviews", href: "/dashboard/provider/reviews", icon: Star },
   { label: "Leads (CRM)", href: "/dashboard/provider/inquiries", icon: MessageSquare },
   { label: "Photos", href: "/dashboard/provider/photos", icon: Image },
@@ -93,6 +94,7 @@ export default function ProviderDashboardLayout({
   const router = useRouter()
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "provider")
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   // Only count provider_notifications (e.g. listing_confirmed) as unread; inquiries/reviews have no persisted read state
   const unreadCount = notifications.filter(
@@ -119,24 +121,68 @@ export default function ProviderDashboardLayout({
 
   useEffect(() => {
     let cancelled = false
+
     async function fetchNotifications() {
       try {
-        const res = await fetch("/api/provider/notifications")
+        const res = await fetch("/api/provider/notifications", {
+          cache: "no-store",
+        })
         if (!res.ok || cancelled) return
         const data = await res.json()
-        if (!cancelled && Array.isArray(data.notifications))
+        if (!cancelled && Array.isArray(data.notifications)) {
           setNotifications(data.notifications)
+        }
       } catch {
         if (!cancelled) setNotifications([])
       } finally {
         if (!cancelled) setNotificationsLoading(false)
       }
     }
-    fetchNotifications()
+
+    void fetchNotifications()
+
+    const intervalId = window.setInterval(() => {
+      void fetchNotifications()
+    }, 30000)
+
+    const refreshOnFocus = () => {
+      void fetchNotifications()
+    }
+
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchNotifications()
+      }
+    }
+
+    window.addEventListener("focus", refreshOnFocus)
+    document.addEventListener("visibilitychange", refreshOnVisibility)
+
     return () => {
       cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener("focus", refreshOnFocus)
+      document.removeEventListener("visibilitychange", refreshOnVisibility)
     }
   }, [])
+
+  useEffect(() => {
+    if (!notificationsOpen) return
+    void (async () => {
+      try {
+        const res = await fetch("/api/provider/notifications", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json()
+        if (Array.isArray(data.notifications)) {
+          setNotifications(data.notifications)
+        }
+      } catch {
+        // ignore
+      } finally {
+        setNotificationsLoading(false)
+      }
+    })()
+  }, [notificationsOpen])
 
   useEffect(() => {
     if (pathname === "/dashboard/provider/search") {
@@ -262,7 +308,7 @@ export default function ProviderDashboardLayout({
           {/* Right side */}
           <div className="ml-auto flex items-center gap-2">
             {/* Notifications */}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={setNotificationsOpen}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />

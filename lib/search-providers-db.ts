@@ -3,7 +3,7 @@ import type { SearchCriteria } from "./search-providers"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import { fetchGooglePlaceReviewSummary } from "./google-place-reviews"
 import { geocodeAddressToCoordinates } from "./geocode-server"
-import { formatTuitionRange } from "./currency"
+import { formatDailyFeeRange } from "./currency"
 import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
 import { getSupabaseAdminClient } from "./supabaseAdmin"
 import { selectFeaturedProviders } from "./featured-providers-selection"
@@ -25,13 +25,18 @@ export type ActiveProviderRow = {
   age_groups_served: string[] | null
   curriculum_type: string[] | null
   languages_spoken: string | null
-  monthly_tuition_from: number | null
-  monthly_tuition_to: number | null
+  daily_fee_from: number | null
+  daily_fee_to: number | null
   currencies?: { symbol?: string } | null
   primary_photo_storage_path: string | null
   review_count: number
   avg_rating: number | null
   featured: boolean
+  early_learning_excellence_badge: boolean
+  verified_provider_badge: boolean
+  verified_provider_badge_color: string | null
+  availability_status: "openings" | "waitlist" | "full" | null
+  available_spots_count: number | null
   saved_by_parent_count: number
   /** ISO 3166-1 alpha-2 from `countries.code` when `country_id` is set */
   country_code: string | null
@@ -53,6 +58,9 @@ export type ProviderCardDataFromDb = {
   longitude: number
   address: string
   featured?: boolean
+  earlyLearningExcellenceBadge?: boolean
+  verifiedProviderBadge?: boolean
+  verifiedProviderBadgeColor?: string | null
   savedByParentCount: number
 }
 
@@ -78,7 +86,7 @@ export async function getActiveProvidersFromDb(
   const { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol), featured, country_id, countries(code)"
+      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
     )
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
@@ -204,13 +212,23 @@ export async function getActiveProvidersFromDb(
       age_groups_served: p.age_groups_served,
       curriculum_type: p.curriculum_type,
       languages_spoken: p.languages_spoken,
-      monthly_tuition_from: p.monthly_tuition_from,
-      monthly_tuition_to: p.monthly_tuition_to,
+      daily_fee_from: p.daily_fee_from,
+      daily_fee_to: p.daily_fee_to,
       currencies: (p as { currencies?: { symbol?: string } | null }).currencies ?? null,
       primary_photo_storage_path: primaryPhotoByProfile[p.profile_id] ?? null,
       review_count: count,
       avg_rating: avgRating,
       featured: (p as { featured?: boolean }).featured ?? false,
+      early_learning_excellence_badge:
+        (p as { early_learning_excellence_badge?: boolean })
+          .early_learning_excellence_badge ?? false,
+      verified_provider_badge:
+        (p as { verified_provider_badge?: boolean }).verified_provider_badge ?? false,
+      verified_provider_badge_color:
+        (p as { verified_provider_badge_color?: string | null }).verified_provider_badge_color ?? "emerald",
+      availability_status:
+        (p as { availability_status?: "openings" | "waitlist" | "full" | null }).availability_status ?? "openings",
+      available_spots_count: (p as { available_spots_count?: number | null }).available_spots_count ?? null,
       saved_by_parent_count: savedByParentCountByProfile[p.profile_id] ?? 0,
       country_code: countryCode,
     }
@@ -273,8 +291,8 @@ function matchesTuition(
   minTuition?: number,
   maxTuition?: number
 ): boolean {
-  const from = row.monthly_tuition_from ?? 0
-  const to = row.monthly_tuition_to ?? 99999
+  const from = row.daily_fee_from ?? 0
+  const to = row.daily_fee_to ?? 99999
   if (minTuition !== undefined && to < minTuition) return false
   if (maxTuition !== undefined && from > maxTuition) return false
   return true
@@ -298,6 +316,23 @@ function matchesLanguages(row: ActiveProviderRow, languages?: string[]): boolean
   )
 }
 
+function normalizeAvailabilityFromRow(
+  row: ActiveProviderRow
+): "openings" | "waitlist" | "full" {
+  if (row.availability_status === "waitlist" || row.availability_status === "full") {
+    return row.availability_status
+  }
+  return "openings"
+}
+
+function matchesAvailability(
+  row: ActiveProviderRow,
+  availability?: SearchCriteria["availability"]
+): boolean {
+  if (!availability?.length) return true
+  return availability.includes(normalizeAvailabilityFromRow(row))
+}
+
 export function filterActiveProviders(
   rows: ActiveProviderRow[],
   criteria: SearchCriteria
@@ -312,6 +347,7 @@ export function filterActiveProviders(
     maxTuition,
     minRating,
     languages,
+    availability,
   } = criteria
 
   return rows.filter((row) => {
@@ -323,6 +359,7 @@ export function filterActiveProviders(
     if (!matchesTuition(row, minTuition, maxTuition)) return false
     if (!matchesMinRating(row, minRating)) return false
     if (!matchesLanguages(row, languages)) return false
+    if (!matchesAvailability(row, availability)) return false
     return true
   })
 }
@@ -473,11 +510,11 @@ export function activeProviderRowToCardData(
   const slug = row.provider_slug ?? row.profile_id
   const name = row.business_name ?? "Provider"
   const location = [row.city, row.address].filter(Boolean).join(", ") || "—"
-  const from = row.monthly_tuition_from
-  const to = row.monthly_tuition_to
+  const from = row.daily_fee_from
+  const to = row.daily_fee_to
   const symbol =
     (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
-  const priceRange = formatTuitionRange(from, to, symbol)
+  const priceRange = formatDailyFeeRange(from, to, symbol)
   const image = row.primary_photo_storage_path
     ? buildPhotoPublicUrl(row.primary_photo_storage_path, baseUrl)
     : PLACEHOLDER_IMAGE
@@ -499,6 +536,9 @@ export function activeProviderRowToCardData(
     longitude: row.longitude ?? 0,
     address: row.address ?? "",
     featured: row.featured ?? false,
+    earlyLearningExcellenceBadge: row.early_learning_excellence_badge ?? false,
+    verifiedProviderBadge: row.verified_provider_badge ?? false,
+    verifiedProviderBadgeColor: row.verified_provider_badge_color ?? "emerald",
     savedByParentCount: row.saved_by_parent_count ?? 0,
   }
 }

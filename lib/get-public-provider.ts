@@ -1,13 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { fetchGooglePlaceReviewSummary } from "@/lib/google-place-reviews"
-import { formatTuitionRange } from "@/lib/currency"
+import { formatDailyFeeRange } from "@/lib/currency"
 import {
   getReviewsByProviderProfileId,
   type PublicReviewRow,
 } from "@/lib/parent-engagement"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
+
+export type PublicAvailabilityStatus = "openings" | "waitlist" | "full"
 
 export type PublicProviderView = {
   profileId: string
@@ -32,16 +34,38 @@ export type PublicProviderView = {
   website: string
   phone: string
   priceRange: string
+  currencySymbol: string
   currencyCode: string | null
+  registrationFee: number | null
+  depositFee: number | null
+  mealsFee: number | null
+  additionalServices: string[]
   mealsIncluded: boolean
   outdoorSpace: boolean
   specialNeeds: boolean
   inquiriesEnabled: boolean
+  earlyLearningExcellenceBadge: boolean
+  verifiedProviderBadge: boolean
+  verifiedProviderBadgeColor: string | null
+  availabilityStatus: PublicAvailabilityStatus
+  availableSpotsCount: number | null
+  availabilityLabel: string
   images: string[]
   photos: Array<{ id: string; url: string; caption: string | null }>
   virtualTourEmbedUrls: string[]
   reviews: PublicReviewRow[]
   faqs: Array<{ question: string; answer: string }>
+}
+
+const AVAILABILITY_LABELS: Record<PublicAvailabilityStatus, string> = {
+  openings: "Spots Available",
+  waitlist: "Waitlist",
+  full: "Full",
+}
+
+function normalizeAvailabilityStatus(value: unknown): PublicAvailabilityStatus {
+  if (value === "waitlist" || value === "full") return value
+  return "openings"
 }
 
 const PLACEHOLDER_IMAGE =
@@ -58,7 +82,7 @@ export async function getActivePublicProviderBySlug(
   const { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
     .select(
-      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed"
+      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
     )
     .ilike("provider_slug", slugTrimmed)
     .eq("listing_status", "active")
@@ -111,12 +135,20 @@ export async function getActivePublicProviderBySlug(
     }
   }
 
-  const from = profile.monthly_tuition_from
-  const to = profile.monthly_tuition_to
+  const from = profile.daily_fee_from
+  const to = profile.daily_fee_to
   const currencyRow = profile.currencies as { symbol?: string; code?: string } | null
   const currencySymbol = currencyRow?.symbol ?? "$"
   const currencyCode = currencyRow?.code ?? null
-  const priceRange = formatTuitionRange(from, to, currencySymbol)
+  const priceRange = formatDailyFeeRange(from, to, currencySymbol)
+  const registrationFee = profile.registration_fee ?? null
+  const depositFee = profile.deposit_fee ?? null
+  const mealsFee = profile.meals_fee ?? null
+  const additionalServices: string[] = []
+  if (profile.service_transport) additionalServices.push("Transport")
+  if (profile.service_extended_hours) additionalServices.push("Extended Hours")
+  if (profile.service_pickup_dropoff) additionalServices.push("Pickup / Drop-off")
+  if (profile.service_extracurriculars) additionalServices.push("Extracurriculars")
 
   const hours =
     profile.opening_time && profile.closing_time
@@ -155,6 +187,12 @@ export async function getActivePublicProviderBySlug(
     question: row.question,
     answer: row.answer,
   }))
+  const availabilityStatus = normalizeAvailabilityStatus(profile.availability_status)
+  const availableSpotsCount = profile.available_spots_count ?? null
+  const availabilityLabel =
+    availabilityStatus === "openings" && availableSpotsCount != null && availableSpotsCount > 0
+      ? `Spots Available (${availableSpotsCount})`
+      : AVAILABILITY_LABELS[availabilityStatus]
 
   return {
     profileId,
@@ -179,11 +217,22 @@ export async function getActivePublicProviderBySlug(
     website: profile.website ?? "",
     phone: profile.phone ?? "",
     priceRange,
+    currencySymbol,
     currencyCode,
+    registrationFee,
+    depositFee,
+    mealsFee,
+    additionalServices,
     mealsIncluded,
     outdoorSpace,
     specialNeeds,
     inquiriesEnabled: !profile.is_admin_managed,
+    earlyLearningExcellenceBadge: profile.early_learning_excellence_badge ?? false,
+    verifiedProviderBadge: profile.verified_provider_badge ?? false,
+    verifiedProviderBadgeColor: profile.verified_provider_badge_color ?? "emerald",
+    availabilityStatus,
+    availableSpotsCount,
+    availabilityLabel,
     images,
     photos,
     virtualTourEmbedUrls,

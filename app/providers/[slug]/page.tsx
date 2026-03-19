@@ -32,6 +32,8 @@ import { ProviderProfileViewTracker } from "@/components/provider-profile-view-t
 import { SendInquiryButton } from "@/components/send-inquiry-button"
 import { ProviderLocationMap } from "@/components/provider-location-map"
 import { ProviderReviewsTab } from "@/components/provider-reviews-tab"
+import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
+import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 
 interface ProviderPageProps {
   params: Promise<{ slug: string }>
@@ -56,6 +58,12 @@ export async function generateMetadata({ params }: ProviderPageProps) {
 }
 
 export const revalidate = 60
+
+const availabilityBadgeClassByStatus: Record<"openings" | "waitlist" | "full", string> = {
+  openings: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40",
+  waitlist: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
+  full: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+}
 
 export default async function ProviderPage({ params }: ProviderPageProps) {
   const { slug } = await params
@@ -93,9 +101,23 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                      {p.name}
-                    </h1>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                        {p.name}
+                      </h1>
+                      <Badge
+                        variant="outline"
+                        className={availabilityBadgeClassByStatus[p.availabilityStatus]}
+                      >
+                        {p.availabilityLabel}
+                      </Badge>
+                      {p.verifiedProviderBadge && (
+                        <VerifiedProviderBadge size="md" color={p.verifiedProviderBadgeColor} />
+                      )}
+                      {p.earlyLearningExcellenceBadge && (
+                        <EarlyLearningExcellenceBadge size="md" />
+                      )}
+                    </div>
                     <div className="flex items-center gap-4 flex-wrap text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
@@ -378,7 +400,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {p.photos.length > 0
                     ? p.photos.map((photo) => (
-                        <div key={photo.id} className="relative aspect-[4/3] rounded-xl overflow-hidden">
+                        <div key={photo.id} className="relative aspect-4/3 rounded-xl overflow-hidden">
                           <Image
                             src={photo.url}
                             alt={photo.caption ?? `${p.name} photo`}
@@ -394,7 +416,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                         </div>
                       ))
                     : p.images.map((image, index) => (
-                        <div key={index} className="relative aspect-[4/3] rounded-xl overflow-hidden">
+                        <div key={index} className="relative aspect-4/3 rounded-xl overflow-hidden">
                           <Image
                             src={image}
                             alt={`${p.name} photo ${index + 1}`}
@@ -442,8 +464,20 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
                     <p className="text-2xl font-bold text-foreground">{p.priceRange}</p>
                     <p className="text-sm text-muted-foreground">
-                      Monthly Tuition{p.currencyCode ? ` (${p.currencyCode})` : ""}
+                      Daily Fee{p.currencyCode ? ` (${p.currencyCode})` : ""}
                     </p>
+                    {(p.registrationFee != null || p.depositFee != null || p.mealsFee != null) && (
+                      <div className="mt-3 space-y-1 text-left text-xs text-muted-foreground">
+                        {p.registrationFee != null && <p>Registration: {p.currencySymbol}{p.registrationFee}</p>}
+                        {p.depositFee != null && <p>Deposit: {p.currencySymbol}{p.depositFee}</p>}
+                        {p.mealsFee != null && <p>Meals: {p.currencySymbol}{p.mealsFee}</p>}
+                      </div>
+                    )}
+                    {p.additionalServices.length > 0 && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Services: {p.additionalServices.join(", ")}
+                      </p>
+                    )}
                   </div>
                   {p.phone ? (
                     <Button className="w-full bg-primary hover:bg-primary/90" asChild>

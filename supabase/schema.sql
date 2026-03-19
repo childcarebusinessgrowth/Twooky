@@ -474,7 +474,29 @@ alter table if exists public.provider_profiles
 alter table if exists public.provider_profiles
   add column if not exists monthly_tuition_to integer;
 alter table if exists public.provider_profiles
+  add column if not exists daily_fee_from integer;
+alter table if exists public.provider_profiles
+  add column if not exists daily_fee_to integer;
+alter table if exists public.provider_profiles
+  add column if not exists registration_fee integer;
+alter table if exists public.provider_profiles
+  add column if not exists deposit_fee integer;
+alter table if exists public.provider_profiles
+  add column if not exists meals_fee integer;
+alter table if exists public.provider_profiles
+  add column if not exists service_transport boolean not null default false;
+alter table if exists public.provider_profiles
+  add column if not exists service_extended_hours boolean not null default false;
+alter table if exists public.provider_profiles
+  add column if not exists service_pickup_dropoff boolean not null default false;
+alter table if exists public.provider_profiles
+  add column if not exists service_extracurriculars boolean not null default false;
+alter table if exists public.provider_profiles
   add column if not exists total_capacity integer;
+alter table if exists public.provider_profiles
+  add column if not exists availability_status text not null default 'openings';
+alter table if exists public.provider_profiles
+  add column if not exists available_spots_count integer;
 
 -- Listing visibility for admin (active = shown on directory, pending = new, inactive = hidden)
 alter table if exists public.provider_profiles
@@ -498,6 +520,92 @@ begin
     alter table public.provider_profiles
       add constraint provider_profiles_listing_status_allowed
       check (listing_status in ('active', 'pending', 'inactive'));
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_available_spots_non_negative'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_available_spots_non_negative
+      check (available_spots_count is null or available_spots_count >= 0);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_availability_spots_consistency'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_availability_spots_consistency
+      check (
+        (availability_status = 'openings' and (available_spots_count is null or available_spots_count > 0))
+        or (availability_status in ('waitlist', 'full') and available_spots_count is null)
+      );
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_daily_fee_non_negative'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_daily_fee_non_negative
+      check (
+        (daily_fee_from is null or daily_fee_from >= 0)
+        and (daily_fee_to is null or daily_fee_to >= 0)
+      );
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_daily_fee_range_valid'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_daily_fee_range_valid
+      check (
+        daily_fee_from is null
+        or daily_fee_to is null
+        or daily_fee_from <= daily_fee_to
+      );
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_component_fees_non_negative'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_component_fees_non_negative
+      check (
+        (registration_fee is null or registration_fee >= 0)
+        and (deposit_fee is null or deposit_fee >= 0)
+        and (meals_fee is null or meals_fee >= 0)
+      );
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'provider_profiles_availability_status_allowed'
+  ) then
+    alter table public.provider_profiles
+      add constraint provider_profiles_availability_status_allowed
+      check (availability_status in ('openings', 'waitlist', 'full'));
   end if;
 end $$;
 

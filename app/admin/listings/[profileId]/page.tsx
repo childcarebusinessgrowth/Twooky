@@ -37,7 +37,8 @@ import {
   getAmenityLabel,
   getCurriculumLabel,
 } from "@/lib/listing-labels"
-import { formatTuitionRange } from "@/lib/currency"
+import { formatDailyFeeRange } from "@/lib/currency"
+import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 
 type PageProps = {
   params: Promise<{ profileId: string }>
@@ -46,21 +47,29 @@ type PageProps = {
 function Section({
   title,
   icon: Icon,
+  gridCols,
   children,
 }: {
   title: string
   icon: React.ElementType
+  gridCols?: boolean
   children: React.ReactNode
 }) {
   return (
-    <Card className="border-border/60">
+    <Card className="border-border/60 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="h-4 w-4 text-muted-foreground" />
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      <CardContent
+        className={
+          gridCols
+            ? "grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm"
+            : "space-y-4 text-sm"
+        }
+      >
         {children}
       </CardContent>
     </Card>
@@ -78,15 +87,17 @@ function Field({
 }) {
   if (value == null || value === "") return null
   return (
-    <div className="flex gap-3">
+    <div className="flex min-w-0 gap-3">
       {Icon && (
         <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       )}
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
-        <div className="mt-0.5 text-foreground">{value}</div>
+        <div className="mt-0.5 font-medium text-foreground wrap-break-word">
+          {value}
+        </div>
       </div>
     </div>
   )
@@ -126,7 +137,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
     (profile.virtual_tour_url ? [profile.virtual_tour_url] : [])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -141,7 +152,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-border">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {name}
@@ -161,18 +172,35 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
             {profile.featured && (
               <Badge variant="secondary">Featured</Badge>
             )}
+            {profile.early_learning_excellence_badge && (
+              <Badge
+                variant="outline"
+                className="border-amber-300/70 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
+              >
+                Early Learning Excellence
+              </Badge>
+            )}
+            {profile.verified_provider_badge && (
+              <VerifiedProviderBadge
+                size="sm"
+                color={profile.verified_provider_badge_color}
+              />
+            )}
           </div>
         </div>
         <ListingDetailActions
           profileId={profile.profile_id}
           listingStatus={profile.listing_status}
           featured={profile.featured}
+          earlyLearningExcellenceBadge={profile.early_learning_excellence_badge}
+          verifiedProviderBadge={profile.verified_provider_badge}
+          verifiedProviderBadgeColor={profile.verified_provider_badge_color}
           name={name}
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Section title="Basic info" icon={Building2}>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <Section title="Basic info" icon={Building2} gridCols>
           <Field label="Business name" value={profile.business_name} />
           <Field label="Slug" value={profile.provider_slug} />
           <Field
@@ -181,9 +209,8 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
               profile.phone ? (
                 <a
                   href={`tel:${profile.phone}`}
-                  className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                  className="text-primary hover:underline"
                 >
-                  <Phone className="h-3.5 w-3.5" />
                   {profile.phone}
                 </a>
               ) : null
@@ -198,11 +225,10 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                   href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                  className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-primary hover:underline"
                 >
-                  <Globe className="h-3.5 w-3.5" />
-                  {profile.website}
-                  <ExternalLink className="h-3 w-3" />
+                  <span className="min-w-0 break-all">{profile.website}</span>
+                  <ExternalLink className="h-3 w-3 shrink-0" />
                 </a>
               ) : null
             }
@@ -262,7 +288,24 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
-          <Field label="Languages" value={profile.languages_spoken} />
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Languages
+            </p>
+            <div className="mt-1.5">
+              <BadgeList
+                ids={
+                  (profile.languages_spoken ?? "")
+                    .split(/[\s,;]+/)
+                    .filter(Boolean)
+                }
+                getLabel={(x) => x}
+              />
+              {!(profile.languages_spoken ?? "").trim() && (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+          </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Amenities
@@ -279,20 +322,57 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
           </div>
         </Section>
 
-        <Section title="Operating" icon={Clock}>
+        <Section title="Operating" icon={Clock} gridCols>
           <Field label="Opening time" value={profile.opening_time} />
           <Field label="Closing time" value={profile.closing_time} />
           <Field
-            label="Tuition"
+            label="Daily fee"
             value={
-              profile.monthly_tuition_from != null ||
-              profile.monthly_tuition_to != null
-                ? formatTuitionRange(
-                    profile.monthly_tuition_from,
-                    profile.monthly_tuition_to,
+              profile.daily_fee_from != null ||
+              profile.daily_fee_to != null
+                ? formatDailyFeeRange(
+                    profile.daily_fee_from,
+                    profile.daily_fee_to,
                     (profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"
                   )
                 : null
+            }
+          />
+          <Field
+            label="Registration fee"
+            value={
+              profile.registration_fee != null
+                ? `${(profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"}${profile.registration_fee}`
+                : null
+            }
+          />
+          <Field
+            label="Deposit"
+            value={
+              profile.deposit_fee != null
+                ? `${(profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"}${profile.deposit_fee}`
+                : null
+            }
+          />
+          <Field
+            label="Meals fee"
+            value={
+              profile.meals_fee != null
+                ? `${(profile as { currencies?: { symbol?: string } | null }).currencies?.symbol ?? "$"}${profile.meals_fee}`
+                : null
+            }
+          />
+          <Field
+            label="Additional services"
+            value={
+              [
+                profile.service_transport ? "Transport" : null,
+                profile.service_extended_hours ? "Extended Hours" : null,
+                profile.service_pickup_dropoff ? "Pickup / Drop-off" : null,
+                profile.service_extracurriculars ? "Extracurriculars" : null,
+              ]
+                .filter(Boolean)
+                .join(", ") || null
             }
           />
           <Field label="Total capacity" value={profile.total_capacity} />
@@ -350,7 +430,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
       ) : null}
 
       {faqs.length > 0 && (
-        <Card className="border-border/60">
+        <Card className="border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <HelpCircle className="h-4 w-4 text-muted-foreground" />
@@ -381,9 +461,11 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
         photos={photos}
       />
 
-      <p className="text-xs text-muted-foreground">
-        Created: {new Date(profile.created_at).toLocaleString()}
-      </p>
+      <div className="pt-4 border-t border-border">
+        <p className="text-xs text-muted-foreground">
+          Created: {new Date(profile.created_at).toLocaleString()}
+        </p>
+      </div>
     </div>
   )
 }

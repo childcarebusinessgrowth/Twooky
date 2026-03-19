@@ -52,7 +52,7 @@ export function AdminListingPhotosSection({
 
   return (
     <>
-      <Card className="border-border/60">
+      <Card className="border-border/60 shadow-sm">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2 text-base">

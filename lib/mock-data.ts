@@ -66,6 +66,10 @@ export interface Provider {
    * Subscription tier used for ranking boost.
    */
   subscriptionTier: "free" | "featured" | "premium"
+  /**
+   * Admin-assigned Early Learning Excellence badge.
+   */
+  earlyLearningExcellenceBadge?: boolean
   image: string
   images: string[]
 }

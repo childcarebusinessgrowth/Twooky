@@ -561,7 +561,7 @@ export default async function ParentDashboardPage() {
                 Compare providers side by side
               </h2>
               <p className="text-xs lg:text-sm text-muted-foreground">
-                Compare your saved options by ratings, tuition, schedule, and curriculum.
+                Compare your saved options by ratings, daily fee, schedule, and curriculum.
               </p>
             </div>
             {compareProviders.length >= 2 ? (
@@ -610,7 +610,7 @@ export default async function ParentDashboardPage() {
                         </div>
                         <dl className="space-y-1.5 text-[11px] text-muted-foreground">
                           <div className="flex items-center justify-between gap-2">
-                            <dt className="text-muted-foreground">Tuition</dt>
+                            <dt className="text-muted-foreground">Daily fee</dt>
                             <dd className="font-medium text-foreground text-right">{item.tuitionRange}</dd>
                           </div>
                           <div className="flex items-center justify-between gap-2">

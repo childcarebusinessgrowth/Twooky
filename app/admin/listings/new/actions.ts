@@ -198,8 +198,15 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   const cityId = asTrimmedText(formData.get("cityId"))
   const currencyId = asTrimmedText(formData.get("currencyId"))
 
-  const monthlyTuitionFrom = parseNullableInt(asTrimmedText(formData.get("monthlyTuitionFrom")))
-  const monthlyTuitionTo = parseNullableInt(asTrimmedText(formData.get("monthlyTuitionTo")))
+  const dailyFeeFrom = parseNullableInt(asTrimmedText(formData.get("dailyFeeFrom")))
+  const dailyFeeTo = parseNullableInt(asTrimmedText(formData.get("dailyFeeTo")))
+  const registrationFee = parseNullableInt(asTrimmedText(formData.get("registrationFee")))
+  const depositFee = parseNullableInt(asTrimmedText(formData.get("depositFee")))
+  const mealsFee = parseNullableInt(asTrimmedText(formData.get("mealsFee")))
+  const serviceTransport = parseBooleanCheckbox(formData.get("serviceTransport"))
+  const serviceExtendedHours = parseBooleanCheckbox(formData.get("serviceExtendedHours"))
+  const servicePickupDropoff = parseBooleanCheckbox(formData.get("servicePickupDropoff"))
+  const serviceExtracurriculars = parseBooleanCheckbox(formData.get("serviceExtracurriculars"))
   const totalCapacity = parseNullableInt(asTrimmedText(formData.get("totalCapacity")))
 
   const providerTypes = formData
@@ -231,18 +238,27 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
   }
-  if (monthlyTuitionFrom != null && monthlyTuitionFrom < 0) {
-    return { ok: false, error: "Monthly tuition (from) cannot be negative." }
+  if (dailyFeeFrom != null && dailyFeeFrom < 0) {
+    return { ok: false, error: "Daily fee (from) cannot be negative." }
   }
-  if (monthlyTuitionTo != null && monthlyTuitionTo < 0) {
-    return { ok: false, error: "Monthly tuition (to) cannot be negative." }
+  if (dailyFeeTo != null && dailyFeeTo < 0) {
+    return { ok: false, error: "Daily fee (to) cannot be negative." }
   }
   if (
-    monthlyTuitionFrom != null &&
-    monthlyTuitionTo != null &&
-    monthlyTuitionFrom > monthlyTuitionTo
+    dailyFeeFrom != null &&
+    dailyFeeTo != null &&
+    dailyFeeFrom > dailyFeeTo
   ) {
-    return { ok: false, error: "Monthly tuition (from) must be less than or equal to (to)." }
+    return { ok: false, error: "Daily fee (from) must be less than or equal to (to)." }
+  }
+  if (registrationFee != null && registrationFee < 0) {
+    return { ok: false, error: "Registration fee cannot be negative." }
+  }
+  if (depositFee != null && depositFee < 0) {
+    return { ok: false, error: "Deposit cannot be negative." }
+  }
+  if (mealsFee != null && mealsFee < 0) {
+    return { ok: false, error: "Meals fee cannot be negative." }
   }
 
   const rawFaqs = asTrimmedText(formData.get("faqsJson"))
@@ -373,8 +389,15 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       amenities: amenities.length > 0 ? amenities : null,
       opening_time: openingTime || null,
       closing_time: closingTime || null,
-      monthly_tuition_from: monthlyTuitionFrom,
-      monthly_tuition_to: monthlyTuitionTo,
+      daily_fee_from: dailyFeeFrom,
+      daily_fee_to: dailyFeeTo,
+      registration_fee: registrationFee,
+      deposit_fee: depositFee,
+      meals_fee: mealsFee,
+      service_transport: serviceTransport,
+      service_extended_hours: serviceExtendedHours,
+      service_pickup_dropoff: servicePickupDropoff,
+      service_extracurriculars: serviceExtracurriculars,
       total_capacity: totalCapacity,
       currency_id: resolvedCurrencyId,
       listing_status: listingStatus,
@@ -479,8 +502,15 @@ export async function updateAdminProvider(
   const cityId = asTrimmedText(formData.get("cityId"))
   const currencyId = asTrimmedText(formData.get("currencyId"))
 
-  const monthlyTuitionFrom = parseNullableInt(asTrimmedText(formData.get("monthlyTuitionFrom")))
-  const monthlyTuitionTo = parseNullableInt(asTrimmedText(formData.get("monthlyTuitionTo")))
+  const dailyFeeFrom = parseNullableInt(asTrimmedText(formData.get("dailyFeeFrom")))
+  const dailyFeeTo = parseNullableInt(asTrimmedText(formData.get("dailyFeeTo")))
+  const registrationFee = parseNullableInt(asTrimmedText(formData.get("registrationFee")))
+  const depositFee = parseNullableInt(asTrimmedText(formData.get("depositFee")))
+  const mealsFee = parseNullableInt(asTrimmedText(formData.get("mealsFee")))
+  const serviceTransport = parseBooleanCheckbox(formData.get("serviceTransport"))
+  const serviceExtendedHours = parseBooleanCheckbox(formData.get("serviceExtendedHours"))
+  const servicePickupDropoff = parseBooleanCheckbox(formData.get("servicePickupDropoff"))
+  const serviceExtracurriculars = parseBooleanCheckbox(formData.get("serviceExtracurriculars"))
   const totalCapacity = parseNullableInt(asTrimmedText(formData.get("totalCapacity")))
 
   const providerTypes = formData
@@ -512,18 +542,27 @@ export async function updateAdminProvider(
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
   }
-  if (monthlyTuitionFrom != null && monthlyTuitionFrom < 0) {
-    return { ok: false, error: "Monthly tuition (from) cannot be negative." }
+  if (dailyFeeFrom != null && dailyFeeFrom < 0) {
+    return { ok: false, error: "Daily fee (from) cannot be negative." }
   }
-  if (monthlyTuitionTo != null && monthlyTuitionTo < 0) {
-    return { ok: false, error: "Monthly tuition (to) cannot be negative." }
+  if (dailyFeeTo != null && dailyFeeTo < 0) {
+    return { ok: false, error: "Daily fee (to) cannot be negative." }
   }
   if (
-    monthlyTuitionFrom != null &&
-    monthlyTuitionTo != null &&
-    monthlyTuitionFrom > monthlyTuitionTo
+    dailyFeeFrom != null &&
+    dailyFeeTo != null &&
+    dailyFeeFrom > dailyFeeTo
   ) {
-    return { ok: false, error: "Monthly tuition (from) must be less than or equal to (to)." }
+    return { ok: false, error: "Daily fee (from) must be less than or equal to (to)." }
+  }
+  if (registrationFee != null && registrationFee < 0) {
+    return { ok: false, error: "Registration fee cannot be negative." }
+  }
+  if (depositFee != null && depositFee < 0) {
+    return { ok: false, error: "Deposit cannot be negative." }
+  }
+  if (mealsFee != null && mealsFee < 0) {
+    return { ok: false, error: "Meals fee cannot be negative." }
   }
 
   const rawFaqs = asTrimmedText(formData.get("faqsJson"))
@@ -652,8 +691,15 @@ export async function updateAdminProvider(
       amenities: amenities.length > 0 ? amenities : null,
       opening_time: openingTime || null,
       closing_time: closingTime || null,
-      monthly_tuition_from: monthlyTuitionFrom,
-      monthly_tuition_to: monthlyTuitionTo,
+      daily_fee_from: dailyFeeFrom,
+      daily_fee_to: dailyFeeTo,
+      registration_fee: registrationFee,
+      deposit_fee: depositFee,
+      meals_fee: mealsFee,
+      service_transport: serviceTransport,
+      service_extended_hours: serviceExtendedHours,
+      service_pickup_dropoff: servicePickupDropoff,
+      service_extracurriculars: serviceExtracurriculars,
       total_capacity: totalCapacity,
       currency_id: resolvedCurrencyId,
       listing_status: listingStatus,

@@ -14,6 +14,7 @@ import {
   MapPin,
   Loader2,
   Plus,
+  Award,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,9 +63,12 @@ import type { AdminListingRow, AdminListingCountry } from "./actions"
 import {
   updateListingStatus,
   updateListingFeatured,
+  updateListingEarlyLearningExcellenceBadge,
+  updateListingVerifiedProviderBadge,
   deleteListing,
   type ListingStatus,
 } from "./actions"
+import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 
 const PAGE_SIZE = 10
 
@@ -205,6 +209,23 @@ export function AdminListingsTable({
   const handleToggleFeatured = (profileId: string, current: boolean) => {
     startTransition(async () => {
       await updateListingFeatured(profileId, !current)
+      router.refresh()
+    })
+  }
+
+  const handleToggleEarlyLearningExcellence = (
+    profileId: string,
+    current: boolean
+  ) => {
+    startTransition(async () => {
+      await updateListingEarlyLearningExcellenceBadge(profileId, !current)
+      router.refresh()
+    })
+  }
+
+  const handleToggleVerifiedProvider = (profileId: string, current: boolean) => {
+    startTransition(async () => {
+      await updateListingVerifiedProviderBadge(profileId, !current)
       router.refresh()
     })
   }
@@ -488,6 +509,20 @@ export function AdminListingsTable({
                             Featured
                           </Badge>
                         )}
+                        {listing.early_learning_excellence_badge && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-amber-300/70 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
+                          >
+                            Early Learning Excellence
+                          </Badge>
+                        )}
+                        {listing.verified_provider_badge && (
+                          <VerifiedProviderBadge
+                            size="sm"
+                            color={listing.verified_provider_badge_color}
+                          />
+                        )}
                       </div>
                       <div className="text-sm text-muted-foreground md:hidden flex items-center gap-1 mt-1">
                         <MapPin className="h-3 w-3" />
@@ -561,6 +596,34 @@ export function AdminListingsTable({
                           >
                             <StarIcon className="h-4 w-4 mr-2" />
                             {listing.featured ? "Remove Feature" : "Feature"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleToggleEarlyLearningExcellence(
+                                listing.profile_id,
+                                listing.early_learning_excellence_badge
+                              )
+                            }
+                            disabled={isPending}
+                          >
+                            <Award className="h-4 w-4 mr-2" />
+                            {listing.early_learning_excellence_badge
+                              ? "Remove Early Learning Excellence"
+                              : "Assign Early Learning Excellence"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleToggleVerifiedProvider(
+                                listing.profile_id,
+                                listing.verified_provider_badge
+                              )
+                            }
+                            disabled={isPending}
+                          >
+                            <Award className="h-4 w-4 mr-2" />
+                            {listing.verified_provider_badge
+                              ? "Remove Verified Provider"
+                              : "Assign Verified Provider"}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

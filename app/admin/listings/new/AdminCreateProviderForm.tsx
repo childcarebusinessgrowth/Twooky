@@ -55,8 +55,15 @@ export function AdminCreateProviderForm({
   const [featured, setFeatured] = useState(false)
   const [openingTime, setOpeningTime] = useState("")
   const [closingTime, setClosingTime] = useState("")
-  const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState("")
-  const [monthlyTuitionTo, setMonthlyTuitionTo] = useState("")
+  const [dailyFeeFrom, setDailyFeeFrom] = useState("")
+  const [dailyFeeTo, setDailyFeeTo] = useState("")
+  const [registrationFee, setRegistrationFee] = useState("")
+  const [depositFee, setDepositFee] = useState("")
+  const [mealsFee, setMealsFee] = useState("")
+  const [serviceTransport, setServiceTransport] = useState(false)
+  const [serviceExtendedHours, setServiceExtendedHours] = useState(false)
+  const [servicePickupDropoff, setServicePickupDropoff] = useState(false)
+  const [serviceExtracurriculars, setServiceExtracurriculars] = useState(false)
   const [currencyId, setCurrencyId] = useState("")
   const [totalCapacity, setTotalCapacity] = useState("")
   const [virtualTourUrls, setVirtualTourUrls] = useState<string[]>([""])
@@ -175,8 +182,15 @@ export function AdminCreateProviderForm({
     formData.set("languagesSpoken", selectedLanguages.join(", "))
     formData.set("openingTime", openingTime.trim())
     formData.set("closingTime", closingTime.trim())
-    formData.set("monthlyTuitionFrom", monthlyTuitionFrom.trim())
-    formData.set("monthlyTuitionTo", monthlyTuitionTo.trim())
+    formData.set("dailyFeeFrom", dailyFeeFrom.trim())
+    formData.set("dailyFeeTo", dailyFeeTo.trim())
+    formData.set("registrationFee", registrationFee.trim())
+    formData.set("depositFee", depositFee.trim())
+    formData.set("mealsFee", mealsFee.trim())
+    formData.set("serviceTransport", serviceTransport ? "true" : "false")
+    formData.set("serviceExtendedHours", serviceExtendedHours ? "true" : "false")
+    formData.set("servicePickupDropoff", servicePickupDropoff ? "true" : "false")
+    formData.set("serviceExtracurriculars", serviceExtracurriculars ? "true" : "false")
     formData.set("currencyId", currencyId)
     formData.set("totalCapacity", totalCapacity.trim())
     formData.set("faqsJson", JSON.stringify(faqs))
@@ -265,10 +279,24 @@ export function AdminCreateProviderForm({
             setOpeningTime={setOpeningTime}
             closingTime={closingTime}
             setClosingTime={setClosingTime}
-            monthlyTuitionFrom={monthlyTuitionFrom}
-            setMonthlyTuitionFrom={setMonthlyTuitionFrom}
-            monthlyTuitionTo={monthlyTuitionTo}
-            setMonthlyTuitionTo={setMonthlyTuitionTo}
+            dailyFeeFrom={dailyFeeFrom}
+            setDailyFeeFrom={setDailyFeeFrom}
+            dailyFeeTo={dailyFeeTo}
+            setDailyFeeTo={setDailyFeeTo}
+            registrationFee={registrationFee}
+            setRegistrationFee={setRegistrationFee}
+            depositFee={depositFee}
+            setDepositFee={setDepositFee}
+            mealsFee={mealsFee}
+            setMealsFee={setMealsFee}
+            serviceTransport={serviceTransport}
+            setServiceTransport={setServiceTransport}
+            serviceExtendedHours={serviceExtendedHours}
+            setServiceExtendedHours={setServiceExtendedHours}
+            servicePickupDropoff={servicePickupDropoff}
+            setServicePickupDropoff={setServicePickupDropoff}
+            serviceExtracurriculars={serviceExtracurriculars}
+            setServiceExtracurriculars={setServiceExtracurriculars}
             currencyId={currencyId}
             setCurrencyId={setCurrencyId}
             currencies={currencies}
@@ -307,8 +335,15 @@ export function AdminCreateProviderForm({
             amenities={amenities}
             openingTime={openingTime}
             closingTime={closingTime}
-            monthlyTuitionFrom={monthlyTuitionFrom}
-            monthlyTuitionTo={monthlyTuitionTo}
+            dailyFeeFrom={dailyFeeFrom}
+            dailyFeeTo={dailyFeeTo}
+            registrationFee={registrationFee}
+            depositFee={depositFee}
+            mealsFee={mealsFee}
+            serviceTransport={serviceTransport}
+            serviceExtendedHours={serviceExtendedHours}
+            servicePickupDropoff={servicePickupDropoff}
+            serviceExtracurriculars={serviceExtracurriculars}
             currencyId={currencyId}
             currencies={currencies}
             totalCapacity={totalCapacity}
