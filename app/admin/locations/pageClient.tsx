@@ -701,8 +701,8 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
           title={deleteTarget.type === "country" ? "Delete country?" : "Delete city?"}
           description={
             deleteTarget.type === "country"
-              ? "Cities attached to it must be handled separately."
-              : "This city will be removed from the list."
+              ? "This will delete the country and all cities in it. This action cannot be undone."
+              : "This will delete the city and all providers in this city. This action cannot be undone."
           }
           itemName={deleteTarget.type === "country" ? deleteTarget.country.name : deleteTarget.city.name}
           variant="delete"

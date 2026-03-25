@@ -105,7 +105,7 @@ create index if not exists countries_active_idx on public.countries (is_active, 
 
 create table if not exists public.cities (
   id uuid primary key default gen_random_uuid(),
-  country_id uuid not null references public.countries(id) on delete restrict,
+  country_id uuid not null references public.countries(id) on delete cascade,
   name text not null,
   slug text not null unique,
   search_country_code text not null,
@@ -509,7 +509,7 @@ alter table if exists public.provider_profiles
 alter table if exists public.provider_profiles
   add column if not exists country_id uuid references public.countries(id) on delete restrict;
 alter table if exists public.provider_profiles
-  add column if not exists city_id uuid references public.cities(id) on delete restrict;
+  add column if not exists city_id uuid references public.cities(id) on delete cascade;
 
 do $$
 begin

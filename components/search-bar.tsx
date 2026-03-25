@@ -28,16 +28,28 @@ export interface SearchBarProps {
   targetPath?: string
 }
 
-const PROGRAM_TYPE_OPTIONS = [
-  "Infant Care",
-  "Toddler Care",
-  "Preschool",
-  "Pre-K",
-  "Montessori",
-  "Home Daycare",
-  "After School",
-]
 const AUTO_LOCATION_VALUE_KEY = "eld:auto-location-value"
+
+function normalizeCountryCode(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ""
+  const upper = trimmed.toUpperCase()
+  if (upper === "UK") return "GB"
+  return upper
+}
+
+function countryCodeToLabel(raw: string): string {
+  const code = normalizeCountryCode(raw)
+  if (!code) return ""
+  if (typeof Intl === "undefined" || typeof Intl.DisplayNames === "undefined") return ""
+
+  try {
+    const displayNames = new Intl.DisplayNames(["en"], { type: "region" })
+    return displayNames.of(code) ?? ""
+  } catch {
+    return ""
+  }
+}
 
 export function SearchBar({
   ...props
@@ -72,6 +84,9 @@ function SearchBarContent({
   const [location, setLocation] = useState("")
   const [ageGroup, setAgeGroup] = useState("")
   const [programType, setProgramType] = useState("")
+  const [ageGroupOptions, setAgeGroupOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [programTypeOptions, setProgramTypeOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const hasAutoDetectedRef = useRef(false)
@@ -97,7 +112,18 @@ function SearchBarContent({
     const country = searchParams.get("country")?.trim()
     if (city && country) return `${city.replace(/-/g, " ")}, ${country.toUpperCase()}`
     if (city) return city.replace(/-/g, " ")
+    if (country) {
+      return countryCodeToLabel(country)
+    }
     return ""
+  }, [searchParams])
+  const hasLocationQuery = useMemo(() => {
+    const directLocation = searchParams.get("location")?.trim()
+    if (directLocation) return true
+    const city = searchParams.get("city")?.trim()
+    if (city) return true
+    const country = searchParams.get("country")?.trim()
+    return Boolean(country)
   }, [searchParams])
   const isOnTargetPath = pathname === targetPath
 
@@ -180,9 +206,37 @@ function SearchBarContent({
   }, [isOnTargetPath, locationFromUrl, searchParams])
 
   useEffect(() => {
+    let cancelled = false
+
+    const loadOptions = async () => {
+      setIsLoadingOptions(true)
+      try {
+        const res = await fetch("/api/search/options", { method: "GET" })
+        if (!res.ok) return
+        const json = (await res.json()) as {
+          ageGroups?: Array<{ value: string; label: string }>
+          programTypes?: Array<{ value: string; label: string }>
+        }
+        if (cancelled) return
+        setAgeGroupOptions(Array.isArray(json.ageGroups) ? json.ageGroups : [])
+        setProgramTypeOptions(Array.isArray(json.programTypes) ? json.programTypes : [])
+      } catch {
+        // ignore; keep UI usable even if options load fails
+      } finally {
+        if (!cancelled) setIsLoadingOptions(false)
+      }
+    }
+
+    void loadOptions()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (hasAutoDetectedRef.current) return
     if (typeof window === "undefined") return
-    if (isOnTargetPath && locationFromUrl) return
+    if (isOnTargetPath && hasLocationQuery) return
     hasAutoDetectedRef.current = true
 
     const cachedLocation = window.sessionStorage.getItem(AUTO_LOCATION_VALUE_KEY)
@@ -192,11 +246,11 @@ function SearchBarContent({
 
     // Always refresh from live geolocation when visiting / or /search.
     void detectCurrentLocation()
-  }, [detectCurrentLocation, isOnTargetPath, locationFromUrl])
+  }, [detectCurrentLocation, hasLocationQuery, isOnTargetPath])
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    if (isOnTargetPath && locationFromUrl) return
+    if (isOnTargetPath && hasLocationQuery) return
 
     const retryIfEmpty = () => {
       if (!location.trim() && !isDetectingLocation) {
@@ -215,7 +269,7 @@ function SearchBarContent({
       window.removeEventListener("focus", retryIfEmpty)
       document.removeEventListener("visibilitychange", retryIfEmpty)
     }
-  }, [detectCurrentLocation, isDetectingLocation, isOnTargetPath, location, locationFromUrl])
+  }, [detectCurrentLocation, hasLocationQuery, isDetectingLocation, isOnTargetPath, location])
 
   if (variant === "compact") {
     return (
@@ -244,9 +298,9 @@ function SearchBarContent({
           </SelectTrigger>
           <SelectContent className="data-[state=open]:animate-none data-[state=closed]:animate-none">
             <SelectItem value="all">All Programs</SelectItem>
-            {PROGRAM_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
+            {programTypeOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -326,15 +380,15 @@ function SearchBarContent({
               >
                 <div className="flex items-center gap-2 truncate">
                   <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder="Select age" />
+                  <SelectValue placeholder={isLoadingOptions ? "Loading..." : "Select age"} />
                 </div>
               </SelectTrigger>
               <SelectContent className="data-[state=open]:animate-none data-[state=closed]:animate-none">
-                <SelectItem value="infant">Infant (0-12 mo)</SelectItem>
-                <SelectItem value="toddler">Toddler (1-2 yrs)</SelectItem>
-                <SelectItem value="preschool">Preschool (3-4 yrs)</SelectItem>
-                <SelectItem value="prek">Pre-K (4-5 yrs)</SelectItem>
-                <SelectItem value="schoolage">School Age (5+)</SelectItem>
+                {ageGroupOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -355,9 +409,9 @@ function SearchBarContent({
               </SelectTrigger>
               <SelectContent className="data-[state=open]:animate-none data-[state=closed]:animate-none">
                 <SelectItem value="all">All Programs</SelectItem>
-                {PROGRAM_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
+                {programTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

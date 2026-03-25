@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
+import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const PROVIDER_DOCUMENTS_BUCKET = "provider-documents"
@@ -614,37 +615,6 @@ export async function deleteListingPhoto(
     revalidatePath(`/providers/${profile.provider_slug}`)
   }
   return { ok: true }
-}
-
-/** Delete all objects in the provider-photos bucket under the given profile id prefix. */
-async function deleteProviderPhotoStorage(profileId: string): Promise<void> {
-  const supabase = getSupabaseAdminClient()
-  const bucket = supabase.storage.from(PROVIDER_PHOTOS_BUCKET)
-  const paths: string[] = []
-  let offset = 0
-  const pageSize = 1000
-  while (true) {
-    const { data, error } = await bucket.list(profileId, { limit: pageSize, offset })
-    if (error) {
-      if (error.message?.toLowerCase().includes("not found") || error.message?.toLowerCase().includes("not exist")) {
-        return
-      }
-      throw new Error(error.message)
-    }
-    const items = data ?? []
-    for (const item of items) {
-      const fullPath = item.name ? `${profileId}/${item.name}` : profileId
-      paths.push(fullPath)
-    }
-    if (items.length < pageSize) break
-    offset += pageSize
-  }
-  if (paths.length === 0) return
-  for (let i = 0; i < paths.length; i += 1000) {
-    const batch = paths.slice(i, i + 1000)
-    const { error } = await bucket.remove(batch)
-    if (error) throw new Error(error.message)
-  }
 }
 
 export async function deleteListing(profileId: string): Promise<{ error?: string }> {

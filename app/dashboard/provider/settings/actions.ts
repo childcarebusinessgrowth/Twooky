@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
 
 export type ProviderNotificationPrefs = {
   notify_new_inquiries: boolean
@@ -99,6 +100,19 @@ export async function deleteProviderAccount(): Promise<{ error?: string }> {
   }
 
   const admin = getSupabaseAdminClient()
+
+  // Best-effort: remove external storage objects first.
+  try {
+    await deleteProviderPhotoStorage(user.id)
+  } catch {
+    // Continue; DB cleanup still proceeds.
+  }
+
+  // Ensure provider-owned rows are removed even though provider_profiles.profile_id is intentionally decoupled
+  // from profiles/auth (to allow admin-managed listings). Deleting provider_profiles cascades to related rows.
+  const { error: providerProfileDeleteError } = await admin.from("provider_profiles").delete().eq("profile_id", user.id)
+  if (providerProfileDeleteError) return { error: providerProfileDeleteError.message }
+
   const { error } = await admin.auth.admin.deleteUser(user.id)
   if (error) return { error: error.message }
   return {}

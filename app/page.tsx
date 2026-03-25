@@ -12,7 +12,7 @@ import {
   programTypeToCardShape,
 } from "@/lib/program-types"
 import { getRecentPublishedBlogs } from "@/lib/blogs"
-import { getPopularLocations } from "@/lib/popular-locations"
+import { getPopularLocationsForHome } from "@/lib/popular-locations"
 import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
 import { activeProviderRowToCardData, getActiveProvidersFromDb } from "@/lib/search-providers-db"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
@@ -60,7 +60,7 @@ export default async function HomePage() {
     getAgeGroupsById(),
     getActiveProvidersFromDb(supabase),
     getRecentPublishedBlogs(3),
-    getPopularLocations(),
+    getPopularLocationsForHome(),
   ])
 
   const featuredProviders = selectFeaturedProviders(activeProviderRows, {

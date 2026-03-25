@@ -5,4 +5,4 @@ alter table if exists public.provider_profiles
   add column if not exists country_id uuid references public.countries(id) on delete restrict;
 
 alter table if exists public.provider_profiles
-  add column if not exists city_id uuid references public.cities(id) on delete restrict;
+  add column if not exists city_id uuid references public.cities(id) on delete cascade;

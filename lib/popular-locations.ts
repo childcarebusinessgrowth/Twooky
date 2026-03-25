@@ -13,3 +13,7 @@ export interface PopularLocationGroup {
 export async function getPopularLocations(): Promise<PopularLocationGroup[]> {
   return getPopularLocationGroups()
 }
+
+export async function getPopularLocationsForHome(): Promise<PopularLocationGroup[]> {
+  return getPopularLocationGroups({ countryLimit: 3, citiesPerCountry: 6 })
+}
