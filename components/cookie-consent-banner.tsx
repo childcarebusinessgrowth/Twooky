@@ -28,15 +28,19 @@ export function CookieConsentBanner() {
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    const consent = readConsentFromDocument()
-    setShowBanner(consent === null)
+    queueMicrotask(() => {
+      setMounted(true)
+      const consent = readConsentFromDocument()
+      setShowBanner(consent === null)
+    })
   }, [])
 
   useEffect(() => {
     if (!settingsOpen) return
-    const consent = readConsentFromDocument()
-    setAnalyticsEnabled(consent?.analytics ?? false)
+    queueMicrotask(() => {
+      const consent = readConsentFromDocument()
+      setAnalyticsEnabled(consent?.analytics ?? false)
+    })
   }, [settingsOpen])
 
   const applyConsent = (analytics: boolean) => {

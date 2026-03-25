@@ -13,9 +13,17 @@ export type ParentProfile = {
   updated_at: string
 }
 
-export default async function AdminParentsPage() {
+type PageProps = {
+  searchParams: Promise<{
+    search?: string
+  }>
+}
+
+export default async function AdminParentsPage({ searchParams }: PageProps) {
   let parents: ParentProfile[] = []
   let error: string | null = null
+  const params = await searchParams
+  const searchQuery = params.search?.trim() ?? ""
 
   try {
     const admin = getSupabaseAdminClient()
@@ -38,6 +46,7 @@ export default async function AdminParentsPage() {
     <ParentsPageClient
       initialParents={parents}
       loadError={error}
+      initialSearch={searchQuery}
     />
   )
 }

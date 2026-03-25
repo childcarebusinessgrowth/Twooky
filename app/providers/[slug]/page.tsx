@@ -57,7 +57,8 @@ export async function generateMetadata({ params }: ProviderPageProps) {
   }
 }
 
-export const revalidate = 60
+// This page is fully dynamic (per-user state like favorites, view tracking, etc.).
+// Keeping `revalidate` unset avoids confusing cache expectations.
 
 const availabilityBadgeClassByStatus: Record<"openings" | "waitlist" | "full", string> = {
   openings: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40",

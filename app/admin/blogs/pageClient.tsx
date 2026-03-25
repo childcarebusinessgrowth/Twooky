@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { CalendarDays, Clock3, Newspaper, Save, Send, Trash2, Eye, Upload, Sparkles, X } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -520,10 +521,13 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                         {manageForm.coverImageUrl ? (
                           <div className="flex flex-wrap items-center gap-3">
                             <div className="relative h-24 w-40 overflow-hidden rounded-md border border-border bg-muted group">
-                              <img
+                              <Image
                                 src={manageForm.coverImageUrl}
                                 alt={manageForm.coverImageAlt || "Cover preview"}
-                                className="h-full w-full object-cover"
+                                fill
+                                className="object-cover"
+                                sizes="160px"
+                                unoptimized
                               />
                               <Button
                                 type="button"
@@ -737,10 +741,13 @@ export function AdminBlogsPageClient({ initialBlogs }: Props) {
                 {editorForm.coverImageUrl ? (
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="relative h-24 w-40 overflow-hidden rounded-md border border-border bg-muted group">
-                      <img
+                      <Image
                         src={editorForm.coverImageUrl}
                         alt={editorForm.coverImageAlt || "Cover preview"}
-                        className="h-full w-full object-cover"
+                        fill
+                        className="object-cover"
+                        sizes="160px"
+                        unoptimized
                       />
                       <Button
                         type="button"

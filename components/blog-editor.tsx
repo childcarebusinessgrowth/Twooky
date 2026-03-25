@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
 import Image from "@tiptap/extension-image"
 import Placeholder from "@tiptap/extension-placeholder"
+import NextImage from "next/image"
 import {
   Bold,
   Italic,
@@ -493,11 +494,13 @@ export function BlogEditor({
             </div>
             {imageForm.url && (
               <div className="flex justify-center rounded-md border border-border/70 bg-muted/30 p-2">
-                <img
+                <NextImage
                   src={imageForm.url}
                   alt={imageForm.alt}
+                  width={Math.max(1, imageForm.width ?? 600)}
+                  height={128}
                   className="max-h-32 max-w-full object-contain"
-                  style={imageForm.width != null ? { width: imageForm.width } : undefined}
+                  unoptimized
                 />
               </div>
             )}

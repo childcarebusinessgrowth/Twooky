@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { publicMessageForError } from "@/lib/publicErrors"
 
 /**
  * GET: Check if provider is "new" (has not seen the onboarding tour).
@@ -30,7 +31,8 @@ export async function GET() {
       .maybeSingle()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error("Provider onboarding status query error:", error)
+      return NextResponse.json({ error: publicMessageForError(error, "Unable to check onboarding status") }, { status: 500 })
     }
 
     const isNewProvider =
@@ -39,8 +41,9 @@ export async function GET() {
       (profile.listing_status === "draft" || profile.listing_status == null)
 
     return NextResponse.json({ isNewProvider: !!isNewProvider })
-  } catch {
-    return NextResponse.json({ error: "Unable to check onboarding status" }, { status: 500 })
+  } catch (e) {
+    console.error("Provider onboarding status API error:", e)
+    return NextResponse.json({ error: publicMessageForError(e, "Unable to check onboarding status") }, { status: 500 })
   }
 }
 
@@ -70,11 +73,13 @@ export async function PATCH() {
       .eq("profile_id", user.id)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error("Provider onboarding status update error:", error)
+      return NextResponse.json({ error: publicMessageForError(error, "Unable to update onboarding status") }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: "Unable to update onboarding status" }, { status: 500 })
+  } catch (e) {
+    console.error("Provider onboarding update API error:", e)
+    return NextResponse.json({ error: publicMessageForError(e, "Unable to update onboarding status") }, { status: 500 })
   }
 }

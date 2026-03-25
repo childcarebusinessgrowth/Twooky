@@ -198,7 +198,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error: clientError } = await supabase.auth.signOut()
 
       if (serverError || clientError) {
-        const message = serverError ?? clientError?.message ?? "Unable to sign out right now."
         console.error("Supabase sign-out error", serverError ?? clientError)
         await signOutLocal()
         return {}

@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   title: 'Early Learning Directory | Find the Best Childcare Near You',
   description: 'Search thousands of trusted daycare centers, preschools, and nurseries. Find verified childcare providers with real parent reviews.',
   keywords: 'childcare, daycare, preschool, nursery, childcare near me, daycare centers, early learning',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   icons: {
     icon: [
       {
@@ -48,8 +49,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${inter.variable}`}>
-      <body className="font-sans antialiased min-h-screen flex flex-col">
+    <html lang="en" className={`${dmSans.variable} ${inter.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased min-h-screen flex flex-col" suppressHydrationWarning>
         <AuthProvider>
           <AppShell>
             {children}

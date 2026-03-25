@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { publicMessageForError } from "@/lib/publicErrors"
 
 type GuestInquiryPayload = {
   providerSlug?: string
@@ -81,8 +82,9 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (providerLookupError) {
+      console.error("Provider lookup error:", providerLookupError)
       return NextResponse.json(
-        { error: providerLookupError.message ?? "Failed to submit inquiry. Please try again." },
+        { error: publicMessageForError(providerLookupError, "Failed to submit inquiry. Please try again.") },
         { status: 500 }
       )
     }
@@ -113,7 +115,7 @@ export async function POST(request: Request) {
     if (rpcError) {
       console.error("create_guest_inquiry RPC error:", rpcError)
       return NextResponse.json(
-        { error: rpcError.message ?? "Failed to submit inquiry. Please try again." },
+        { error: publicMessageForError(rpcError, "Failed to submit inquiry. Please try again.") },
         { status: 500 }
       )
     }

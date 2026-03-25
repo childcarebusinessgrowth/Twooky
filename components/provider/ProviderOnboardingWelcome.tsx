@@ -23,7 +23,7 @@ export function ProviderOnboardingWelcome({ isNewProvider }: ProviderOnboardingW
 
   useEffect(() => {
     if (isNewProvider) {
-      setOpen(true)
+      queueMicrotask(() => setOpen(true))
     }
   }, [isNewProvider])
 

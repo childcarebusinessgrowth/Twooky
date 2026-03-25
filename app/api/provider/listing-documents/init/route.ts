@@ -9,7 +9,6 @@ import {
 } from "@/lib/provider-documents-constants"
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-const DOC_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"]
 
 export async function POST(request: Request) {
   try {
@@ -29,7 +28,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const docType = DOC_TYPES.includes(body.document_type) ? body.document_type : "Other"
     const files = (Array.isArray(body.files) ? body.files : []).filter(
       (f: { name?: string; size?: number; type?: string }) =>
         f && (f.size ?? 0) > 0 && f.name

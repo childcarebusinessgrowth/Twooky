@@ -24,6 +24,8 @@ function row(p: Partial<ActiveProviderRow> & { profile_id: string }): ActiveProv
     review_count: p.review_count ?? 0,
     avg_rating: p.avg_rating ?? null,
     featured: p.featured ?? true,
+    availability_status: p.availability_status ?? null,
+    available_spots_count: p.available_spots_count ?? null,
     early_learning_excellence_badge: p.early_learning_excellence_badge ?? false,
     verified_provider_badge: p.verified_provider_badge ?? false,
     verified_provider_badge_color: p.verified_provider_badge_color ?? "emerald",

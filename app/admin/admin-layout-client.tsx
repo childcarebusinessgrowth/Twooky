@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   LayoutDashboard,
   Building2,
@@ -100,10 +100,34 @@ export function AdminLayoutClient({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([])
   const [notificationsLoading, setNotificationsLoading] = useState(true)
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [headerSearch, setHeaderSearch] = useState("")
   const router = useRouter()
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "admin")
   const unreadCount = notifications.filter((n) => !n.readAt).length
+
+  useEffect(() => {
+    setHeaderSearch(searchParams.get("search") ?? "")
+  }, [searchParams])
+
+  const runHeaderSearch = useCallback(() => {
+    const q = headerSearch.trim()
+    const base =
+      pathname.startsWith("/admin/parents")
+        ? "/admin/parents"
+        : pathname.startsWith("/admin/listings")
+          ? "/admin/listings"
+          : "/admin/listings"
+
+    const next = new URLSearchParams(searchParams.toString())
+    next.set("page", "1")
+    if (q) next.set("search", q)
+    else next.delete("search")
+
+    router.push(`${base}?${next.toString()}`)
+  }, [headerSearch, pathname, router, searchParams])
 
   async function markNotificationsRead(ids: string[]) {
     if (ids.length === 0) return
@@ -250,7 +274,15 @@ export function AdminLayoutClient({
             <div className="max-w-md flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search listings, users..." className="border-0 bg-muted/50 pl-9 focus-visible:ring-1" />
+                <Input
+                  placeholder="Search listings, users..."
+                  className="border-0 bg-muted/50 pl-9 focus-visible:ring-1"
+                  value={headerSearch}
+                  onChange={(e) => setHeaderSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runHeaderSearch()
+                  }}
+                />
               </div>
             </div>
 

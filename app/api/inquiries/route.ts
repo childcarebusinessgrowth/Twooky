@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { publicMessageForError } from "@/lib/publicErrors"
 
 type CreateInquiryPayload = {
   providerSlug?: string
@@ -70,8 +71,9 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (providerLookupError) {
+      console.error("Provider lookup error:", providerLookupError)
       return NextResponse.json(
-        { error: providerLookupError.message ?? "Failed to create inquiry." },
+        { error: publicMessageForError(providerLookupError, "Failed to create inquiry.") },
         { status: 500 }
       )
     }
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
     if (rpcError) {
       console.error("create_inquiry RPC error:", rpcError)
       return NextResponse.json(
-        { error: rpcError.message ?? "Failed to create inquiry." },
+        { error: publicMessageForError(rpcError, "Failed to create inquiry.") },
         { status: 500 }
       )
     }

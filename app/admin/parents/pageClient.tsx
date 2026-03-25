@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Search, MapPin, Mail, Calendar, User, UsersRound, MoreVertical, CheckCircle2, XCircle, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -211,10 +211,17 @@ function ParentCard({ parent, onAction }: ParentCardProps) {
 type Props = {
   initialParents: ParentProfile[]
   loadError: string | null
+  initialSearch?: string
 }
 
-export function ParentsPageClient({ initialParents, loadError }: Props) {
-  const [search, setSearch] = useState("")
+export function ParentsPageClient({ initialParents, loadError, initialSearch = "" }: Props) {
+  const [search, setSearch] = useState(initialSearch)
+
+  // Keep in sync when navigating with ?search=
+  // (e.g. using the global admin header search)
+  useEffect(() => {
+    setSearch(initialSearch)
+  }, [initialSearch])
 
   const filteredParents = useMemo(() => {
     if (!search.trim()) return initialParents

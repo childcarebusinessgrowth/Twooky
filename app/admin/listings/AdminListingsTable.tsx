@@ -15,6 +15,7 @@ import {
   Loader2,
   Plus,
   Award,
+  Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -415,10 +416,16 @@ export function AdminListingsTable({
             </SheetContent>
           </Sheet>
         </div>
-        <Button className="ml-auto" onClick={() => router.push("/admin/listings/new")}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Provider
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push("/admin/listings/import")}>
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Import
+          </Button>
+          <Button onClick={() => router.push("/admin/listings/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Provider
+          </Button>
+        </div>
       </div>
 
       {selectedIds.size > 0 && (

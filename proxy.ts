@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from "next/server"
 import { getDefaultRouteForRole, getProfileRoleForUser, getRequiredRoleForPath } from "@/lib/authz"
 import type { Database } from "@/lib/supabaseDatabase"
 
+export function shouldBlockWhenSupabaseEnvMissing(pathname: string): boolean {
+  if (pathname === "/login" || pathname === "/signup") return true
+  if (pathname.startsWith("/admin")) return true
+  if (pathname.startsWith("/dashboard")) return true
+  return false
+}
+
 function buildLoginRedirect(request: NextRequest): NextResponse {
   const loginUrl = new URL("/login", request.url)
   loginUrl.searchParams.set("next", request.nextUrl.pathname)
@@ -21,7 +28,15 @@ export async function proxy(request: NextRequest) {
   const publishableKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  const pathname = request.nextUrl.pathname
+
   if (!supabaseUrl || !publishableKey) {
+    if (shouldBlockWhenSupabaseEnvMissing(pathname)) {
+      return new NextResponse("Service misconfigured: missing Supabase environment variables.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      })
+    }
     return NextResponse.next()
   }
 
@@ -48,7 +63,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const pathname = request.nextUrl.pathname
   const isAuthPage = pathname === "/login" || pathname === "/signup"
   const requiredRole = getRequiredRoleForPath(pathname)
 
