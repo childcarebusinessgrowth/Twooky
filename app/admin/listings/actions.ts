@@ -232,8 +232,10 @@ export async function getAdminListings(
   if (idsForPage.length === 0) return { listings: [], total }
 
   const rowsForPage = allRows.filter((r) => idsForPage.includes(r.profile_id))
-  const orderByPage = idsForPage.map((id) => rowsForPage.find((r) => r.profile_id === id)!)
-  const orderedRows = orderByPage.filter(Boolean)
+  const rowById = new Map(rowsForPage.map((r) => [r.profile_id, r] as const))
+  const orderedRows = idsForPage
+    .map((id) => rowById.get(id))
+    .filter((row): row is (typeof allRows)[number] => row != null)
 
   const [photosResult] = await Promise.all([
     supabase.from("provider_photos").select("provider_profile_id, storage_path").in("provider_profile_id", idsForPage).eq("is_primary", true),

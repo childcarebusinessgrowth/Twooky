@@ -4,11 +4,23 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Line, LineChart, XAxis, YAxis, Bar, BarChart, Area, AreaChart } from "recharts"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  ComposedChart,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts"
 import type { ProviderAnalyticsData, DateRangeKey } from "@/lib/provider-analytics"
 
 const chartConfig = {
   views: { label: "Views", color: "var(--chart-1)" },
+  visits: { label: "Website Visits", color: "var(--chart-4)" },
+  uniqueVisitors: { label: "Unique Visitors", color: "var(--chart-5)" },
   inquiries: { label: "Inquiries", color: "var(--chart-2)" },
   converted: { label: "Converted", color: "var(--chart-1)" },
   reviews: { label: "Reviews", color: "var(--chart-3)" },
@@ -46,8 +58,11 @@ export function AnalyticsCharts({ data, currentRange }: AnalyticsChartsProps) {
 
   const {
     viewsByMonth,
+    micrositeTrafficByMonth,
     inquiriesByMonth,
     reviewsByMonth,
+    micrositeVisitsTotal,
+    micrositeUniqueVisitorsTotal,
     conversionRatePercent,
     avgResponseTimeHours,
     searchRank,
@@ -110,6 +125,65 @@ export function AnalyticsCharts({ data, currentRange }: AnalyticsChartsProps) {
               />
             </AreaChart>
           </ChartContainer>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Published Site Traffic</CardTitle>
+          <CardDescription>Visits and unique visitors on your published microsite</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ComposedChart data={micrositeTrafficByMonth} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="micrositeVisitsGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--chart-4)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--chart-4)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                type="number"
+                domain={([, dataMax]) => [0, Math.max(dataMax, 1)]}
+                allowDecimals={false}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area
+                type="linear"
+                dataKey="visits"
+                stroke="var(--chart-4)"
+                strokeWidth={2}
+                fill="url(#micrositeVisitsGradient)"
+              />
+              <Line
+                type="linear"
+                dataKey="uniqueVisitors"
+                stroke="var(--chart-5)"
+                strokeWidth={2}
+                dot={{ fill: "var(--chart-5)", strokeWidth: 0, r: 3 }}
+              />
+            </ComposedChart>
+          </ChartContainer>
+          <div className="flex justify-center gap-6 mt-4">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: "var(--chart-4)" }} />
+              <span className="text-sm text-muted-foreground">Website Visits</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: "var(--chart-5)" }} />
+              <span className="text-sm text-muted-foreground">Unique Visitors</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -182,7 +256,27 @@ export function AnalyticsCharts({ data, currentRange }: AnalyticsChartsProps) {
         </CardContent>
       </Card>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardDescription>Website Visits</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">{micrositeVisitsTotal.toLocaleString()}</div>
+            <p className="text-sm text-muted-foreground">total published site visits in range</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardDescription>Unique Visitors</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">{micrositeUniqueVisitorsTotal.toLocaleString()}</div>
+            <p className="text-sm text-muted-foreground">distinct visitors in selected range</p>
+          </CardContent>
+        </Card>
+
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardDescription>Conversion Rate</CardDescription>

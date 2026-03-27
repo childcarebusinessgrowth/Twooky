@@ -34,19 +34,26 @@ function toMonthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 }
 
-function monthKeyToLabel(key: string): string {
-  const [, m] = key.split("-").map(Number)
-  return MONTH_LABELS[m - 1] ?? key
+/** Month + short year so charts spanning New Year do not duplicate labels (e.g. Mar '25 vs Mar '26). */
+function monthKeyToDisplayLabel(key: string): string {
+  const [y, m] = key.split("-").map(Number)
+  const monthName = MONTH_LABELS[m - 1] ?? key
+  const yy = String(y).slice(-2)
+  return `${monthName} '${yy}`
 }
 
 export type ViewsByMonthRow = { month: string; views: number }
+export type MicrositeTrafficByMonthRow = { month: string; visits: number; uniqueVisitors: number }
 export type InquiriesByMonthRow = { month: string; inquiries: number; converted: number }
 export type ReviewsByMonthRow = { month: string; reviews: number }
 
 export type ProviderAnalyticsData = {
   viewsByMonth: ViewsByMonthRow[]
+  micrositeTrafficByMonth: MicrositeTrafficByMonthRow[]
   inquiriesByMonth: InquiriesByMonthRow[]
   reviewsByMonth: ReviewsByMonthRow[]
+  micrositeVisitsTotal: number
+  micrositeUniqueVisitorsTotal: number
   conversionRatePercent: number | null
   avgResponseTimeHours: number | null
   searchRank: number | null
@@ -64,7 +71,7 @@ function fillMonthBuckets<T extends { month: string }>(
   const cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
   while (cur <= end) {
     const key = toMonthKey(cur)
-    result.push(buckets.get(key) ?? toRow(monthKeyToLabel(key)))
+    result.push(buckets.get(key) ?? toRow(monthKeyToDisplayLabel(key)))
     cur.setMonth(cur.getMonth() + 1)
   }
   return result
@@ -80,8 +87,15 @@ export async function getProviderAnalytics(
   const rangeStartIso = rangeStart.toISOString()
   const rangeEndIso = rangeEnd.toISOString()
 
+  const { data: website } = await supabase
+    .from("provider_websites")
+    .select("id")
+    .eq("profile_id", providerProfileId)
+    .maybeSingle()
+
   const [
     viewsRows,
+    micrositeVisitRows,
     inquiriesRows,
     guestInquiriesRows,
     reviewsRows,
@@ -94,6 +108,14 @@ export async function getProviderAnalytics(
       .eq("provider_profile_id", providerProfileId)
       .gte("viewed_at", rangeStartIso)
       .lte("viewed_at", rangeEndIso),
+    website?.id
+      ? supabase
+          .from("provider_website_visits")
+          .select("visited_at, visitor_token")
+          .eq("provider_website_id", website.id)
+          .gte("visited_at", rangeStartIso)
+          .lte("visited_at", rangeEndIso)
+      : Promise.resolve({ data: [] as { visited_at: string; visitor_token: string }[] }),
     supabase
       .from("inquiries")
       .select("id, created_at, lead_status")
@@ -118,6 +140,11 @@ export async function getProviderAnalytics(
   ])
 
   const viewsByMonth = aggregateViewsByMonth(viewsRows.data ?? [], rangeStart, rangeEnd)
+  const micrositeTrafficByMonth = aggregateMicrositeTrafficByMonth(
+    micrositeVisitRows.data ?? [],
+    rangeStart,
+    rangeEnd
+  )
   const inquiriesByMonth = aggregateInquiriesByMonth(
     inquiriesRows.data ?? [],
     guestInquiriesRows.data ?? [],
@@ -127,11 +154,18 @@ export async function getProviderAnalytics(
   const reviewsByMonth = aggregateReviewsByMonth(reviewsRows.data ?? [], rangeStart, rangeEnd)
   const conversionRatePercent = computeConversionRateFromLeadStatus(inquiriesRows.data ?? [])
   const avgResponseTimeHours = inquiryIdsWithFirstReply.avgResponseTimeHours
+  const micrositeVisitsTotal = micrositeVisitRows.data?.length ?? 0
+  const micrositeUniqueVisitorsTotal = new Set(
+    (micrositeVisitRows.data ?? []).map((row) => row.visitor_token)
+  ).size
 
   return {
     viewsByMonth,
+    micrositeTrafficByMonth,
     inquiriesByMonth,
     reviewsByMonth,
+    micrositeVisitsTotal,
+    micrositeUniqueVisitorsTotal,
     conversionRatePercent,
     avgResponseTimeHours,
     searchRank: rankingData.rank,
@@ -148,12 +182,46 @@ function aggregateViewsByMonth(
   for (const row of rows) {
     const d = new Date(row.viewed_at)
     const key = toMonthKey(d)
-    const label = monthKeyToLabel(key)
+    const label = monthKeyToDisplayLabel(key)
     const cur = buckets.get(key) ?? { month: label, views: 0 }
     cur.views += 1
     buckets.set(key, cur)
   }
   return fillMonthBuckets(buckets, rangeStart, rangeEnd, (label) => ({ month: label, views: 0 }))
+}
+
+function aggregateMicrositeTrafficByMonth(
+  rows: { visited_at: string; visitor_token: string }[],
+  rangeStart: Date,
+  rangeEnd: Date
+): MicrositeTrafficByMonthRow[] {
+  const buckets = new Map<string, { month: string; visits: number; uniqueVisitors: Set<string> }>()
+  for (const row of rows) {
+    const d = new Date(row.visited_at)
+    const key = toMonthKey(d)
+    const label = monthKeyToDisplayLabel(key)
+    const cur = buckets.get(key) ?? { month: label, visits: 0, uniqueVisitors: new Set<string>() }
+    cur.visits += 1
+    if (row.visitor_token) {
+      cur.uniqueVisitors.add(row.visitor_token)
+    }
+    buckets.set(key, cur)
+  }
+
+  const normalizedBuckets = new Map<string, MicrositeTrafficByMonthRow>()
+  for (const [key, value] of buckets.entries()) {
+    normalizedBuckets.set(key, {
+      month: value.month,
+      visits: value.visits,
+      uniqueVisitors: value.uniqueVisitors.size,
+    })
+  }
+
+  return fillMonthBuckets(normalizedBuckets, rangeStart, rangeEnd, (label) => ({
+    month: label,
+    visits: 0,
+    uniqueVisitors: 0,
+  }))
 }
 
 function aggregateInquiriesByMonth(
@@ -166,7 +234,7 @@ function aggregateInquiriesByMonth(
   const add = (createdAt: string, isConverted = false) => {
     const d = new Date(createdAt)
     const key = toMonthKey(d)
-    const label = monthKeyToLabel(key)
+    const label = monthKeyToDisplayLabel(key)
     const cur = buckets.get(key) ?? { month: label, inquiries: 0, converted: 0 }
     cur.inquiries += 1
     if (isConverted) cur.converted += 1
@@ -194,7 +262,7 @@ function aggregateReviewsByMonth(
   for (const row of rows) {
     const d = new Date(row.created_at)
     const key = toMonthKey(d)
-    const label = monthKeyToLabel(key)
+    const label = monthKeyToDisplayLabel(key)
     const cur = buckets.get(key) ?? { month: label, reviews: 0 }
     cur.reviews += 1
     buckets.set(key, cur)

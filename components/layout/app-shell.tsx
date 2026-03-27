@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 
-const DASHBOARD_PREFIXES = ['/dashboard', '/admin', '/parents']
+const DASHBOARD_PREFIXES = ['/dashboard', '/admin', '/parents', '/site']
 
 interface AppShellProps {
   children: ReactNode

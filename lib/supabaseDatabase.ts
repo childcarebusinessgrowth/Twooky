@@ -810,6 +810,222 @@ export interface Database {
         }
         Relationships: []
       }
+      provider_website_assets: {
+        Row: {
+          id: string
+          website_id: string
+          storage_path: string
+          content_type: string | null
+          byte_size: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          website_id: string
+          storage_path: string
+          content_type?: string | null
+          byte_size?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          website_id?: string
+          storage_path?: string
+          content_type?: string | null
+          byte_size?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      provider_website_visits: {
+        Row: {
+          id: string
+          provider_website_id: string
+          page_slug: string
+          visitor_token: string
+          referrer: string | null
+          user_agent: string | null
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          provider_website_id: string
+          page_slug?: string
+          visitor_token: string
+          referrer?: string | null
+          user_agent?: string | null
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          provider_website_id?: string
+          page_slug?: string
+          visitor_token?: string
+          referrer?: string | null
+          user_agent?: string | null
+          visited_at?: string
+        }
+        Relationships: []
+      }
+      provider_website_pages: {
+        Row: {
+          id: string
+          website_id: string
+          path_slug: string
+          title: string
+          seo_title: string | null
+          meta_description: string | null
+          sort_order: number
+          is_home: boolean
+          canvas_nodes: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          website_id: string
+          path_slug: string
+          title?: string
+          seo_title?: string | null
+          meta_description?: string | null
+          sort_order?: number
+          is_home?: boolean
+          canvas_nodes?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          website_id?: string
+          path_slug?: string
+          title?: string
+          seo_title?: string | null
+          meta_description?: string | null
+          sort_order?: number
+          is_home?: boolean
+          canvas_nodes?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_website_published_versions: {
+        Row: {
+          id: string
+          website_id: string
+          snapshot: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          website_id: string
+          snapshot: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          website_id?: string
+          snapshot?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      provider_websites: {
+        Row: {
+          id: string
+          profile_id: string
+          subdomain_slug: string
+          template_key: string | null
+          theme_tokens: Json
+          nav_items: Json
+          published_version_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          subdomain_slug: string
+          template_key?: string | null
+          theme_tokens?: Json
+          nav_items?: Json
+          published_version_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          subdomain_slug?: string
+          template_key?: string | null
+          theme_tokens?: Json
+          nav_items?: Json
+          published_version_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_blog_posts: {
+        Row: {
+          id: string
+          provider_website_id: string
+          slug: string
+          title: string
+          excerpt: string
+          content_html: string
+          status: "draft" | "published"
+          featured: boolean
+          published_at: string | null
+          seo_title: string | null
+          meta_description: string | null
+          cover_image_url: string | null
+          cover_image_alt: string | null
+          tags: string[]
+          reading_time: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          provider_website_id: string
+          slug: string
+          title: string
+          excerpt?: string
+          content_html?: string
+          status?: "draft" | "published"
+          featured?: boolean
+          published_at?: string | null
+          seo_title?: string | null
+          meta_description?: string | null
+          cover_image_url?: string | null
+          cover_image_alt?: string | null
+          tags?: string[]
+          reading_time?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          provider_website_id?: string
+          slug?: string
+          title?: string
+          excerpt?: string
+          content_html?: string
+          status?: "draft" | "published"
+          featured?: boolean
+          published_at?: string | null
+          seo_title?: string | null
+          meta_description?: string | null
+          cover_image_url?: string | null
+          cover_image_alt?: string | null
+          tags?: string[]
+          reading_time?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inquiries: {
         Row: {
           id: string
@@ -1154,6 +1370,10 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      get_published_provider_website: {
+        Args: { p_subdomain: string }
+        Returns: Json | null
+      }
       get_guest_inquiry_message_decrypted: {
         Args: { p_guest_inquiry_id: string }
         Returns: string | null

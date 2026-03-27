@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache"
 import { randomUUID } from "crypto"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
+import {
+  normalizeBlogSlug,
+  sanitizeBlogTags,
+  validateBlogInput,
+  type BlogInput,
+  type BlogStatus,
+} from "@/lib/blog-shared"
 
 const ADMIN_BLOGS_PATH = "/admin/blogs"
 const PUBLIC_BLOGS_PATH = "/blogs"
@@ -11,70 +18,7 @@ const BLOG_IMAGES_BUCKET = "blog-images"
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"])
 
-export type BlogStatus = "draft" | "published"
-
-export type BlogInput = {
-  title: string
-  slug: string
-  excerpt: string
-  contentHtml: string
-  status: BlogStatus
-  featured: boolean
-  seoTitle: string
-  metaDescription: string
-  coverImageUrl: string
-  coverImageAlt: string
-  tags: string[]
-  readingTime: string
-}
-
-function normalizeSlug(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-}
-
-function sanitizeTags(tags: string[]): string[] {
-  return Array.from(
-    new Set(
-      tags
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .slice(0, 12),
-    ),
-  )
-}
-
-function validateInput(input: BlogInput) {
-  if (!input.title.trim()) {
-    throw new Error("Title is required.")
-  }
-
-  const normalizedSlug = normalizeSlug(input.slug)
-  if (!normalizedSlug) {
-    throw new Error("Slug is required.")
-  }
-
-  if (!input.excerpt.trim()) {
-    throw new Error("Excerpt is required.")
-  }
-
-  if (!input.contentHtml.trim()) {
-    throw new Error("Content is required.")
-  }
-
-  if (input.seoTitle.trim().length > 70) {
-    throw new Error("SEO title should be 70 characters or less.")
-  }
-
-  if (input.metaDescription.trim().length > 180) {
-    throw new Error("Meta description should be 180 characters or less.")
-  }
-}
+export type { BlogInput, BlogStatus }
 
 async function assertSlugIsUnique(slug: string, currentId?: string) {
   const supabase = getSupabaseAdminClient()
@@ -105,7 +49,7 @@ function revalidateBlogRoutes(slug?: string | null) {
 }
 
 function toInsertPayload(input: BlogInput) {
-  const normalizedSlug = normalizeSlug(input.slug)
+  const normalizedSlug = normalizeBlogSlug(input.slug)
   const trimmedStatus: BlogStatus = input.status === "published" ? "published" : "draft"
   const publishedAt = trimmedStatus === "published" ? new Date().toISOString() : null
 
@@ -121,14 +65,14 @@ function toInsertPayload(input: BlogInput) {
     meta_description: input.metaDescription.trim() || null,
     cover_image_url: input.coverImageUrl.trim() || null,
     cover_image_alt: input.coverImageAlt.trim() || null,
-    tags: sanitizeTags(input.tags),
+    tags: sanitizeBlogTags(input.tags),
     reading_time: input.readingTime.trim() || "3 min read",
   }
 }
 
 export async function createBlog(input: BlogInput) {
   await assertServerRole("admin")
-  validateInput(input)
+  validateBlogInput(input)
   const payload = toInsertPayload(input)
   await assertSlugIsUnique(payload.slug)
 
@@ -148,7 +92,7 @@ export async function updateBlog(id: string, input: BlogInput) {
     throw new Error("Blog id is required.")
   }
 
-  validateInput(input)
+  validateBlogInput(input)
   const payload = toInsertPayload(input)
   await assertSlugIsUnique(payload.slug, id)
 

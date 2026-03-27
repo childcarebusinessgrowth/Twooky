@@ -143,7 +143,15 @@ function getLeadStatusBadgeClass(status: string): string {
 
 function getSourceBadgeClass(source: string | null): string {
   if (source === "compare") return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800"
+  if (source === "microsite")
+    return "bg-sky-50 text-sky-800 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800"
   return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700"
+}
+
+function getSourceLabel(source: string | null): string {
+  if (source === "compare") return "Compare"
+  if (source === "microsite") return "Website"
+  return "Directory"
 }
 
 export function ProviderInquiriesClient({
@@ -538,6 +546,7 @@ export function ProviderInquiriesClient({
                   <SelectItem value="all">All sources</SelectItem>
                   <SelectItem value="directory">Directory</SelectItem>
                   <SelectItem value="compare">Compare</SelectItem>
+                  <SelectItem value="microsite">Website</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -583,12 +592,14 @@ export function ProviderInquiriesClient({
                             {getLeadStatusLabel(item.leadStatus)}
                           </Badge>
                         )}
-                        {(item.source === "directory" || item.source === "compare") && (
+                        {(item.source === "directory" ||
+                          item.source === "compare" ||
+                          item.source === "microsite") && (
                           <Badge
                             variant="outline"
                             className={`text-[10px] ${getSourceBadgeClass(item.source)}`}
                           >
-                            {item.source === "compare" ? "Compare" : "Directory"}
+                            {getSourceLabel(item.source)}
                           </Badge>
                         )}
                       </div>
@@ -665,9 +676,11 @@ export function ProviderInquiriesClient({
                       {getLeadStatusLabel(inquiryMeta.leadStatus)}
                     </Badge>
                   )}
-                  {(inquiryMeta?.source === "directory" || inquiryMeta?.source === "compare") && (
+                  {(inquiryMeta?.source === "directory" ||
+                    inquiryMeta?.source === "compare" ||
+                    inquiryMeta?.source === "microsite") && (
                     <Badge variant="outline" className={`text-[10px] ${getSourceBadgeClass(inquiryMeta.source)}`}>
-                      {inquiryMeta.source === "compare" ? "Compare" : "Directory"}
+                      {getSourceLabel(inquiryMeta.source)}
                     </Badge>
                   )}
                 </div>
@@ -771,7 +784,7 @@ export function ProviderInquiriesClient({
                 <Badge variant="secondary" className="text-[10px]">Contact request</Badge>
                 {selectedGuest?.source && (
                   <Badge variant="outline" className={`text-[10px] ${getSourceBadgeClass(selectedGuest.source)}`}>
-                    {selectedGuest.source === "compare" ? "Compare" : "Directory"}
+                    {getSourceLabel(selectedGuest.source)}
                   </Badge>
                 )}
               </div>

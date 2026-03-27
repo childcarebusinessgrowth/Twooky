@@ -1,3 +1,4 @@
+import "./supabaseAuthConsoleDev"
 import { createBrowserClient } from "@supabase/ssr"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabaseDatabase"
@@ -13,7 +14,7 @@ export function getSupabaseClient(): SupabaseClient<Database> {
 
   if (!supabaseUrl || !supabasePublishableKey) {
     const message =
-      "Missing Supabase environment variables NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
+      "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
 
     if (process.env.NODE_ENV !== "production") {
       console.error(message)

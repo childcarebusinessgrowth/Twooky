@@ -32,8 +32,11 @@ export default async function AnalyticsPage({
           key={range}
           data={{
             viewsByMonth: [],
+            micrositeTrafficByMonth: [],
             inquiriesByMonth: [],
             reviewsByMonth: [],
+            micrositeVisitsTotal: 0,
+            micrositeUniqueVisitorsTotal: 0,
             conversionRatePercent: null,
             avgResponseTimeHours: null,
             searchRank: null,

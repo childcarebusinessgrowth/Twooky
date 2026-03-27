@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import { isTreatedAsSignedOutAuthError } from "@/lib/supabaseAuthErrors"
 
 type AuthContextValue = {
   user: User | null
@@ -31,13 +32,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-function isMissingSessionError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false
-
-  const maybeError = error as { name?: string; status?: number; __isAuthError?: boolean }
-  return maybeError.name === "AuthSessionMissingError" && maybeError.status === 400 && !!maybeError.__isAuthError
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,9 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isMounted) return
 
         if (userError) {
-          if (isMissingSessionError(userError)) {
+          if (isTreatedAsSignedOutAuthError(userError)) {
             setUser(null)
             setAuthError(null)
+            await supabase.auth.signOut({ scope: "local" }).catch(() => {
+              /* ignore — storage may already be inconsistent */
+            })
           } else {
             console.error("Error validating Supabase user", userError)
             // Default to signed-out UI when validation fails to avoid stale dashboard links.

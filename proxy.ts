@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getDefaultRouteForRole, getProfileRoleForUser, getRequiredRoleForPath } from "@/lib/authz"
+import { isTreatedAsSignedOutAuthError } from "@/lib/supabaseAuthErrors"
 import type { Database } from "@/lib/supabaseDatabase"
 
 export function shouldBlockWhenSupabaseEnvMissing(pathname: string): boolean {
@@ -8,6 +9,43 @@ export function shouldBlockWhenSupabaseEnvMissing(pathname: string): boolean {
   if (pathname.startsWith("/admin")) return true
   if (pathname.startsWith("/dashboard")) return true
   return false
+}
+
+function shouldRunAuth(pathname: string): boolean {
+  if (pathname === "/login" || pathname === "/signup") return true
+  if (pathname.startsWith("/admin")) return true
+  if (pathname.startsWith("/dashboard")) return true
+  return false
+}
+
+/**
+ * Rewrites provider microsites from `subdomain.ROOT_DOMAIN` to internal `/site/subdomain/...`
+ * Set NEXT_PUBLIC_SITE_ROOT_DOMAIN to your apex host (e.g. earlylearningdirectory.com) in production.
+ */
+function rewriteSubdomainIfNeeded(request: NextRequest): NextResponse | null {
+  const root = process.env.NEXT_PUBLIC_SITE_ROOT_DOMAIN?.trim().toLowerCase()
+  if (!root) {
+    return null
+  }
+
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase()
+  if (!host || host === root || host === `www.${root}`) {
+    return null
+  }
+
+  if (!host.endsWith(`.${root}`)) {
+    return null
+  }
+
+  const sub = host.slice(0, -(root.length + 1))
+  if (!sub || sub.includes(".")) {
+    return null
+  }
+
+  const url = request.nextUrl.clone()
+  const rest = url.pathname === "/" ? "" : url.pathname
+  url.pathname = `/site/${encodeURIComponent(sub)}${rest}`
+  return NextResponse.rewrite(url)
 }
 
 function buildLoginRedirect(request: NextRequest): NextResponse {
@@ -24,11 +62,24 @@ function withCookies(source: NextResponse, target: NextResponse): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  if (pathname.startsWith("/api")) {
+    return NextResponse.next()
+  }
+
+  const subdomainRewrite = rewriteSubdomainIfNeeded(request)
+  if (subdomainRewrite) {
+    return subdomainRewrite
+  }
+
+  if (!shouldRunAuth(pathname)) {
+    return NextResponse.next()
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const publishableKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  const pathname = request.nextUrl.pathname
 
   if (!supabaseUrl || !publishableKey) {
     if (shouldBlockWhenSupabaseEnvMissing(pathname)) {
@@ -61,21 +112,31 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error: getUserError,
   } = await supabase.auth.getUser()
+
+  const staleSession = Boolean(getUserError && isTreatedAsSignedOutAuthError(getUserError))
+  if (staleSession) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {
+      /* ignore — session cookies may already be invalid */
+    })
+  }
+
+  const effectiveUser = staleSession ? null : user
 
   const isAuthPage = pathname === "/login" || pathname === "/signup"
   const requiredRole = getRequiredRoleForPath(pathname)
 
-  if (!user) {
+  if (!effectiveUser) {
     if (requiredRole) {
       return withCookies(response, buildLoginRedirect(request))
     }
     return response
   }
 
-  const role = await getProfileRoleForUser(supabase, user)
+  const role = await getProfileRoleForUser(supabase, effectiveUser)
   if (!role) {
-    // If the user is authenticated but role resolution fails in middleware (e.g. restrictive RLS),
+    // If the user is authenticated but role resolution fails in proxy (e.g. restrictive RLS),
     // do not redirect back to login and create a dead-end loop.
     return response
   }
@@ -92,5 +153,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/login", "/signup"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 }

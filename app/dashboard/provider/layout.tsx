@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Bell,
   Search,
+  LayoutTemplate,
   ChevronDown,
   Menu,
   ArrowRight,
@@ -33,12 +34,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { isProviderWebsiteBuilderEnabled } from "@/lib/website-builder/feature-flag"
 import { RequireAuth } from "@/components/RequireAuth"
 import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
 import type { ProviderNotificationItem } from "@/app/api/provider/notifications/route"
+import { ProviderWebsiteNavSection } from "@/components/provider/ProviderWebsiteNavSection"
 
-const sidebarItems = [
+const sidebarItemsAll = [
   { label: "Overview", href: "/dashboard/provider", icon: LayoutDashboard },
   { label: "Manage Listing & Tour", href: "/dashboard/provider/listing", icon: FileEdit },
   { label: "Availability", href: "/dashboard/provider/availability", icon: CheckCircle },
@@ -46,6 +49,7 @@ const sidebarItems = [
   { label: "Leads (CRM)", href: "/dashboard/provider/inquiries", icon: MessageSquare },
   { label: "Photos", href: "/dashboard/provider/photos", icon: Image },
   { label: "FAQs", href: "/dashboard/provider/faqs", icon: HelpCircle },
+  { label: "Website", href: "/dashboard/provider/website", icon: LayoutTemplate },
   { label: "Analytics", href: "/dashboard/provider/analytics", icon: BarChart3 },
   { label: "Subscription", href: "/dashboard/provider/subscription", icon: CreditCard },
   { label: "Settings", href: "/dashboard/provider/settings", icon: Settings },
@@ -53,10 +57,17 @@ const sidebarItems = [
 
 function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname()
+  const builderOn = isProviderWebsiteBuilderEnabled()
+  const sidebarItems = sidebarItemsAll.filter(
+    (item) => item.href !== "/dashboard/provider/website" || builderOn,
+  )
 
   return (
     <nav className="flex flex-col gap-1 px-3">
       {sidebarItems.map((item) => {
+        if (item.href === "/dashboard/provider/website" && builderOn) {
+          return <ProviderWebsiteNavSection key="website" onItemClick={onItemClick} />
+        }
         const isActive = pathname === item.href
         return (
           <Link
@@ -66,9 +77,9 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
             {...(item.href === "/dashboard/provider/photos" ? { "data-tour-photos": "" } : {})}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-              isActive 
-                ? "bg-primary text-primary-foreground" 
-                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              isActive
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent",
             )}
           >
             <item.icon className="h-5 w-5" />

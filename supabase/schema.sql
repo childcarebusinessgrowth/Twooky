@@ -1667,3 +1667,11 @@ where u.id = p.id
 --
 -- Do NOT store the password in SQL; passwords are managed solely by Supabase Auth.
 
+-- ============================================================================
+-- 11. Provider website builder (see migration 20260325120001_provider_website_builder.sql)
+-- ============================================================================
+-- Tables: provider_websites, provider_website_pages, provider_website_assets,
+--         provider_website_published_versions
+-- RPC: get_published_provider_website(subdomain) for public reads of published snapshots.
+-- Storage bucket: provider-website-assets (created at upload time via admin client).
+

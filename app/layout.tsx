@@ -1,5 +1,15 @@
 import type { Metadata } from 'next'
-import { DM_Sans, Inter } from 'next/font/google'
+import {
+  Cormorant_Garamond,
+  DM_Sans,
+  Inter,
+  Lato,
+  Nunito,
+  Open_Sans,
+  Oswald,
+  Playfair_Display,
+  Source_Sans_3,
+} from 'next/font/google'
 import { AnalyticsConsentGate } from '@/components/analytics-consent-gate'
 import { AuthProvider } from '@/components/AuthProvider'
 import { CookieConsentBanner } from '@/components/cookie-consent-banner'
@@ -17,6 +27,49 @@ const inter = Inter({
   subsets: ["latin"],
   variable: '--font-inter',
   display: 'swap',
+})
+
+const cormorantGaramond = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-cormorant",
+  display: "swap",
+})
+
+const sourceSans3 = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-source-sans",
+  display: "swap",
+})
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+})
+
+const lato = Lato({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-lato",
+  display: "swap",
+})
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-nunito",
+  display: "swap",
+})
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  variable: "--font-oswald",
+  display: "swap",
+})
+
+const openSans = Open_Sans({
+  subsets: ["latin"],
+  variable: "--font-open-sans",
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -49,7 +102,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${inter.variable} ${cormorantGaramond.variable} ${sourceSans3.variable} ${playfairDisplay.variable} ${lato.variable} ${nunito.variable} ${oswald.variable} ${openSans.variable}`}
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased min-h-screen flex flex-col" suppressHydrationWarning>
         <AuthProvider>
           <AppShell>
