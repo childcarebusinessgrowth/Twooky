@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: LocationPageProps) {
   const providerCount = fallbackCity?.providerCount ?? 0
 
   return {
-    title: `Best Daycare in ${cityName}${cityState ? `, ${cityState}` : ""} | Early Learning Directory`,
+    title: `Best Daycare in ${cityName}${cityState ? `, ${cityState}` : ""} | Twooky`,
     description: `Find top-rated daycare centers, preschools, and childcare providers in ${cityName}${
       cityState ? `, ${cityState}` : ""
     }. Compare ${providerCount}+ verified providers.`,

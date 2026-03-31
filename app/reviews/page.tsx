@@ -3,7 +3,7 @@ import { reviews } from "@/lib/mock-data"
 import { Star } from "lucide-react"
 
 export const metadata = {
-  title: "Parent Reviews | Early Learning Directory",
+  title: "Parent Reviews | Twooky",
   description: "Read real reviews from parents about childcare providers. Honest feedback to help you make the right choice for your family.",
 }
 

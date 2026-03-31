@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Privacy Policy | Early Learning Directory",
-  description: "Learn how Early Learning Directory collects, uses, and protects your data.",
+  title: "Privacy Policy | Twooky",
+  description: "Learn how Twooky collects, uses, and protects your data.",
 }
 
 export default function PrivacyPage() {
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-2">2. How We Use Information</h2>
             <p>
-              We use your information to operate and improve Early Learning Directory, connect
+              We use your information to operate and improve Twooky, connect
               parents with providers, personalize content, and communicate with you about your
               account and activity.
             </p>

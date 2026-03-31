@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: ProviderPageProps) {
   }
 
   return {
-    title: `${provider.name} | Early Learning Directory`,
+    title: `${provider.name} | Twooky`,
     description: provider.description.slice(0, 160),
   }
 }

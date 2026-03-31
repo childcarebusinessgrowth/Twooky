@@ -190,7 +190,7 @@ export default function ContactPage() {
                     required
                   />
                   <span>
-                    I consent to Early Learning Directory processing my enquiry data and sharing it with relevant
+                    I consent to Twooky processing my enquiry data and sharing it with relevant
                     providers for contact and follow-up, in line with the{" "}
                     <a href="/privacy" className="underline">
                       Privacy Policy

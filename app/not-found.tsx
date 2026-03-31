@@ -25,7 +25,7 @@ export default function NotFound() {
           </span>
           <div className="text-left">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              Early Learning Directory
+              Twooky
             </p>
             <p className="text-sm text-muted-foreground">
               Helping families find trusted childcare.

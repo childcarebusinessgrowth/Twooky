@@ -1,4 +1,4 @@
--- Supabase application schema for Early Learning Directory
+-- Supabase application schema for Twooky
 -- Roles, profiles, RLS policies, and admin role seeding notes.
 
 -- ============================================================================

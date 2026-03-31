@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
 export const metadata = {
-  title: "About | Early Learning Directory",
-  description: "Learn more about the mission behind Early Learning Directory.",
+  title: "About | Twooky",
+  description: "Learn more about the mission behind Twooky.",
 }
 
 const missionFeatures = [
@@ -64,11 +64,11 @@ export default function AboutPage() {
             </div>
 
             <h1 className="max-w-3xl text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.03] text-white tracking-tight mb-4 text-balance">
-              About Early Learning Directory
+              About Twooky
             </h1>
 
             <p className="max-w-2xl text-base md:text-xl text-white/90 leading-relaxed text-pretty">
-              We built Early Learning Directory to make finding quality childcare simpler, clearer,
+              We built Twooky to make finding quality childcare simpler, clearer,
               and less stressful for families.
             </p>
           </div>
@@ -162,7 +162,7 @@ export default function AboutPage() {
                 incomplete information—all while balancing work, life, and the needs of their children.
               </p>
               <p>
-                Early Learning Directory was created to change that. We bring together detailed provider
+                Twooky was created to change that. We bring together detailed provider
                 profiles, verified reviews, clear program information, and easy comparison tools—all in
                 one place. Our goal is simple: help you find the best fit for your family with less
                 stress and more confidence.

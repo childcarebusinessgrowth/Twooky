@@ -25,7 +25,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   nursery: {
     providerType: "nursery",
     path: "/nurseries",
-    metadataTitle: "Find Nurseries Near You | Early Learning Directory",
+    metadataTitle: "Find Nurseries Near You | Twooky",
     metadataDescription:
       "Discover Ofsted-registered nurseries near you. Compare ratings, programs, fees, and availability to find the best nursery for your child.",
     heroTitle: "Find Trusted Nurseries Near You",
@@ -56,7 +56,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   preschool: {
     providerType: "preschool",
     path: "/preschools",
-    metadataTitle: "Find Preschools Near You | Early Learning Directory",
+    metadataTitle: "Find Preschools Near You | Twooky",
     metadataDescription:
       "Explore preschools near you and compare programs, ratings, curriculum, and fees to find the right preschool for your child.",
     heroTitle: "Discover Great Preschools",
@@ -87,7 +87,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   afterschool_program: {
     providerType: "afterschool_program",
     path: "/afterschool-programs",
-    metadataTitle: "Afterschool Programs Near You | Early Learning Directory",
+    metadataTitle: "Afterschool Programs Near You | Twooky",
     metadataDescription:
       "Find afterschool programs that support homework, enrichment, and safe care for school-age children.",
     heroTitle: "Find Quality Afterschool Programs",
@@ -118,7 +118,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   sports_academy: {
     providerType: "sports_academy",
     path: "/sports-academies",
-    metadataTitle: "Children's Sports Academies | Early Learning Directory",
+    metadataTitle: "Children's Sports Academies | Twooky",
     metadataDescription:
       "Discover sports academies and clubs for children, from football and gymnastics to swimming and more.",
     heroTitle: "Explore Children's Sports Academies",
@@ -149,7 +149,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   holiday_camp: {
     providerType: "holiday_camp",
     path: "/holiday-camps",
-    metadataTitle: "Holiday Camps for Children | Early Learning Directory",
+    metadataTitle: "Holiday Camps for Children | Twooky",
     metadataDescription:
       "Browse children's holiday camps near you, including school holiday clubs, activity camps, and seasonal childcare.",
     heroTitle: "Find Holiday Camps for School Breaks",
@@ -180,7 +180,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   tutoring: {
     providerType: "tutoring",
     path: "/tutoring",
-    metadataTitle: "Tutoring and Academic Support | Early Learning Directory",
+    metadataTitle: "Tutoring and Academic Support | Twooky",
     metadataDescription:
       "Find tutors and academic support services for children, covering core subjects, exam prep, and enrichment.",
     heroTitle: "Find Tutoring and Academic Support",
@@ -211,7 +211,7 @@ const PROVIDER_TYPE_PAGE_CONFIG: Record<ProviderTypeId, ProviderTypePageConfig> 
   therapy_service: {
     providerType: "therapy_service",
     path: "/therapy-services",
-    metadataTitle: "Children's Therapy Services | Early Learning Directory",
+    metadataTitle: "Children's Therapy Services | Twooky",
     metadataDescription:
       "Search for children's therapy services including speech and language therapy, occupational therapy, counselling, and more.",
     heroTitle: "Find Children's Therapy Services",

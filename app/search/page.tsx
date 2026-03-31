@@ -3,7 +3,7 @@ import { SearchResults } from "@/components/search-results"
 import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
 
 export const metadata = {
-  title: "Search Childcare | Early Learning Directory",
+  title: "Search Childcare | Twooky",
   description: "Search and compare childcare providers in your area. Filter by age group, program type, price, and more.",
 }
 

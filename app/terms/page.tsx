@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Terms of Service | Early Learning Directory",
-  description: "Review the Terms of Service for using Early Learning Directory.",
+  title: "Terms of Service | Twooky",
+  description: "Review the Terms of Service for using Twooky.",
 }
 
 export default function TermsPage() {
@@ -23,7 +23,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-2">1. Overview</h2>
             <p>
-              Early Learning Directory is a discovery platform that helps families find childcare
+              Twooky is a discovery platform that helps families find childcare
               providers. We do not own or operate the providers listed on the site.
             </p>
           </div>
@@ -46,7 +46,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-2">4. No Professional Advice</h2>
             <p>
-              Information on Early Learning Directory is provided for general informational
+              Information on Twooky is provided for general informational
               purposes only and should not be considered professional, legal, medical, or licensing
               advice.
             </p>

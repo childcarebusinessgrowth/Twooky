@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
 
   if (!blog) {
     return {
-      title: "Blog Not Found | Early Learning Directory",
+      title: "Blog Not Found | Twooky",
       description: "The requested blog post could not be found.",
     }
   }
 
   return {
-    title: `${blog.seoTitle || blog.title} | Early Learning Directory`,
+    title: `${blog.seoTitle || blog.title} | Twooky`,
     description: blog.metaDescription || blog.excerpt,
   }
 }
@@ -137,7 +137,7 @@ export default async function BlogPage({ params }: BlogPageProps) {
               Looking for childcare that fits your family?
             </p>
             <p className="text-primary-foreground/90">
-              Use Early Learning Directory to compare verified programs, read real parent reviews,
+              Use Twooky to compare verified programs, read real parent reviews,
               and contact providers directly—so your research turns into confident next steps.
             </p>
           </div>

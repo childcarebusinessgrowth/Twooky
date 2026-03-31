@@ -111,7 +111,7 @@ export function Header() {
             <Baby className="h-6 w-6 text-primary-foreground" />
           </div>
           <span className="text-lg font-semibold text-foreground">
-            Early Learning Directory
+            Twooky
           </span>
         </Link>
 

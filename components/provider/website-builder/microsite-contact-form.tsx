@@ -271,7 +271,7 @@ export default function MicrositeContactForm({
           className="mt-0.5"
         />
         <label htmlFor="ms-consent" className="cursor-pointer text-[10px] leading-snug text-muted-foreground sm:text-xs">
-          I consent to Early Learning Directory processing my data and sharing it with this provider for contact and
+          I consent to Twooky processing my data and sharing it with this provider for contact and
           follow-up, in line with the{" "}
           <a href="/privacy" className="text-primary underline" target="_blank" rel="noopener noreferrer">
             Privacy Policy

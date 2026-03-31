@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: ProgramPageProps) {
 
   const description = row.about_text?.slice(0, 160) ?? row.short_description ?? ""
   return {
-    title: `${row.name} Programs | Early Learning Directory`,
+    title: `${row.name} Programs | Twooky`,
     description,
   }
 }

@@ -2804,7 +2804,7 @@ export function getBlankDraft(newId: () => string): TemplateDraft {
       },
       layout: layoutTriple(120, 280, 960, 80),
     },
-    footerNode(footId, 200, 1520, "#0f172a", "#e2e8f0", "© Your nursery · Built with Early Learning Directory", body),
+    footerNode(footId, 200, 1520, "#0f172a", "#e2e8f0", "© Your nursery · Built with Twooky", body),
   ]
   return {
     template_key: "blank",

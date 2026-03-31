@@ -186,7 +186,7 @@ export default function ParentSettingsPage() {
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
             Update your contact details, child&apos;s information, and how you&apos;d like to
-            hear from Early Learning Directory.
+            hear from Twooky.
           </p>
         </div>
 

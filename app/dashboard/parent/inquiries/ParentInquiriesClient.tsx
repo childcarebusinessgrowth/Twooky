@@ -300,7 +300,7 @@ export function ParentInquiriesClient({
                     className="mt-0.5 rounded border-input"
                   />
                   <span>
-                    I consent to Early Learning Directory processing my data and sharing it with this provider for contact and follow-up, in line with the{" "}
+                    I consent to Twooky processing my data and sharing it with this provider for contact and follow-up, in line with the{" "}
                     <a href="/privacy" className="underline">Privacy Policy</a>.
                   </span>
                 </label>

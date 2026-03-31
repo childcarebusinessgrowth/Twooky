@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ForgotPasswordForm } from "./forgot-password-form"
 
 export const metadata = {
-  title: "Reset Password | Early Learning Directory",
-  description: "Reset your Early Learning Directory account password.",
+  title: "Reset Password | Twooky",
+  description: "Reset your Twooky account password.",
 }
 
 export default function ForgotPasswordPage() {

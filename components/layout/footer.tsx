@@ -40,7 +40,7 @@ export function Footer() {
                 <Baby className="h-6 w-6 text-primary-foreground" />
               </div>
               <span className="text-lg font-semibold text-foreground">
-                Early Learning Directory
+                Twooky
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
@@ -109,7 +109,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="mt-14 border-t border-border pt-8 pb-2 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground text-center md:text-left">
-            © {currentYear} Early Learning Directory. All rights reserved. This platform is GDPR compliant.
+            © {currentYear} Twooky. All rights reserved. This platform is GDPR compliant.
           </p>
           <div className="flex gap-6">
             <Link

@@ -6,7 +6,7 @@ import {
 } from "@/lib/program-types"
 
 export const metadata = {
-  title: "Childcare Programs | Early Learning Directory",
+  title: "Childcare Programs | Twooky",
   description: "Explore different types of childcare programs including infant care, toddler care, preschool, Montessori, home daycare, and after school programs.",
 }
 

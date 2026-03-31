@@ -294,7 +294,7 @@ export function GuestInquiryForm({
                   className="mt-0.5 h-4 w-4 rounded border-input accent-primary shrink-0"
                 />
                 <span>
-                  I consent to Early Learning Directory processing my data and sharing it with this provider for contact and follow-up, in line with the{" "}
+                  I consent to Twooky processing my data and sharing it with this provider for contact and follow-up, in line with the{" "}
                   <a href="/privacy" className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
                     Privacy Policy
                   </a>

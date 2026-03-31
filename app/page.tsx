@@ -376,12 +376,12 @@ export default async function HomePage() {
               Are You a Childcare Provider?
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join thousands of providers who use Early Learning Directory to connect with local families. 
+              Join thousands of providers who use Twooky to connect with local families. 
               Claim your free listing today and start growing your enrollment.
             </p>
             <div className="mb-8 flex flex-col items-center gap-2 text-primary-foreground/80 text-sm">
               <span className="font-semibold uppercase tracking-wide text-xs opacity-90">
-                Why join Early Learning Directory
+                Why join Twooky
               </span>
               <ul className="space-y-1">
                 <li>Appear in searches from local families looking right now</li>

@@ -17,8 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClaimListingForm } from "./claim-form"
 
 export const metadata = {
-  title: "Claim Your Listing | Early Learning Directory",
-  description: "Join thousands of childcare providers using Early Learning Directory to connect with local families. Claim your free listing today.",
+  title: "Claim Your Listing | Twooky",
+  description: "Join thousands of childcare providers using Twooky to connect with local families. Claim your free listing today.",
 }
 
 const benefits = [
@@ -354,7 +354,7 @@ export default function ClaimListingPage() {
             ))}
           </div>
           <blockquote className="text-xl md:text-2xl text-foreground font-medium mb-6 text-pretty">
-            &quot;Since claiming our listing on Early Learning Directory, we&apos;ve seen a 40% increase in parent 
+            &quot;Since claiming our listing on Twooky, we&apos;ve seen a 40% increase in parent 
             inquiries. The platform makes it easy to showcase what makes our center special.&quot;
           </blockquote>
           <cite className="text-muted-foreground not-italic">
@@ -370,7 +370,7 @@ export default function ClaimListingPage() {
             Ready to Grow Your Enrollment?
           </h2>
           <p className="text-primary-foreground/80 mb-8">
-            Join thousands of providers who trust Early Learning Directory to connect with families.
+            Join thousands of providers who trust Twooky to connect with families.
           </p>
           <Button size="lg" variant="secondary" asChild>
             <Link href="/claim-listing">

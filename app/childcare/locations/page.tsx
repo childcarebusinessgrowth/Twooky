@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPopularLocations } from "@/lib/popular-locations"
 
 export const metadata = {
-  title: "Childcare Locations | Early Learning Directory",
+  title: "Childcare Locations | Twooky",
   description:
     "Explore childcare locations across the USA, UK, and UAE. Browse cities and find trusted childcare providers near you.",
 }
