@@ -496,7 +496,7 @@ export default function WebsiteBuilderClient() {
         props: {},
       }
       if (type === "text") base.props = { text: "New text", fontSize: 24, color: "#0f172a" }
-      if (type === "button") base.props = { label: "Button", href: "/contact", backgroundColor: "#2563eb", color: "#fff", borderRadius: 8 }
+      if (type === "button") base.props = { label: "Button", href: "/contact", backgroundColor: "#203e68", color: "#fff", borderRadius: 8 }
       if (type === "image") base.props = { src: "", alt: "" }
       if (type === "video") base.props = { embedUrl: "" }
       if (type === "navbar")
@@ -2137,7 +2137,7 @@ function SiteThemePanel({
           <FieldContent>
             <Input
               type="color"
-              value={theme.primaryColor ?? "#2563eb"}
+              value={theme.primaryColor ?? "#203e68"}
               onChange={(e) => onTheme({ primaryColor: e.target.value })}
               className="h-9 w-full max-w-32 cursor-pointer"
             />
@@ -2247,7 +2247,7 @@ function InspectorPanel({
               <FieldContent>
                 <Input
                   type="color"
-                  value={p.backgroundColor ?? "#2563eb"}
+                  value={p.backgroundColor ?? "#203e68"}
                   onChange={(e) => onProps({ backgroundColor: e.target.value })}
                   className="h-9 w-full max-w-32 cursor-pointer"
                 />

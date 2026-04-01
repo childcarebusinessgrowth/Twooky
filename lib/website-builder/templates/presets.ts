@@ -100,7 +100,7 @@ const THEMES: Record<TemplateKey, ThemePack> = {
   },
   sports: {
     key: "sports",
-    primary: "#2563eb",
+    primary: "#203e68",
     secondary: "#1e3a8a",
     background: "#eff6ff",
     surface: "#dbeafe",
@@ -2809,7 +2809,7 @@ export function getBlankDraft(newId: () => string): TemplateDraft {
   return {
     template_key: "blank",
     theme_tokens: {
-      primaryColor: "#2563eb",
+      primaryColor: "#203e68",
       secondaryColor: "#0f172a",
       backgroundColor: "#f8fafc",
       fontFamily: body,

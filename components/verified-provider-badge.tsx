@@ -15,7 +15,7 @@ const VERIFIED_BADGE_COLOR_CLASSES: Record<VerifiedBadgeColor, string> = {
   emerald:
     "bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-950/60 dark:to-green-950/60 border-emerald-300/70 dark:border-emerald-600/50 text-emerald-800 dark:text-emerald-200 ring-emerald-100/50 dark:ring-emerald-800/30",
   blue:
-    "bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-950/60 dark:to-cyan-950/60 border-blue-300/70 dark:border-blue-600/50 text-blue-800 dark:text-blue-200 ring-blue-100/50 dark:ring-blue-800/30",
+    "bg-gradient-to-r from-primary/15 to-teal-100 dark:from-primary/25 dark:to-teal-950/50 border-primary/30 dark:border-teal-600/40 text-primary dark:text-teal-100 ring-primary/15 dark:ring-teal-900/30",
   purple:
     "bg-gradient-to-r from-violet-100 to-purple-100 dark:from-violet-950/60 dark:to-purple-950/60 border-violet-300/70 dark:border-violet-600/50 text-violet-800 dark:text-violet-200 ring-violet-100/50 dark:ring-violet-800/30",
   rose:

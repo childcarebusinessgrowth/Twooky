@@ -15,6 +15,8 @@
   --primary-foreground: #ffffff;
   --secondary: #F9BB11;
   --secondary-foreground: #ffffff;
+  --tertiary: #0ba5aa;
+  --tertiary-foreground: #ffffff;
   --muted: oklch(0.96 0.005 90);
   --muted-foreground: oklch(0.45 0.02 250);
   --accent: oklch(0.92 0.02 90);
@@ -26,7 +28,7 @@
   --ring: #203e68;
   --chart-1: #203e68;
   --chart-2: #F9BB11;
-  --chart-3: oklch(0.75 0.12 80);
+  --chart-3: #0ba5aa;
   --chart-4: oklch(0.60 0.18 30);
   --chart-5: oklch(0.70 0.15 320);
   --radius: 0.75rem;
@@ -51,6 +53,8 @@
   --primary-foreground: #ffffff;
   --secondary: #F9BB11;
   --secondary-foreground: #ffffff;
+  --tertiary: #0ba5aa;
+  --tertiary-foreground: #ffffff;
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
@@ -60,9 +64,9 @@
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: #203e68;
-  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-1: #203e68;
   --chart-2: #F9BB11;
-  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-3: #0ba5aa;
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
@@ -88,6 +92,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -137,6 +143,30 @@
   --color-emerald-600: color-mix(in oklab, var(--secondary) 88%, black);
   --color-emerald-700: color-mix(in oklab, var(--secondary) 76%, black);
   --color-emerald-800: color-mix(in oklab, var(--secondary) 66%, black);
+
+  --color-amber-50: color-mix(in oklab, var(--secondary) 8%, white);
+  --color-amber-100: color-mix(in oklab, var(--secondary) 14%, white);
+  --color-amber-200: color-mix(in oklab, var(--secondary) 24%, white);
+  --color-amber-300: color-mix(in oklab, var(--secondary) 36%, white);
+  --color-amber-400: color-mix(in oklab, var(--secondary) 52%, white);
+  --color-amber-500: var(--secondary);
+  --color-amber-600: color-mix(in oklab, var(--secondary) 88%, black);
+  --color-amber-700: color-mix(in oklab, var(--secondary) 76%, black);
+  --color-amber-800: color-mix(in oklab, var(--secondary) 66%, black);
+  --color-amber-900: color-mix(in oklab, var(--secondary) 52%, black);
+  --color-amber-950: color-mix(in oklab, var(--secondary) 40%, black);
+
+  --color-teal-50: color-mix(in oklab, var(--tertiary) 8%, white);
+  --color-teal-100: color-mix(in oklab, var(--tertiary) 14%, white);
+  --color-teal-200: color-mix(in oklab, var(--tertiary) 24%, white);
+  --color-teal-300: color-mix(in oklab, var(--tertiary) 36%, white);
+  --color-teal-400: color-mix(in oklab, var(--tertiary) 52%, white);
+  --color-teal-500: var(--tertiary);
+  --color-teal-600: color-mix(in oklab, var(--tertiary) 88%, black);
+  --color-teal-700: color-mix(in oklab, var(--tertiary) 76%, black);
+  --color-teal-800: color-mix(in oklab, var(--tertiary) 66%, black);
+  --color-teal-900: color-mix(in oklab, var(--tertiary) 52%, black);
+  --color-teal-950: color-mix(in oklab, var(--tertiary) 40%, black);
 }
 
 @layer base {

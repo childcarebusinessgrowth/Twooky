@@ -83,7 +83,7 @@ export function CanvasNodeContent({
           ? p.href
           : resolveMicrositeHref(p.href ?? "", siteBase)
       const btnStyle = {
-        backgroundColor: p.backgroundColor ?? "#2563eb",
+        backgroundColor: p.backgroundColor ?? "#203e68",
         color: p.color ?? "#fff",
         borderRadius: p.borderRadius ?? 8,
         fontSize: p.fontSize ? `${p.fontSize}px` : 15,
@@ -194,7 +194,7 @@ export function CanvasNodeContent({
 
     case "navbar": {
       const items = (p.navItems as NavItem[] | undefined) ?? []
-      const primary = theme.primaryColor ?? "#2563eb"
+      const primary = theme.primaryColor ?? "#203e68"
       const gapPx = resolveGapPx(p, 12)
       const logoSrc = typeof p.logoSrc === "string" ? p.logoSrc.trim() : ""
       const hasLogo = logoSrc.length > 0
@@ -578,7 +578,7 @@ export function CanvasNodeContent({
           >
             <MicrositeContactFormLazy
               websiteSubdomain={subdomainSlug}
-              primaryColor={theme.primaryColor ?? "#2563eb"}
+              primaryColor={theme.primaryColor ?? "#203e68"}
               fontFamily={theme.fontFamily}
               introHint={p.introHint}
               showProgramInterest={p.showProgramInterest !== false}

@@ -32,7 +32,7 @@ function parseDate(value: string): string | null {
 
 export default function MicrositeContactForm({
   websiteSubdomain,
-  primaryColor = "#2563eb",
+  primaryColor = "#203e68",
   fontFamily,
   introHint,
   showProgramInterest = true,

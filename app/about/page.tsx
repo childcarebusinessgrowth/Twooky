@@ -53,7 +53,7 @@ export default function AboutPage() {
           />
         </div>
         <div className="absolute inset-0 -z-10 bg-linear-to-r from-black/48 via-black/30 to-black/12" />
-        <div className="absolute inset-0 -z-10 bg-linear-to-b from-amber-500/14 via-primary/7 to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-b from-secondary/14 via-primary/7 to-transparent" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_24%_28%,rgba(255,255,255,0.16),transparent_50%)]" />
 
         <div className="mx-auto max-w-7xl px-4 lg:px-8 py-16 md:py-20 lg:py-24">

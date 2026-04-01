@@ -96,14 +96,6 @@ function SearchBarContent({
     return "Google Maps API key is not configured. We can detect coordinates but not city/state."
   }, [mapsApiKey])
 
-  const displayError = useMemo(() => {
-    if (!locationError) return null
-    const deniedMsg = getGeolocationErrorMessage("permission-denied")
-    const lower = locationError.toLowerCase()
-    if (locationError === deniedMsg || (lower.includes("permission") && lower.includes("denied"))) return null
-    return locationError
-  }, [locationError])
-
   const locationFromUrl = useMemo(() => {
     const directLocation = searchParams.get("location")?.trim()
     if (directLocation) return directLocation
@@ -173,13 +165,11 @@ function SearchBarContent({
         }
       }
     } catch (error) {
-      if (error instanceof GeolocationError && error.code === "permission-denied") {
+      if (error instanceof GeolocationError) {
         setLocationError(null)
         return
       }
-      if (error instanceof GeolocationError) {
-        setLocationError(error.message)
-      } else if (error instanceof Error) {
+      if (error instanceof Error) {
         setLocationError(error.message)
       } else {
         setLocationError(getGeolocationErrorMessage("unknown"))
@@ -312,9 +302,9 @@ function SearchBarContent({
           <Search className="h-4 w-4" />
           <span className="ml-2">{searchButtonLabel ?? "Search"}</span>
         </Button>
-        {(displayError || geolocationHint) && (
+        {(locationError || geolocationHint) && (
           <p className="sm:basis-full text-xs text-muted-foreground">
-            {displayError ?? geolocationHint}
+            {locationError ?? geolocationHint}
           </p>
         )}
       </div>
@@ -362,9 +352,9 @@ function SearchBarContent({
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
               )}
             </div>
-            {(displayError || geolocationHint) && (
+            {(locationError || geolocationHint) && (
               <p className="text-xs text-muted-foreground mt-1">
-                {displayError ?? geolocationHint}
+                {locationError ?? geolocationHint}
               </p>
             )}
           </div>

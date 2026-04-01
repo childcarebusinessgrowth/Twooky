@@ -14,19 +14,18 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
   if (compact) {
     return (
       <Link href={`/programs/${program.slug}`} className="group block h-full">
-        <Card className="h-full rounded-3xl border-border/60 bg-linear-to-b from-card to-card/70 shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:border-primary/30 cursor-pointer">
+        <Card className="h-full rounded-3xl border-border/60 bg-card shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:border-tertiary/30 cursor-pointer">
           <CardContent className="p-6 md:p-7 flex h-full flex-col">
             <div className="mb-5 flex items-start justify-between gap-4">
-              <div className="relative h-14 w-14 rounded-2xl bg-primary/10 ring-1 ring-primary/15 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-2xl bg-primary/5 blur-sm" />
-                <Icon className="relative h-7 w-7 text-primary" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-tertiary/10 ring-1 ring-tertiary/20">
+                <Icon className="h-7 w-7 text-tertiary" />
               </div>
-              <span className="inline-flex shrink-0 items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] font-medium text-primary/80">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-tertiary/25 bg-tertiary/8 px-3 py-1 text-[11px] font-medium text-tertiary">
                 {program.ageGroupLabel}
               </span>
             </div>
 
-            <h3 className="mb-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
+            <h3 className="mb-2 text-lg font-semibold text-foreground transition-colors group-hover:text-tertiary">
               {program.title}
             </h3>
             <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
@@ -34,7 +33,7 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
             </p>
 
             <div className="mt-5 border-t border-border/60 pt-4">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-tertiary">
                 Explore program
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
               </span>

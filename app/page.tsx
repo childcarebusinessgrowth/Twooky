@@ -79,7 +79,7 @@ export default async function HomePage() {
         <div className="absolute inset-0 -z-20">
           <Image
             src="https://images.pexels.com/photos/8363771/pexels-photo-8363771.jpeg?auto=compress&cs=tinysrgb&w=2200"
-            alt="Happy nursery children smiling at the camera in a classroom"
+            alt="Young children learning together in an early childhood classroom"
             fill
             priority
             className="object-cover object-[center_30%]"
@@ -87,7 +87,8 @@ export default async function HomePage() {
           />
         </div>
         <div className="absolute inset-0 -z-10 bg-linear-to-r from-black/48 via-black/30 to-black/12" />
-        <div className="absolute inset-0 -z-10 bg-linear-to-b from-amber-500/14 via-primary/7 to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-b from-secondary/14 via-primary/10 to-tertiary/12" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_78%_22%,color-mix(in_oklab,var(--tertiary)_22%,transparent),transparent_55%)]" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_24%_28%,rgba(255,255,255,0.16),transparent_50%)]" />
 
         <div className="mx-auto max-w-7xl px-4 lg:px-8 py-16 md:py-20 lg:py-24">
@@ -98,11 +99,13 @@ export default async function HomePage() {
             </div>
 
             <h1 className="max-w-3xl text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.03] text-white tracking-tight mb-4 text-balance">
-              Find trusted <span className="text-white">Childcare</span> near you
+              The world of opportunities for{" "}
+              <span className="text-secondary">kids & youngsters</span>
             </h1>
 
             <p className="max-w-2xl text-base md:text-xl text-white/90 leading-relaxed mb-7 text-pretty">
-              Search thousands of licensed providers. Read reviews, compare tuition, and find the perfect fit for your family.
+              Explore every kind of early childhood education, preschools, nurseries, Montessori, enrichment, and more. Search
+              verified programs, read reviews, and find the right fit for your family.
             </p>
 
             <SearchBar surface="overlay" className="max-w-5xl" />
@@ -114,7 +117,7 @@ export default async function HomePage() {
                   className="group rounded-2xl border border-white/40 bg-white/10 p-3.5 text-center text-white shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white/16 hover:shadow-[0_14px_34px_rgba(0,0,0,0.34)]"
                 >
                   <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/60 bg-white/15">
-                    <stat.icon className="h-4 w-4 text-[#F9BB11] transition-transform duration-300 group-hover:scale-110" />
+                    <stat.icon className="h-4 w-4 text-secondary transition-transform duration-300 group-hover:scale-110" />
                   </div>
                   <div className="text-2xl leading-none font-extrabold tracking-tight">{stat.value}</div>
                   <div className="mt-1 text-[11px] md:text-xs font-medium text-white/85">{stat.label}</div>
@@ -130,14 +133,14 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-primary/80">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-tertiary">
                 Top picks near you
               </span>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
                 Featured Providers
               </h2>
               <p className="text-muted-foreground">
-                Top-rated childcare centers loved by local families
+                Top-rated early learning programs loved by local families
               </p>
             </div>
             <Button variant="ghost" asChild className="hidden md:flex">
@@ -172,10 +175,11 @@ export default async function HomePage() {
       <section id="program-types" className="relative overflow-hidden py-20 md:py-24">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-b from-primary/5 via-muted/25 to-background" />
         <div className="pointer-events-none absolute inset-x-0 top-8 -z-10 mx-auto h-48 w-[min(90%,72rem)] rounded-full bg-primary/10 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 mx-auto h-40 w-[min(70%,48rem)] rounded-full bg-tertiary/10 blur-3xl" />
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="rounded-3xl border border-border/60 bg-card/80 p-6 md:p-8 lg:p-10 shadow-sm backdrop-blur-sm">
             <div className="text-center mb-10">
-              <span className="mb-2 inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary/80">
+              <span className="mb-2 inline-flex items-center rounded-full border border-tertiary/25 bg-tertiary/8 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-tertiary">
                 Explore programs
               </span>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
@@ -214,7 +218,7 @@ export default async function HomePage() {
       <section id="cities" className="py-20 md:py-24">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="text-center mb-10">
-            <span className="mb-1 inline-block text-xs font-semibold uppercase tracking-wide text-primary/80">
+            <span className="mb-1 inline-block text-xs font-semibold uppercase tracking-wide text-tertiary">
               Popular locations
             </span>
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
@@ -233,13 +237,23 @@ export default async function HomePage() {
                     {group.country}
                   </h3>
                   <ul className="space-y-3">
-                    {group.locations.map((location) => (
+                    {group.locations.map((location, i) => (
                       <li key={location.href}>
                         <Link
                           href={location.href}
-                          className="group inline-flex items-center gap-2 text-sm md:text-base text-muted-foreground hover:text-primary transition-colors"
+                          className={`group inline-flex items-center gap-2 text-sm md:text-base transition-colors ${
+                            i % 2 === 0
+                              ? "text-muted-foreground hover:text-primary"
+                              : "text-muted-foreground hover:text-tertiary"
+                          }`}
                         >
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/5 text-primary border border-primary/10">
+                          <span
+                            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
+                              i % 2 === 0
+                                ? "bg-primary/5 text-primary border-primary/10"
+                                : "bg-tertiary/8 text-tertiary border-tertiary/20"
+                            }`}
+                          >
                             <MapPin className="h-3.5 w-3.5" />
                           </span>
                           <span className="underline-offset-2 group-hover:underline">
@@ -266,7 +280,7 @@ export default async function HomePage() {
       </section>
 
       {/* Why Parents Trust Us */}
-      <section className="py-20 md:py-24 bg-primary/5">
+      <section className="py-20 md:py-24 bg-linear-to-b from-primary/5 via-tertiary/5 to-primary/5">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="text-center mb-12">
             <span className="mb-1 inline-block text-xs font-semibold uppercase tracking-wide text-primary/80">
@@ -276,15 +290,21 @@ export default async function HomePage() {
               Why Parents Trust Us
             </h2>
             <p className="text-muted-foreground">
-              We make finding quality childcare simple and stress-free
+              We make finding quality early learning programs simple and stress-free
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {trustFeatures.map((feature) => (
+            {trustFeatures.map((feature, index) => (
               <div key={feature.title} className="text-center">
-                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <feature.icon className="h-7 w-7 text-primary" />
+                <div
+                  className={`h-14 w-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
+                    index % 2 === 0 ? "bg-primary/10" : "bg-tertiary/10"
+                  }`}
+                >
+                  <feature.icon
+                    className={`h-7 w-7 ${index % 2 === 0 ? "text-primary" : "text-tertiary"}`}
+                  />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">
                   {feature.title}
@@ -303,7 +323,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
             <div>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-primary/80">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-tertiary">
                 From our blog
               </span>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
@@ -351,13 +371,13 @@ export default async function HomePage() {
                       Parent guide
                     </span>
                   </div>
-                  <h3 className="text-base md:text-lg font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-primary">
+                  <h3 className="text-base md:text-lg font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-tertiary">
                     {post.title}
                   </h3>
                   <p className="text-sm text-muted-foreground line-clamp-3 flex-1">
                     {post.excerpt}
                   </p>
-                  <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                  <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-tertiary">
                     <span>Read article</span>
                     <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                   </div>
@@ -371,12 +391,12 @@ export default async function HomePage() {
       {/* CTA Section */}
       <section className="py-20 md:py-24">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="bg-primary rounded-3xl p-8 md:p-12 text-center">
+          <div className="rounded-3xl bg-primary p-8 md:p-12 text-center shadow-lg shadow-primary/25">
             <h2 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-4">
-              Are You a Childcare Provider?
+              Are You an Early Childhood Education Provider?
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join thousands of providers who use Twooky to connect with local families. 
+              Join thousands of schools and programs who use Twooky to connect with local families.
               Claim your free listing today and start growing your enrollment.
             </p>
             <div className="mb-8 flex flex-col items-center gap-2 text-primary-foreground/80 text-sm">
