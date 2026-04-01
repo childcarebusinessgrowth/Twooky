@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
@@ -9,7 +10,6 @@ import {
   Star,
   Scale,
   Settings,
-  Baby,
   ChevronDown,
   Menu,
   Search,
@@ -101,19 +101,15 @@ export default function ParentDashboardLayout({
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 z-40 hidden lg:flex h-screen w-68 flex-col border-r border-border/40 bg-card/95 backdrop-blur">
         {/* Logo */}
-        <div className="flex h-16 items-center gap-3 px-6 border-b border-border/40">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/90 shadow-sm shadow-black/10">
-              <Baby className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground leading-tight">
-                Early Learning
-              </span>
-              <span className="text-xs text-muted-foreground leading-tight">
-                Parent space
-              </span>
-            </div>
+        <div className="flex h-16 items-center justify-center px-6 border-b border-border/40">
+          <Link href="/" className="flex items-center justify-center">
+            <Image
+              src="/images/twooky-logo.png"
+              alt="Twooky logo"
+              width={200}
+              height={60}
+              className="h-10 w-auto"
+            />
           </Link>
         </div>
 
@@ -152,18 +148,14 @@ export default function ParentDashboardLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
-              <div className="flex h-16 items-center gap-3 px-6 border-b border-border/40">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/90 shadow-sm shadow-black/10">
-                  <Baby className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-foreground leading-tight">
-                    Early Learning
-                  </span>
-                  <span className="text-xs text-muted-foreground leading-tight">
-                    Parent space
-                  </span>
-                </div>
+              <div className="flex h-16 items-center justify-center px-6 border-b border-border/40">
+                <Image
+                  src="/images/twooky-logo.png"
+                  alt="Twooky logo"
+                  width={200}
+                  height={60}
+                  className="h-10 w-auto"
+                />
               </div>
               <div className="py-4">
                 <SidebarNav onItemClick={() => setMobileMenuOpen(false)} />

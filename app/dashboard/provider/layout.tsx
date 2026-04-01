@@ -1,18 +1,18 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { 
   LayoutDashboard, 
   FileEdit, 
   Star, 
   MessageSquare, 
-  Image, 
+  Image as ImageIcon, 
   HelpCircle,
   BarChart3, 
   CreditCard, 
   Settings,
-  GraduationCap,
   Bell,
   Search,
   LayoutTemplate,
@@ -47,7 +47,7 @@ const sidebarItemsAll = [
   { label: "Availability", href: "/dashboard/provider/availability", icon: CheckCircle },
   { label: "Reviews", href: "/dashboard/provider/reviews", icon: Star },
   { label: "Leads (CRM)", href: "/dashboard/provider/inquiries", icon: MessageSquare },
-  { label: "Photos", href: "/dashboard/provider/photos", icon: Image },
+  { label: "Photos", href: "/dashboard/provider/photos", icon: ImageIcon },
   { label: "FAQs", href: "/dashboard/provider/faqs", icon: HelpCircle },
   { label: "Website", href: "/dashboard/provider/website", icon: LayoutTemplate },
   { label: "Analytics", href: "/dashboard/provider/analytics", icon: BarChart3 },
@@ -248,12 +248,15 @@ export default function ProviderDashboardLayout({
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 z-40 hidden lg:flex h-screen w-64 flex-col border-r border-border bg-card">
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2 px-6 border-b border-border">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <GraduationCap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-foreground">ELD Provider</span>
+        <div className="flex h-16 items-center justify-center px-6 border-b border-border">
+          <Link href="/" className="flex items-center justify-center">
+            <Image
+              src="/images/twooky-logo.png"
+              alt="Twooky logo"
+              width={200}
+              height={60}
+              className="h-10 w-auto"
+            />
           </Link>
         </div>
 
@@ -289,11 +292,14 @@ export default function ProviderDashboardLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <div className="flex h-16 items-center gap-2 px-6 border-b border-border">
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                  <GraduationCap className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="font-bold text-foreground">ELD Provider</span>
+              <div className="flex h-16 items-center justify-center px-6 border-b border-border">
+                <Image
+                  src="/images/twooky-logo.png"
+                  alt="Twooky logo"
+                  width={200}
+                  height={60}
+                  className="h-10 w-auto"
+                />
               </div>
               <div className="py-4">
                 <SidebarNav onItemClick={() => setMobileMenuOpen(false)} />

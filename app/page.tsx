@@ -114,7 +114,7 @@ export default async function HomePage() {
                   className="group rounded-2xl border border-white/40 bg-white/10 p-3.5 text-center text-white shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white/16 hover:shadow-[0_14px_34px_rgba(0,0,0,0.34)]"
                 >
                   <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/60 bg-white/15">
-                    <stat.icon className="h-4 w-4 text-secondary transition-transform duration-300 group-hover:scale-110" />
+                    <stat.icon className="h-4 w-4 text-[#F9BB11] transition-transform duration-300 group-hover:scale-110" />
                   </div>
                   <div className="text-2xl leading-none font-extrabold tracking-tight">{stat.value}</div>
                   <div className="mt-1 text-[11px] md:text-xs font-medium text-white/85">{stat.label}</div>

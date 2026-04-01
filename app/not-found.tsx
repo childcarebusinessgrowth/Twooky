@@ -1,6 +1,7 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { SearchX, ArrowLeft, Baby } from "lucide-react"
+import { SearchX, ArrowLeft } from "lucide-react"
 
 export default function NotFound() {
   return (
@@ -20,15 +21,16 @@ export default function NotFound() {
         </div>
 
         <div className="mb-6 flex items-center gap-3 text-muted-foreground">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary">
-            <Baby className="h-6 w-6 text-primary-foreground" />
-          </span>
+          <Image
+            src="/images/twooky-logo.png"
+            alt="Twooky logo"
+            width={200}
+            height={60}
+            className="h-12 w-auto"
+          />
           <div className="text-left">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              Twooky
-            </p>
             <p className="text-sm text-muted-foreground">
-              Helping families find trusted childcare.
+              The world of opportunities for kids & youngsters
             </p>
           </div>
         </div>

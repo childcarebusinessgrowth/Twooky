@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Baby } from "lucide-react"
+import Image from "next/image"
 
 const footerLinks = {
   company: [
@@ -36,15 +36,16 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                <Baby className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="text-lg font-semibold text-foreground">
-                Twooky
-              </span>
+              <Image
+                src="/images/twooky-logo.png"
+                alt="Twooky logo"
+                width={200}
+                height={60}
+                className="h-14 w-auto"
+              />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-              Helping parents find the best childcare for their families.
+              The world of opportunities for kids & youngsters
             </p>
           </div>
 

@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Baby, ChevronDown } from "lucide-react"
+import { Menu, X, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/AuthProvider"
 
@@ -107,12 +108,14 @@ export function Header() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Baby className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-lg font-semibold text-foreground">
-            Twooky
-          </span>
+          <Image
+            src="/images/twooky-logo.png"
+            alt="Twooky logo"
+            width={200}
+            height={60}
+            priority
+            className="h-14 w-auto"
+          />
         </Link>
 
         {/* Desktop Navigation */}

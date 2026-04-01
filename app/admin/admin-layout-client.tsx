@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   LayoutDashboard,
@@ -11,7 +12,6 @@ import {
   Search,
   ChevronDown,
   Menu,
-  Shield,
   Newspaper,
   FolderTree,
   BarChart3,
@@ -223,12 +223,15 @@ export function AdminLayoutClient({
     <RequireAuth allowedRoles={["admin"]}>
       <div className="min-h-screen bg-muted/30">
         <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-card lg:flex">
-          <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-            <Link href="/admin" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
-                <Shield className="h-4 w-4 text-background" />
-              </div>
-              <span className="font-bold text-foreground">ELD Admin</span>
+          <div className="flex h-16 items-center justify-center border-b border-border px-6">
+            <Link href="/admin" className="flex items-center justify-center">
+              <Image
+                src="/images/twooky-logo.png"
+                alt="Twooky logo"
+                width={200}
+                height={60}
+                className="h-10 w-auto"
+              />
             </Link>
           </div>
 
@@ -259,11 +262,14 @@ export function AdminLayoutClient({
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
-                <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
-                    <Shield className="h-4 w-4 text-background" />
-                  </div>
-                  <span className="font-bold text-foreground">ELD Admin</span>
+                <div className="flex h-16 items-center justify-center border-b border-border px-6">
+                  <Image
+                    src="/images/twooky-logo.png"
+                    alt="Twooky logo"
+                    width={200}
+                    height={60}
+                    className="h-10 w-auto"
+                  />
                 </div>
                 <div className="py-4">
                   <SidebarNav onItemClick={() => setMobileMenuOpen(false)} pendingClaimsCount={pendingClaimsCount} />
