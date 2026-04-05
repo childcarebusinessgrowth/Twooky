@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 export type ProviderMicrositeBlogListItem = {
   slug: string
@@ -26,7 +26,7 @@ function normalizeSubdomain(raw: string): string {
 export async function getProviderMicrositeBlogList(
   subdomain: string,
 ): Promise<ProviderMicrositeBlogListItem[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const sub = normalizeSubdomain(subdomain)
   const { data: website, error: wErr } = await supabase
     .from("provider_websites")
@@ -57,7 +57,7 @@ export async function getProviderMicrositeBlogPost(
   subdomain: string,
   slug: string,
 ): Promise<ProviderMicrositeBlogPost | null> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const sub = normalizeSubdomain(subdomain)
   const slugNorm = slug.trim().toLowerCase()
 

@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button"
 import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
 import {
   activeProviderRowToCardData,
-  getActiveProvidersFromDb,
+  getActiveProvidersFromDbCached,
+  getHomeFeaturedProvidersCached,
 } from "@/lib/search-providers-db"
-import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 export function FeaturedProvidersSectionSkeleton() {
   return (
@@ -38,12 +38,17 @@ export function FeaturedProvidersSectionSkeleton() {
 }
 
 export async function HomeFeaturedProvidersSection() {
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const activeProviderRows = await getActiveProvidersFromDb(getSupabaseAdminClient())
-  const featuredProviders = selectFeaturedProviders(activeProviderRows, {
-    visitorGeo: null,
-    limit: 3,
-  }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
+  let featuredProviders = await getHomeFeaturedProvidersCached(3)
+
+  if (featuredProviders.length === 0) {
+    // Safety fallback: preserve previous behavior if lightweight query yields nothing.
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+    const activeProviderRows = await getActiveProvidersFromDbCached()
+    featuredProviders = selectFeaturedProviders(activeProviderRows, {
+      visitorGeo: null,
+      limit: 3,
+    }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
+  }
 
   return (
     <section id="featured-providers" className="py-20 md:py-24">

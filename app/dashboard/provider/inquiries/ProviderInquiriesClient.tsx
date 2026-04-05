@@ -230,15 +230,6 @@ export function ProviderInquiriesClient({
     return items
   }, [allListItems, statusFilter, sourceFilter, searchQuery])
 
-  const stats = useMemo(() => {
-    const threads = allListItems.filter((i) => i.type === "thread") as Extract<ListItem, { type: "thread" }>[]
-    const newCount = threads.filter((i) => (leadStatusOverrides[i.id] ?? i.leadStatus) === "new").length
-    const enrolledCount = threads.filter((i) => (leadStatusOverrides[i.id] ?? i.leadStatus) === "enrolled").length
-    const total = threads.length
-    const conversionRate = total > 0 ? Math.round((enrolledCount / total) * 100) : 0
-    return { newCount, conversionRate, total }
-  }, [allListItems, leadStatusOverrides])
-
   const fetchThread = useCallback(async (inquiryId: string) => {
     setLoadingThread(true)
     try {
@@ -486,18 +477,7 @@ export function ProviderInquiriesClient({
 
   return (
     <div className="space-y-6">
-      {/* Stats and actions header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5 shadow-sm">
-            <p className="text-xs font-medium text-muted-foreground">New leads</p>
-            <p className="text-xl font-semibold text-foreground">{stats.newCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5 shadow-sm">
-            <p className="text-xs font-medium text-muted-foreground">Conversion rate</p>
-            <p className="text-xl font-semibold text-foreground">{stats.conversionRate}%</p>
-          </div>
-        </div>
+      <div className="flex justify-end">
         <Button
           variant="outline"
           size="sm"

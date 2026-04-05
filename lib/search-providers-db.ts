@@ -1,5 +1,7 @@
+import { unstable_cache } from "next/cache"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import { fetchGooglePlaceReviewSummary } from "./google-place-reviews"
 import { geocodeAddressToCoordinates } from "./geocode-server"
@@ -235,6 +237,111 @@ export async function getActiveProvidersFromDb(
   })
 }
 
+/**
+ * Cached active directory rows for public pages. Invalidated with
+ * `revalidateActiveProvidersDirectoryCache()` when listings or card-visible fields change.
+ */
+export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRow[]> {
+  return readActiveProvidersFromDbCached()
+}
+
+const readActiveProvidersFromDbCached = unstable_cache(
+  async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
+  ["directory-active-providers-v1"],
+  { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
+)
+
+type HomeFeaturedProfileRow = {
+  profile_id: string
+  provider_slug: string | null
+  business_name: string | null
+  city: string | null
+  address: string | null
+  description: string | null
+  provider_types: string[] | null
+  age_groups_served: string[] | null
+  daily_fee_from: number | null
+  daily_fee_to: number | null
+  currencies?: { symbol?: string } | null
+  early_learning_excellence_badge: boolean | null
+  verified_provider_badge: boolean | null
+  verified_provider_badge_color: string | null
+}
+
+/**
+ * Lightweight home query that avoids the full directory aggregation path.
+ * Home only needs a few featured cards, so we fetch a narrow payload here.
+ */
+export async function getHomeFeaturedProvidersCached(limit = 3): Promise<ProviderCardDataFromDb[]> {
+  return unstable_cache(
+    async () => {
+      const supabase = getSupabaseAdminClient()
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("provider_profiles")
+        .select(
+          "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color",
+        )
+        .eq("listing_status", "active")
+        .eq("featured", true)
+        .not("provider_slug", "is", null)
+        .limit(limit)
+
+      if (profilesError || !profiles?.length) {
+        if (profilesError) {
+          console.error("[home-featured] Failed lightweight featured provider query", profilesError.message)
+        }
+        return []
+      }
+
+      const profileIds = profiles.map((row) => row.profile_id)
+      const { data: photos } = await supabase
+        .from("provider_photos")
+        .select("provider_profile_id, storage_path")
+        .in("provider_profile_id", profileIds)
+        .eq("is_primary", true)
+
+      const photoByProfileId: Record<string, string> = {}
+      ;(photos ?? []).forEach((row) => {
+        photoByProfileId[row.provider_profile_id] = row.storage_path
+      })
+
+      return (profiles as HomeFeaturedProfileRow[]).map((row) => {
+        const slug = row.provider_slug ?? row.profile_id
+        const symbol = (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
+        const image = photoByProfileId[row.profile_id]
+          ? buildPhotoPublicUrl(photoByProfileId[row.profile_id], baseUrl)
+          : PLACEHOLDER_IMAGE
+
+        return {
+          id: row.profile_id,
+          slug,
+          name: row.business_name ?? "Provider",
+          rating: 0,
+          reviewCount: 0,
+          location: [row.city, row.address].filter(Boolean).join(", ") || "—",
+          priceRange: formatDailyFeeRange(row.daily_fee_from, row.daily_fee_to, symbol),
+          providerTypes: toProviderTypeIds(row.provider_types),
+          programTypes: ageGroupsToProgramLabels(row.age_groups_served),
+          shortDescription: (row.description ?? "").slice(0, 200),
+          image,
+          latitude: 0,
+          longitude: 0,
+          address: row.address ?? "",
+          featured: true,
+          earlyLearningExcellenceBadge: row.early_learning_excellence_badge ?? false,
+          verifiedProviderBadge: row.verified_provider_badge ?? false,
+          verifiedProviderBadgeColor: row.verified_provider_badge_color ?? "emerald",
+          savedByParentCount: 0,
+        }
+      })
+    },
+    ["home-featured-providers-v2", String(limit)],
+    { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
+  )()
+}
+
 function matchesLocation(row: ActiveProviderRow, locationText?: string): boolean {
   if (!locationText?.trim()) return true
   const q = locationText.toLowerCase()
@@ -438,12 +545,11 @@ export async function getFeaturedProvidersForProgram(
   visitorGeo: VisitorGeo | null = null
 ): Promise<ProviderCardDataFromDb[]> {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const supabase = getSupabaseAdminClient()
 
   const [programType, ageGroupsById, activeRows] = await Promise.all([
     getProgramTypeBySlug(programSlug),
     getAgeGroupsById(),
-    getActiveProvidersFromDb(supabase),
+    getActiveProvidersFromDbCached(),
   ])
 
   if (!programType) return []
@@ -470,11 +576,11 @@ export type { VisitorGeo } from "./visitor-geo"
  * sorted by rating (desc) then review count (desc), limited to `limit`.
  */
 export async function getRecommendedProvidersForDashboard(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   baseUrl: string,
   limit = 3
 ): Promise<RecommendedProviderForDashboard[]> {
-  const rows = await getActiveProvidersFromDb(supabase)
+  const rows = await getActiveProvidersFromDbCached()
   const sorted = [...rows].sort((a, b) => {
     const ra = a.avg_rating ?? 0
     const rb = b.avg_rating ?? 0

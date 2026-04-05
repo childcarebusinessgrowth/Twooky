@@ -9,13 +9,18 @@ import {
 
 export type ProviderNotificationItem = {
   id: string
-  type: "inquiry" | "review" | "listing_confirmed"
+  type: "inquiry" | "review" | "listing_confirmed" | "review_report_accepted"
   title: string
   message: string
   time: string
   href: string
   /** Set for rows from provider_notifications; null = unread */
   readAt: string | null
+}
+
+function mapPersistedNotificationType(raw: string | null): "listing_confirmed" | "review_report_accepted" {
+  if (raw === "review_report_accepted") return "review_report_accepted"
+  return "listing_confirmed"
 }
 
 function formatNotificationTime(iso: string): string {
@@ -74,7 +79,7 @@ export async function GET() {
     ;(notificationRows ?? []).forEach((row) => {
       items.push({
         id: row.id,
-        type: (row.type as "listing_confirmed") || "listing_confirmed",
+        type: mapPersistedNotificationType(row.type),
         title: row.title ?? "Notification",
         message: row.message ?? "",
         time: formatNotificationTime(row.created_at),

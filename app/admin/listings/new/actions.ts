@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
+import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { assertServerRole } from "@/lib/authzServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
@@ -234,7 +235,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   if (!businessName) return { ok: false, error: "Business name is required." }
   if (!description) return { ok: false, error: "Description is required." }
   if (!address) return { ok: false, error: "Address is required." }
-  if (!city) return { ok: false, error: "City is required." }
+  if (!city && !cityId) return { ok: false, error: "Directory city is required." }
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
   }
@@ -401,6 +402,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       total_capacity: totalCapacity,
       currency_id: resolvedCurrencyId,
       listing_status: listingStatus,
+      verified_provider_badge: listingStatus === "active",
       featured,
       is_admin_managed: true,
       country_id: resolvedCountryId,
@@ -468,6 +470,8 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   revalidatePath("/admin/listings")
   revalidatePath(`/admin/listings/${profileId}`)
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   revalidatePath(`/providers/${slug}`)
   return { ok: true, profileId, slug }
 }
@@ -538,7 +542,7 @@ export async function updateAdminProvider(
   if (!businessName) return { ok: false, error: "Business name is required." }
   if (!description) return { ok: false, error: "Description is required." }
   if (!address) return { ok: false, error: "Address is required." }
-  if (!city) return { ok: false, error: "City is required." }
+  if (!city && !cityId) return { ok: false, error: "Directory city is required." }
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
   }
@@ -674,6 +678,9 @@ export async function updateAdminProvider(
   if (!existingProfile) return { ok: false, error: "Listing not found." }
 
   const previousStatus = (existingProfile.listing_status ?? "pending") as string
+  const shouldVerify =
+    listingStatus === "active" &&
+    (previousStatus === "pending" || previousStatus === "draft")
 
   const { error: updateProfileError } = await supabase
     .from("provider_profiles")
@@ -708,6 +715,7 @@ export async function updateAdminProvider(
       city_id: resolvedCityId,
       virtual_tour_url: virtualTourUrls[0] ?? null,
       virtual_tour_urls: virtualTourUrls.length > 0 ? virtualTourUrls : null,
+      ...(shouldVerify ? { verified_provider_badge: true } : {}),
     })
     .eq("profile_id", profileId)
 
@@ -795,6 +803,8 @@ export async function updateAdminProvider(
   revalidatePath("/admin/listings")
   revalidatePath(`/admin/listings/${profileId}`)
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   if (existingProfile.provider_slug) {
     revalidatePath(`/providers/${existingProfile.provider_slug}`)
   }

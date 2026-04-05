@@ -4,10 +4,10 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { CalendarDays, Clock, ArrowRight, Tag, Search } from "lucide-react"
-import type { PublishedBlog } from "@/lib/blogs"
+import type { PublishedBlogListItem } from "@/lib/blogs"
 
 type Props = {
-  blogs: PublishedBlog[]
+  blogs: PublishedBlogListItem[]
 }
 
 export function BlogsPageClient({ blogs }: Props) {

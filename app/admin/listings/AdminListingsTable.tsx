@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
 import {
   Search,
   Filter,
   MoreVertical,
-  Eye,
   Pencil,
   Trash2,
   Star as StarIcon,
@@ -508,9 +508,12 @@ export function AdminListingsTable({
                             />
                           </div>
                         ) : null}
-                        <span className="font-medium">
+                        <Link
+                          href={`/admin/listings/${listing.profile_id}`}
+                          className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                        >
                           {listing.business_name || listing.provider_slug || "—"}
-                        </span>
+                        </Link>
                         {listing.featured && (
                           <Badge variant="secondary" className="text-xs">
                             Featured
@@ -576,14 +579,6 @@ export function AdminListingsTable({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() =>
-                              router.push(`/admin/listings/${listing.profile_id}`)
-                            }
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
                               router.push(`/admin/listings/${listing.profile_id}/edit`)

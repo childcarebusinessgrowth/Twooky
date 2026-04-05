@@ -1,20 +1,28 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import bundleAnalyzer from "@next/bundle-analyzer"
 
 /** @type {import('next').NextConfig} */
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+})
 
 const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "15mb",
     },
+    /** Fewer legacy polyfills in app code; smaller imports from barrel packages (Lighthouse “Legacy JS” / unused JS). */
+    optimizePackageImports: ["lucide-react", "date-fns"],
   },
   turbopack: {
     root: __dirname,
   },
   images: {
-    unoptimized: true,
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
     remotePatterns: [
       {
         protocol: "https",
@@ -35,4 +43,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+export default withBundleAnalyzer(nextConfig)

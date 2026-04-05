@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
@@ -31,6 +32,7 @@ export async function createCurrency(input: CurrencyInput) {
 
   revalidatePath(ADMIN_CURRENCIES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function updateCurrency(id: string, input: CurrencyInput) {
@@ -53,6 +55,7 @@ export async function updateCurrency(id: string, input: CurrencyInput) {
 
   revalidatePath(ADMIN_CURRENCIES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function deleteCurrency(id: string) {
@@ -66,4 +69,5 @@ export async function deleteCurrency(id: string) {
 
   revalidatePath(ADMIN_CURRENCIES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }

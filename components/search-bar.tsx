@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, MapPin, User, Layers, Loader2 } from "lucide-react"
+import { Search, MapPin, User, Layers, Loader2, LocateFixed } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -233,33 +233,7 @@ function SearchBarContent({
     if (cachedLocation) {
       setLocation(cachedLocation)
     }
-
-    // Always refresh from live geolocation when visiting / or /search.
-    void detectCurrentLocation()
-  }, [detectCurrentLocation, hasLocationQuery, isOnTargetPath])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if (isOnTargetPath && hasLocationQuery) return
-
-    const retryIfEmpty = () => {
-      if (!location.trim() && !isDetectingLocation) {
-        const cachedLocation = window.sessionStorage.getItem(AUTO_LOCATION_VALUE_KEY)
-        if (cachedLocation) {
-          setLocation(cachedLocation)
-          return
-        }
-        void detectCurrentLocation()
-      }
-    }
-
-    window.addEventListener("focus", retryIfEmpty)
-    document.addEventListener("visibilitychange", retryIfEmpty)
-    return () => {
-      window.removeEventListener("focus", retryIfEmpty)
-      document.removeEventListener("visibilitychange", retryIfEmpty)
-    }
-  }, [detectCurrentLocation, hasLocationQuery, isDetectingLocation, isOnTargetPath, location])
+  }, [hasLocationQuery, isOnTargetPath])
 
   if (variant === "compact") {
     return (
@@ -278,9 +252,19 @@ function SearchBarContent({
               }
             }}
           />
-          {isDetectingLocation && (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-          )}
+          <button
+            type="button"
+            onClick={() => void detectCurrentLocation()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+            aria-label="Use my current location"
+            title="Use my current location"
+          >
+            {isDetectingLocation ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LocateFixed className="h-4 w-4" />
+            )}
+          </button>
         </div>
         <Select value={programType} onValueChange={setProgramType}>
           <SelectTrigger className="sm:w-48 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none">
@@ -348,9 +332,19 @@ function SearchBarContent({
                   }
                 }}
               />
-              {isDetectingLocation && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
+              <button
+                type="button"
+                onClick={() => void detectCurrentLocation()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70"
+                aria-label="Use my current location"
+                title="Use my current location"
+              >
+                {isDetectingLocation ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LocateFixed className="h-4 w-4" />
+                )}
+              </button>
             </div>
             {(locationError || geolocationHint) && (
               <p className="text-xs text-muted-foreground mt-1">

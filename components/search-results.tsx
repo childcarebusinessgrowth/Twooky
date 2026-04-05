@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { MapPin, SlidersHorizontal } from "lucide-react"
-import { SearchBar } from "@/components/search-bar"
+import { SearchBarDynamic } from "@/components/search-bar-dynamic"
 import { FilterSidebar, type FilterState, type SearchFilterOptions } from "@/components/filter-sidebar"
 import { ProviderCard, type ProviderCardData } from "@/components/provider-card"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { SearchMapPanel } from "@/components/search-map-modal"
+import { SearchMapPanelLazy } from "@/components/search-map-panel-lazy"
 
 const PAGE_SIZE = 9
 const AGE_TAG_TO_LABEL: Record<string, string> = {
@@ -337,7 +337,7 @@ export function SearchResults({
       {/* Top Search Bar */}
       <section className="bg-card border-b border-border py-4">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <SearchBar
+          <SearchBarDynamic
             variant="compact"
             targetPath={basePath}
             defaultProviderType={defaultProviderType}
@@ -418,7 +418,7 @@ export function SearchResults({
                 </p>
               </div>
 
-              <SearchMapPanel providers={providers} />
+              <SearchMapPanelLazy providers={providers} />
 
               <div className="space-y-5">
                 {visibleProviders.map((provider) => (

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/accordion"
 import { ProviderCard } from "@/components/provider-card"
 import { StatsSection } from "@/components/stats-section"
-import { SearchBar } from "@/components/search-bar"
+import { SearchBarDynamic } from "@/components/search-bar-dynamic"
 import { providers, cityStats, cities } from "@/lib/mock-data"
 import { getCityBySlug } from "@/lib/locations"
 
@@ -124,7 +124,7 @@ export default async function LocationPage({ params }: LocationPageProps) {
             Find and compare {city?.providerCount ?? 0}+ verified childcare providers in {displayName}. 
             Read real parent reviews, compare programs, and connect with top-rated daycare centers near you.
           </p>
-          <SearchBar className="max-w-3xl" />
+          <SearchBarDynamic className="max-w-3xl" />
         </div>
       </section>
 

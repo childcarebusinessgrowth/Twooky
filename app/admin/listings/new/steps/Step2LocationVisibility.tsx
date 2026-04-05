@@ -17,8 +17,6 @@ import type { AdminProviderCityOption, AdminProviderCountryOption } from "../act
 type Step2LocationVisibilityProps = {
   address: string
   setAddress: (v: string) => void
-  city: string
-  setCity: (v: string) => void
   countryId: string
   setCountryId: (v: string) => void
   cityId: string
@@ -28,15 +26,12 @@ type Step2LocationVisibilityProps = {
   featured: boolean
   setFeatured: (v: boolean) => void
   countries: AdminProviderCountryOption[]
-  cities: AdminProviderCityOption[]
   visibleCities: AdminProviderCityOption[]
 }
 
 export function Step2LocationVisibility({
   address,
   setAddress,
-  city,
-  setCity,
   countryId,
   setCountryId,
   cityId,
@@ -49,7 +44,7 @@ export function Step2LocationVisibility({
   visibleCities,
 }: Step2LocationVisibilityProps) {
   const missingRequired =
-    (!address.trim() || !city.trim()) && (address.length > 0 || city.length > 0)
+    (!address.trim() || !cityId.trim()) && (address.length > 0 || cityId.length > 0)
 
   return (
     <div className="space-y-6">
@@ -59,7 +54,7 @@ export function Step2LocationVisibility({
       />
       {missingRequired && (
         <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-          Please fill in Address and Public City Label to continue.
+          Please fill in Address and Directory City to continue.
         </p>
       )}
 
@@ -87,7 +82,9 @@ export function Step2LocationVisibility({
       <Card className="border-border/60">
         <CardHeader className="pb-4">
           <CardTitle className="text-base">Directory mapping</CardTitle>
-          <p className="text-sm text-muted-foreground">Optional: link to a country/city in the directory for filtering.</p>
+          <p className="text-sm text-muted-foreground">
+            Country is optional for filtering. Directory City is required — it sets the public city shown on the listing and links the provider for search.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -111,10 +108,12 @@ export function Step2LocationVisibility({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Directory City</Label>
+              <Label>
+                Directory City <span className="text-destructive">*</span>
+              </Label>
               <Select value={cityId || "none"} onValueChange={(value) => setCityId(value === "none" ? "" : value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Optional city from directory" />
+                  <SelectValue placeholder="Select city from directory" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No directory city selected</SelectItem>
@@ -136,33 +135,18 @@ export function Step2LocationVisibility({
           <p className="text-sm text-muted-foreground">What parents see on the listing.</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="city">
-                Public City Label <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="city"
-                name="city"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="What parents should see (e.g. London)"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Listing Status</Label>
-              <Select value={listingStatus} onValueChange={setListingStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2 max-w-md">
+            <Label>Listing Status</Label>
+            <Select value={listingStatus} onValueChange={setListingStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <label className="flex items-center gap-2">
             <Checkbox checked={featured} onCheckedChange={(checked) => setFeatured(Boolean(checked))} />

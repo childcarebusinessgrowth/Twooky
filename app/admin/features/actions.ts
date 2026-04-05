@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
@@ -27,6 +28,7 @@ export async function createFeature(input: FeatureInput) {
 
   revalidatePath(ADMIN_FEATURES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function updateFeature(id: string, input: FeatureInput) {
@@ -47,6 +49,7 @@ export async function updateFeature(id: string, input: FeatureInput) {
 
   revalidatePath(ADMIN_FEATURES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function deleteFeature(id: string) {
@@ -60,4 +63,5 @@ export async function deleteFeature(id: string) {
 
   revalidatePath(ADMIN_FEATURES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }

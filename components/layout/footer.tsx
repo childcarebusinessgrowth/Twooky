@@ -1,5 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
+import type { FooterCityLink } from "@/lib/locations"
 
 const footerLinks = {
   company: [
@@ -11,13 +12,6 @@ const footerLinks = {
     { name: "Terms", href: "/terms" },
     { name: "Provider Sign Up", href: "/claim-listing" },
   ],
-  cities: [
-    { name: "Austin", href: "/locations/austin" },
-    { name: "Phoenix", href: "/locations/phoenix" },
-    { name: "Miami", href: "/locations/miami" },
-    { name: "Dallas", href: "/locations/dallas" },
-    { name: "San Diego", href: "/locations/san-diego" },
-  ],
   searches: [
     { name: "Daycare Near Me", href: "/search" },
     { name: "Preschools", href: "/programs/preschool" },
@@ -27,7 +21,11 @@ const footerLinks = {
   ],
 }
 
-export function Footer() {
+type FooterProps = {
+  cities: FooterCityLink[]
+}
+
+export function Footer({ cities }: FooterProps) {
   const currentYear = new Date().getFullYear()
   return (
     <footer className="border-t border-border bg-muted/50">
@@ -74,8 +72,8 @@ export function Footer() {
               Popular Cities
             </h3>
             <ul className="mt-4 space-y-3">
-              {footerLinks.cities.map((link) => (
-                <li key={link.name}>
+              {cities.map((link) => (
+                <li key={link.href}>
                   <Link
                     href={link.href}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"

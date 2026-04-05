@@ -1,6 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import {
+  revalidateDirectoryMetadataCaches,
+  revalidateFooterCitiesCache,
+} from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
@@ -51,6 +55,8 @@ export async function createCountry(input: CountryInput) {
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
+  revalidateFooterCitiesCache()
 }
 
 export async function updateCountry(id: string, input: CountryInput) {
@@ -73,6 +79,8 @@ export async function updateCountry(id: string, input: CountryInput) {
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
+  revalidateFooterCitiesCache()
 }
 
 export async function deleteCountry(id: string) {
@@ -87,6 +95,8 @@ export async function deleteCountry(id: string) {
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
+  revalidateFooterCitiesCache()
 }
 
 export async function createCity(input: CityInput) {
@@ -110,6 +120,8 @@ export async function createCity(input: CityInput) {
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
+  revalidateFooterCitiesCache()
 }
 
 export async function updateCity(id: string, input: CityInput) {
@@ -136,6 +148,8 @@ export async function updateCity(id: string, input: CityInput) {
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
+  revalidateFooterCitiesCache()
 }
 
 export async function deleteCity(id: string) {
@@ -150,5 +164,7 @@ export async function deleteCity(id: string) {
 
   revalidatePath(ADMIN_LOCATIONS_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
+  revalidateFooterCitiesCache()
 }
 

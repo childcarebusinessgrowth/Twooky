@@ -20,6 +20,7 @@ import {
   Menu,
   ArrowRight,
   CheckCircle,
+  Flag,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -107,9 +108,10 @@ export default function ProviderDashboardLayout({
   const identity = getUserIdentity(user, "provider")
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
-  // Only count provider_notifications (e.g. listing_confirmed) as unread; inquiries/reviews have no persisted read state
+  // Count persisted provider_notifications only; inquiries/reviews have no read state in DB
   const unreadCount = notifications.filter(
-    (n) => n.type === "listing_confirmed" && !n.readAt
+    (n) =>
+      (n.type === "listing_confirmed" || n.type === "review_report_accepted") && !n.readAt
   ).length
 
   async function markNotificationsRead(ids: string[]) {
@@ -376,13 +378,17 @@ export default function ProviderDashboardLayout({
                                   ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                                   : item.type === "listing_confirmed"
                                     ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                    : item.type === "review_report_accepted"
+                                      ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                               )}
                             >
                               {item.type === "inquiry" ? (
                                 <MessageSquare className="h-5 w-5" />
                               ) : item.type === "listing_confirmed" ? (
                                 <CheckCircle className="h-5 w-5" />
+                              ) : item.type === "review_report_accepted" ? (
+                                <Flag className="h-5 w-5" />
                               ) : (
                                 <Star className="h-5 w-5 fill-current" />
                               )}
@@ -395,10 +401,18 @@ export default function ProviderDashboardLayout({
                                     ? "text-blue-600 dark:text-blue-400"
                                     : item.type === "listing_confirmed"
                                       ? "text-green-600 dark:text-green-400"
-                                      : "text-amber-600 dark:text-amber-400"
+                                      : item.type === "review_report_accepted"
+                                        ? "text-violet-600 dark:text-violet-400"
+                                        : "text-amber-600 dark:text-amber-400"
                                 )}
                               >
-                                {item.type === "inquiry" ? "Inquiry" : item.type === "listing_confirmed" ? "Listing confirmed" : "Review"}
+                                {item.type === "inquiry"
+                                  ? "Inquiry"
+                                  : item.type === "listing_confirmed"
+                                    ? "Listing confirmed"
+                                    : item.type === "review_report_accepted"
+                                      ? "Report update"
+                                      : "Review"}
                               </span>
                               <p className="text-sm font-medium text-foreground mt-0.5 truncate">
                                 {item.title}

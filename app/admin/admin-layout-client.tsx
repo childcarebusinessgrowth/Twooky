@@ -20,6 +20,7 @@ import {
   CheckCircle,
   Star,
   PlusCircle,
+  Flag,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -346,7 +347,9 @@ export function AdminLayoutClient({
                                         ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                                         : item.type === "claim_request"
                                           ? "bg-teal-500/10 text-teal-600 dark:text-teal-400"
-                                          : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                          : item.type === "review_report"
+                                            ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                                 )}
                               >
                                 {item.type === "provider_signup" ? (
@@ -357,6 +360,8 @@ export function AdminLayoutClient({
                                   <CheckCircle className="h-5 w-5" />
                                 ) : item.type === "claim_request" ? (
                                   <FileCheck className="h-5 w-5" />
+                                ) : item.type === "review_report" ? (
+                                  <Flag className="h-5 w-5" />
                                 ) : (
                                   <Star className="h-5 w-5 fill-current" />
                                 )}
@@ -373,7 +378,9 @@ export function AdminLayoutClient({
                                           ? "text-amber-600 dark:text-amber-400"
                                           : item.type === "claim_request"
                                             ? "text-teal-600 dark:text-teal-400"
-                                            : "text-rose-600 dark:text-rose-400"
+                                            : item.type === "review_report"
+                                              ? "text-violet-600 dark:text-violet-400"
+                                              : "text-rose-600 dark:text-rose-400"
                                   )}
                                 >
                                   {item.type === "provider_signup"
@@ -384,7 +391,9 @@ export function AdminLayoutClient({
                                         ? "Listing"
                                         : item.type === "claim_request"
                                           ? "Claim request"
-                                          : "Moderation"}
+                                          : item.type === "review_report"
+                                            ? "Review report"
+                                            : "Moderation"}
                                 </span>
                                 <p className="text-sm font-medium text-foreground mt-0.5 truncate">
                                   {item.title}
@@ -430,6 +439,15 @@ export function AdminLayoutClient({
                       <Link href="/admin/claims" className="flex items-center gap-2 text-sm font-medium text-foreground w-full">
                         <FileCheck className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
                         View claim requests
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="rounded-md py-2.5">
+                      <Link
+                        href="/admin/reviews?reports=1"
+                        className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
+                      >
+                        <Flag className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" />
+                        Reported reviews queue
                       </Link>
                     </DropdownMenuItem>
                   </div>

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { getProviderMicrositeBlogList } from "@/lib/provider-microsite-blog"
 import { parseThemeTokens } from "@/lib/website-builder/types"
 import { MicrositeBlogThemeWrapper } from "@/components/provider/microsite-blog/microsite-blog-theme-wrapper"
@@ -10,11 +10,11 @@ type Props = {
   params: Promise<{ subdomain: string }>
 }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 120
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { subdomain } = await params
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const sub = subdomain.trim().toLowerCase()
   const { data: website } = await supabase
     .from("provider_websites")
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProviderMicrositeBlogIndexPage({ params }: Props) {
   const { subdomain } = await params
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const sub = subdomain.trim().toLowerCase()
   const { data: website } = await supabase
     .from("provider_websites")

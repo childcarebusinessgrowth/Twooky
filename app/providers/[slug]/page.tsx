@@ -1,3 +1,4 @@
+import { cache } from "react"
 import Image from "next/image"
 import { notFound } from "next/navigation"
 import {
@@ -25,12 +26,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { getActivePublicProviderBySlug } from "@/lib/get-public-provider"
 import { ProviderFavoriteButton } from "@/components/provider-favorite-button"
 import { ProviderProfileViewTracker } from "@/components/provider-profile-view-tracker"
 import { SendInquiryButton } from "@/components/send-inquiry-button"
-import { ProviderLocationMap } from "@/components/provider-location-map"
+import { ProviderLocationMapLazy } from "@/components/provider-location-map-lazy"
 import { ProviderReviewsTab } from "@/components/provider-reviews-tab"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
@@ -39,13 +40,17 @@ interface ProviderPageProps {
   params: Promise<{ slug: string }>
 }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 120
+
+const getProviderBySlugCached = cache(async (slug: string) => {
+  const supabase = getSupabaseAdminClient()
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  return getActivePublicProviderBySlug(supabase, slug, baseUrl)
+})
 
 export async function generateMetadata({ params }: ProviderPageProps) {
   const { slug } = await params
-  const supabase = await createSupabaseServerClient()
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const provider = await getActivePublicProviderBySlug(supabase, slug, baseUrl)
+  const provider = await getProviderBySlugCached(slug)
 
   if (!provider) {
     return { title: "Provider Not Found" }
@@ -57,9 +62,6 @@ export async function generateMetadata({ params }: ProviderPageProps) {
   }
 }
 
-// This page is fully dynamic (per-user state like favorites, view tracking, etc.).
-// Keeping `revalidate` unset avoids confusing cache expectations.
-
 const availabilityBadgeClassByStatus: Record<"openings" | "waitlist" | "full", string> = {
   openings: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40",
   waitlist: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
@@ -68,9 +70,7 @@ const availabilityBadgeClassByStatus: Record<"openings" | "waitlist" | "full", s
 
 export default async function ProviderPage({ params }: ProviderPageProps) {
   const { slug } = await params
-  const supabase = await createSupabaseServerClient()
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const provider = await getActivePublicProviderBySlug(supabase, slug, baseUrl)
+  const provider = await getProviderBySlugCached(slug)
 
   if (!provider) {
     notFound()
@@ -89,6 +89,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
           fill
           className="object-cover"
           priority
+          sizes="100vw"
         />
         <div className="absolute inset-0 bg-linear-to-t from-background/80 to-transparent" />
       </section>
@@ -381,7 +382,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                     <CardTitle>Location</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ProviderLocationMap address={p.address} providerName={p.name} />
+                    <ProviderLocationMapLazy address={p.address} providerName={p.name} />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -423,6 +424,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                             alt={`${p.name} photo ${index + 1}`}
                             fill
                             className="object-cover hover:scale-105 transition-transform cursor-pointer"
+                            sizes="(max-width: 768px) 50vw, 33vw"
                           />
                         </div>
                       ))}

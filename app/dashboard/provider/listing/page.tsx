@@ -876,7 +876,7 @@ export default function ManageListingPage() {
             <Clock className="h-4 w-4" />
             Operating Details
           </TabsTrigger>
-          <TabsTrigger value="availability" className="flex items-center gap-2">
+          <TabsTrigger value="availability" className="flex items-center gap-2" data-tour-tab-availability>
             <CheckCircle className="h-4 w-4" />
             Availability
           </TabsTrigger>
@@ -1221,7 +1221,7 @@ export default function ManageListingPage() {
             </div>
             <div>
               <CardTitle>Operating Details</CardTitle>
-              <CardDescription>Hours, pricing, and capacity information</CardDescription>
+              <CardDescription>Hours and monthly tuition</CardDescription>
             </div>
           </div>
         </CardHeader>

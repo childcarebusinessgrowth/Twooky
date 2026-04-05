@@ -1,9 +1,10 @@
+import { cache } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { CalendarDays, Clock, ArrowRight, Tag, Home as HomeIcon } from "lucide-react"
-import { getPublishedBlogBySlug, getPublishedBlogs, sanitizeBlogHtml } from "@/lib/blogs"
+import { getPublishedBlogBySlug, getRelatedPublishedBlogs, sanitizeBlogHtml } from "@/lib/blogs"
 
 type BlogPageProps = {
   params: Promise<{
@@ -11,11 +12,15 @@ type BlogPageProps = {
   }>
 }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 120
+
+const getPublishedBlogBySlugCached = cache(async (slug: string) => {
+  return getPublishedBlogBySlug(slug)
+})
 
 export async function generateMetadata({ params }: BlogPageProps): Promise<Metadata> {
   const { slug } = await params
-  const blog = await getPublishedBlogBySlug(slug)
+  const blog = await getPublishedBlogBySlugCached(slug)
 
   if (!blog) {
     return {
@@ -32,14 +37,13 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
 
 export default async function BlogPage({ params }: BlogPageProps) {
   const { slug } = await params
-  const blog = await getPublishedBlogBySlug(slug)
+  const blog = await getPublishedBlogBySlugCached(slug)
 
   if (!blog) {
     return notFound()
   }
 
-  const allBlogs = await getPublishedBlogs()
-  const morePosts = allBlogs.filter((p) => p.slug !== blog.slug).slice(0, 3)
+  const morePosts = await getRelatedPublishedBlogs(blog.slug, 3)
   const safeHtml = sanitizeBlogHtml(blog.contentHtml)
 
   return (

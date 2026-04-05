@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { getProviderMicrositeBlogPost } from "@/lib/provider-microsite-blog"
 import { sanitizeBlogHtml } from "@/lib/blogs"
 import { parseThemeTokens } from "@/lib/website-builder/types"
@@ -11,7 +11,7 @@ type Props = {
   params: Promise<{ subdomain: string; slug: string }>
 }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 120
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { subdomain, slug } = await params
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProviderMicrositeBlogPostPage({ params }: Props) {
   const { subdomain, slug } = await params
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const sub = subdomain.trim().toLowerCase()
   const { data: website } = await supabase
     .from("provider_websites")

@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { randomUUID } from "crypto"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
@@ -9,6 +10,21 @@ import { MAX_PHOTOS_PER_PROVIDER } from "./constants"
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"])
+
+async function revalidatePublicDirectoryAfterListingPhotosChange(profileId: string) {
+  const admin = getSupabaseAdminClient()
+  const { data } = await admin
+    .from("provider_profiles")
+    .select("provider_slug")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+  revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
+}
 
 function sanitizeFilename(name: string): string {
   return name
@@ -144,6 +160,7 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
 
     revalidatePath("/dashboard/provider/photos")
     revalidatePath("/dashboard/provider")
+    await revalidatePublicDirectoryAfterListingPhotosChange(user.id)
     return { id: row.id, storagePath: row.storage_path }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed."
@@ -252,6 +269,7 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
 
   revalidatePath("/dashboard/provider/photos")
   revalidatePath("/dashboard/provider")
+  await revalidatePublicDirectoryAfterListingPhotosChange(user.id)
   return { ok: true }
 }
 
@@ -298,5 +316,6 @@ export async function deleteProviderPhoto(photoId: string): Promise<DeleteProvid
 
   revalidatePath("/dashboard/provider/photos")
   revalidatePath("/dashboard/provider")
+  await revalidatePublicDirectoryAfterListingPhotosChange(user.id)
   return { ok: true }
 }

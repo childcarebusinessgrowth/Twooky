@@ -165,7 +165,7 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
               `<div style="padding:8px 10px;max-width:220px;">
                 <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(provider.name)}</div>
                 <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">${escapeHtml(locationText)}</div>
-                <a href="/providers/${escapeHtml(provider.slug)}" style="font-size:12px;color:#0ba5aa;text-decoration:none;font-weight:600;">View details</a>
+                <a href="/providers/${escapeHtml(provider.slug)}" style="font-size:12px;color:#203e68;text-decoration:none;font-weight:600;">View details</a>
               </div>`,
             )
             infoWindow.open({ map, anchor: marker })
@@ -351,7 +351,7 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
               `<div style="padding:8px 10px;max-width:220px;">
                 <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(provider.name)}</div>
                 <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">${escapeHtml(locationText)}</div>
-                <a href="/providers/${escapeHtml(provider.slug)}" style="font-size:12px;color:#0ba5aa;text-decoration:none;font-weight:600;">View details</a>
+                <a href="/providers/${escapeHtml(provider.slug)}" style="font-size:12px;color:#203e68;text-decoration:none;font-weight:600;">View details</a>
               </div>`,
             )
             infoWindow.open({ map, anchor: marker })

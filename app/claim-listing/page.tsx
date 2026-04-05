@@ -74,8 +74,8 @@ const benefitCardStyles = [
 ]
 
 const stats = [
-  { value: "50,000+", label: "Monthly Parent Searches" },
-  { value: "10,000+", label: "Verified Providers" },
+  { value: "5,000+", label: "Monthly Parent Searches" },
+  { value: "500+", label: "Verified Providers" },
   { value: "98%", label: "Parent Satisfaction" },
 ]
 

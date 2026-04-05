@@ -1,11 +1,16 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useEffect, useState } from "react"
-import { Analytics } from "@vercel/analytics/next"
 import {
   COOKIE_CONSENT_UPDATED_EVENT,
   readConsentFromDocument,
 } from "@/lib/cookie-consent"
+
+const Analytics = dynamic(
+  () => import("@vercel/analytics/next").then((mod) => mod.Analytics),
+  { ssr: false },
+)
 
 export function AnalyticsConsentGate() {
   const [allowAnalytics, setAllowAnalytics] = useState(false)

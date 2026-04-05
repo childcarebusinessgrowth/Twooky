@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
@@ -98,6 +99,7 @@ export async function createProgramType(input: ProgramTypeInput) {
 
   revalidatePath(ADMIN_PROGRAM_TYPES_PATH)
   revalidatePath(ADMIN_DIRECTORY_PATH)
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function updateProgramType(id: string, input: ProgramTypeInput) {
@@ -141,6 +143,7 @@ export async function updateProgramType(id: string, input: ProgramTypeInput) {
 
   revalidatePath(ADMIN_PROGRAM_TYPES_PATH)
   revalidatePath(ADMIN_DIRECTORY_PATH)
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function deleteProgramType(id: string) {
@@ -154,4 +157,5 @@ export async function deleteProgramType(id: string) {
 
   revalidatePath(ADMIN_PROGRAM_TYPES_PATH)
   revalidatePath(ADMIN_DIRECTORY_PATH)
+  revalidateDirectoryMetadataCaches()
 }

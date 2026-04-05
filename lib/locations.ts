@@ -1,5 +1,7 @@
 import "server-only"
 
+import { unstable_cache } from "next/cache"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import type { PopularLocationGroup } from "@/lib/popular-locations"
 
@@ -194,5 +196,63 @@ export async function getCityBySlug(slug: string): Promise<CityRow | null> {
   }
 
   return data ?? null
+}
+
+export type FooterCityLink = {
+  name: string
+  href: string
+}
+
+const FOOTER_CITY_FALLBACK: FooterCityLink[] = [
+  { name: "London", href: "/locations/london" },
+  { name: "Dubai", href: "/locations/dubai" },
+  { name: "New York", href: "/locations/new-york" },
+  { name: "Los Angeles", href: "/locations/los-angeles" },
+  { name: "Chicago", href: "/locations/chicago" },
+  { name: "Miami", href: "/locations/miami" },
+  { name: "San Francisco", href: "/locations/san-francisco" },
+]
+
+function shuffleInPlace<T>(arr: T[], random: () => number): void {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+}
+
+/**
+ * Up to `limit` random active cities for the site footer (Fisher–Yates on the active set).
+ * Cached cross-request so the root layout stays static/ISR-eligible (no per-request Math.random).
+ */
+export async function getRandomFooterCities(limit: number): Promise<FooterCityLink[]> {
+  return unstable_cache(
+    async () => {
+      const supabase = getSupabaseAdminClient()
+
+      const { data, error } = await supabase
+        .from("cities")
+        .select("name, slug")
+        .eq("is_active", true)
+
+      if (error) {
+        console.error("[locations] Failed to load cities for footer", error.message)
+        return FOOTER_CITY_FALLBACK
+      }
+
+      const rows = (data ?? []) as { name: string; slug: string }[]
+      if (rows.length === 0) {
+        return FOOTER_CITY_FALLBACK
+      }
+
+      shuffleInPlace(rows, Math.random)
+      const take = Math.min(limit, rows.length)
+      return rows.slice(0, take).map((c) => ({
+        name: c.name,
+        href: `/locations/${c.slug}`,
+      }))
+    },
+    ["footer-cities", String(limit)],
+    { revalidate: 3600, tags: [CACHE_TAGS.footerCities] },
+  )()
 }
 

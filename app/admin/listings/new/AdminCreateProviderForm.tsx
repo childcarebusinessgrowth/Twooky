@@ -48,7 +48,6 @@ export function AdminCreateProviderForm({
   const [website, setWebsite] = useState("")
   const [description, setDescription] = useState("")
   const [address, setAddress] = useState("")
-  const [city, setCity] = useState("")
   const [countryId, setCountryIdState] = useState("")
   const [cityId, setCityId] = useState("")
   const [listingStatus, setListingStatus] = useState("active")
@@ -88,6 +87,11 @@ export function AdminCreateProviderForm({
     if (!countryId) return cities
     return cities.filter((c) => c.country_id === countryId)
   }, [cities, countryId])
+
+  const cityDisplayName = useMemo(
+    () => cities.find((c) => c.id === cityId)?.name ?? "",
+    [cities, cityId]
+  )
 
   const addVirtualTour = () => setVirtualTourUrls((prev) => [...prev, ""])
   const updateVirtualTour = (i: number, v: string) =>
@@ -135,7 +139,7 @@ export function AdminCreateProviderForm({
   }
 
   const canProceedStep1 = businessName.trim().length > 0 && description.trim().length > 0
-  const canProceedStep2 = address.trim().length > 0 && city.trim().length > 0
+  const canProceedStep2 = address.trim().length > 0 && cityId.trim().length > 0
   const canProceedStep3 = true
   const canProceedStep4 = true
   const canProceedStep5 = canProceedStep1 && canProceedStep2
@@ -173,7 +177,7 @@ export function AdminCreateProviderForm({
     formData.set("phone", phone.trim())
     formData.set("website", website.trim())
     formData.set("address", address.trim())
-    formData.set("city", city.trim())
+    formData.set("city", "")
     formData.set("countryId", countryId)
     formData.set("cityId", cityId)
     formData.set("listingStatus", listingStatus)
@@ -242,8 +246,6 @@ export function AdminCreateProviderForm({
           <Step2LocationVisibility
             address={address}
             setAddress={setAddress}
-            city={city}
-            setCity={setCity}
             countryId={countryId}
             setCountryId={setCountryId}
             cityId={cityId}
@@ -253,7 +255,6 @@ export function AdminCreateProviderForm({
             featured={featured}
             setFeatured={setFeatured}
             countries={countries}
-            cities={cities}
             visibleCities={visibleCities}
           />
         )}
@@ -325,7 +326,7 @@ export function AdminCreateProviderForm({
             website={website}
             description={description}
             address={address}
-            city={city}
+            city={cityDisplayName}
             listingStatus={listingStatus}
             featured={featured}
             providerTypes={providerTypes}

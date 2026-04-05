@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { type Provider } from "@/lib/mock-data"
 import {
   resolveLocationToCoords,
@@ -5,12 +6,13 @@ import {
   type SearchCriteria,
 } from "@/lib/search-providers"
 import {
-  getActiveProvidersFromDb,
+  getActiveProvidersFromDbCached,
   filterActiveProviders,
   activeProviderRowToCardData,
   type ProviderCardDataFromDb,
 } from "@/lib/search-providers-db"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import type { SearchFilterOptions } from "@/components/filter-sidebar"
 
 export type SearchPageQueryParams = {
@@ -191,6 +193,12 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
   }
 }
 
+const loadSearchFilterOptionsCached = unstable_cache(
+  () => loadSearchFilterOptions(),
+  ["search-filter-options"],
+  { revalidate: 300, tags: [CACHE_TAGS.directoryFilters] },
+)
+
 export async function getSearchPageData(options: {
   searchParams: SearchPageQueryParams
   forcedProviderType?: string
@@ -225,11 +233,10 @@ export async function getSearchPageData(options: {
   const parsedFeatures = parseCsv(features)
 
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const supabase = getSupabaseAdminClient()
 
   const [filterOptions, activeRows] = await Promise.all([
-    loadSearchFilterOptions(),
-    getActiveProvidersFromDb(supabase),
+    loadSearchFilterOptionsCached(),
+    getActiveProvidersFromDbCached(),
   ])
 
   const parsedProgramTypes = parseProgramTypes(

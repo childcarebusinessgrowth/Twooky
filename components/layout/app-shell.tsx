@@ -3,15 +3,15 @@
 import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { Header } from '@/components/layout/header'
-import { Footer } from '@/components/layout/footer'
 
 const DASHBOARD_PREFIXES = ['/dashboard', '/admin', '/parents', '/site']
 
 interface AppShellProps {
   children: ReactNode
+  footer: ReactNode
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, footer }: AppShellProps) {
   const pathname = usePathname()
 
   const shouldHideChrome = DASHBOARD_PREFIXES.some((prefix) =>
@@ -28,7 +28,7 @@ export function AppShell({ children }: AppShellProps) {
       <main className="flex-1">
         {children}
       </main>
-      <Footer />
+      {footer}
     </>
   )
 }

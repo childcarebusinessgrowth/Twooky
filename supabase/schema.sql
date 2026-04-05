@@ -48,7 +48,7 @@ begin
   new.updated_at = timezone('utc'::text, now());
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 create or replace function public.prevent_profile_privilege_escalation()
 returns trigger as $$
@@ -75,7 +75,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public;
 
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
@@ -125,7 +125,7 @@ begin
   new.updated_at = timezone('utc'::text, now());
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists countries_set_updated_at on public.countries;
 create trigger countries_set_updated_at
@@ -700,7 +700,7 @@ begin
   new.updated_at = timezone('utc'::text, now());
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists blogs_set_updated_at on public.blogs;
 create trigger blogs_set_updated_at
@@ -774,7 +774,7 @@ begin
 
   return coalesce(setting_value, fallback_value);
 end;
-$$ language plpgsql stable security definer;
+$$ language plpgsql stable security definer set search_path = public;
 
 create or replace function public.get_inquiry_retention_days()
 returns integer as $$
@@ -787,7 +787,7 @@ exception
   when others then
     return 365;
 end;
-$$ language plpgsql stable security definer;
+$$ language plpgsql stable security definer set search_path = public;
 
 create or replace function public.get_pii_encryption_key()
 returns text as $$
@@ -811,7 +811,7 @@ begin
 
   return key_value;
 end;
-$$ language plpgsql stable security definer;
+$$ language plpgsql stable security definer set search_path = public;
 
 -- ============================================================================
 -- 7. Inquiries table with explicit consent and retention controls
@@ -898,7 +898,7 @@ begin
   new.updated_at := timezone('utc'::text, now());
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists inquiries_before_write on public.inquiries;
 create trigger inquiries_before_write
@@ -921,7 +921,7 @@ begin
   get diagnostics affected_rows = row_count;
   return affected_rows;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- ============================================================================
 -- 7a. Inquiry messages (thread replies; first message stays in inquiries)
@@ -1322,7 +1322,7 @@ begin
   new.updated_at = timezone('utc'::text, now());
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists parent_reviews_set_updated_at on public.parent_reviews;
 create trigger parent_reviews_set_updated_at
@@ -1391,7 +1391,7 @@ returns uuid as $$
 begin
   return auth.uid();
 end;
-$$ language plpgsql stable;
+$$ language plpgsql stable set search_path = public;
 
 -- Profiles: users can see and update only their own row
 drop policy if exists "Profiles are viewable by owner" on public.profiles;
@@ -1545,7 +1545,15 @@ drop policy if exists "Review reports insertable by reporter" on public.review_r
 create policy "Review reports insertable by reporter"
   on public.review_reports
   for insert
-  with check (reporter_profile_id = auth.uid());
+  with check (
+    reporter_profile_id = auth.uid()
+    and exists (
+      select 1
+      from public.parent_reviews pr
+      where pr.id = review_id
+        and pr.provider_profile_id = auth.uid()
+    )
+  );
 
 drop policy if exists "Review reports readable by admin" on public.review_reports;
 create policy "Review reports readable by admin"
@@ -1610,7 +1618,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created

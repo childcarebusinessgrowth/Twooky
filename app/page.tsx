@@ -1,9 +1,8 @@
 import Link from "next/link"
 import Image from "next/image"
-import { headers } from "next/headers"
-import { ShieldCheck, Star, GitCompareArrows, MessageSquare, ArrowRight, Users, Clock, Award, MapPin } from "lucide-react"
-import { SearchBar } from "@/components/search-bar"
-import { ProviderCard } from "@/components/provider-card"
+import { Suspense } from "react"
+import { ShieldCheck, Star, GitCompareArrows, MessageSquare, ArrowRight, Users, Clock, Award } from "lucide-react"
+import { SearchBarDynamic } from "@/components/search-bar-dynamic"
 import { ProgramCard } from "@/components/program-card"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,14 +10,20 @@ import {
   getAgeGroupsById,
   programTypeToCardShape,
 } from "@/lib/program-types"
-import { getRecentPublishedBlogs } from "@/lib/blogs"
-import { getPopularLocationsForHome } from "@/lib/popular-locations"
-import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
-import { activeProviderRowToCardData, getActiveProvidersFromDb } from "@/lib/search-providers-db"
-import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { parseVisitorGeoFromHeaders } from "@/lib/visitor-geo"
+import {
+  HomeFeaturedProvidersSection,
+  FeaturedProvidersSectionSkeleton,
+} from "@/app/home-featured-providers"
+import {
+  HomePopularLocationsSection,
+  HomePopularLocationsSectionSkeleton,
+} from "@/app/home-popular-locations"
+import {
+  HomeFeaturedBlogsSection,
+  HomeFeaturedBlogsSectionSkeleton,
+} from "@/app/home-featured-blogs"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60
 
 const trustFeatures = [
   {
@@ -44,29 +49,23 @@ const trustFeatures = [
 ]
 
 const heroStats = [
-  { icon: Users, value: "10,000+", label: "Verified Providers" },
-  { icon: Star, value: "50,000+", label: "Parent Reviews" },
+  { icon: Users, value: "500+", label: "Verified Providers" },
+  { icon: Star, value: "2,000+", label: "Parent Reviews" },
   { icon: Clock, value: "24/7", label: "Support Available" },
   { icon: Award, value: "98%", label: "Satisfaction Rate" },
 ]
 
-export default async function HomePage() {
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-  const supabase = getSupabaseAdminClient()
-  const visitorGeo = parseVisitorGeoFromHeaders(await headers())
+// Hero image quality guardrail: keep the high-resolution source unchanged.
+const HOME_HERO_IMAGE_SRC =
+  "https://images.pexels.com/photos/8363771/pexels-photo-8363771.jpeg?auto=compress&cs=tinysrgb&w=2200"
+const HOME_HERO_IMAGE_ALT =
+  "Young children learning together in an early childhood classroom"
 
-  const [programRows, ageGroupsById, activeProviderRows, featuredBlogs, popularLocations] = await Promise.all([
+export default async function HomePage() {
+  const [programRows, ageGroupsById] = await Promise.all([
     getActiveProgramTypes(),
     getAgeGroupsById(),
-    getActiveProvidersFromDb(supabase),
-    getRecentPublishedBlogs(3),
-    getPopularLocationsForHome(),
   ])
-
-  const featuredProviders = selectFeaturedProviders(activeProviderRows, {
-    visitorGeo,
-    limit: 3,
-  }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
 
   const displayPrograms = programRows
     .slice(0, 6)
@@ -78,8 +77,8 @@ export default async function HomePage() {
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-20">
           <Image
-            src="https://images.pexels.com/photos/8363771/pexels-photo-8363771.jpeg?auto=compress&cs=tinysrgb&w=2200"
-            alt="Young children learning together in an early childhood classroom"
+            src={HOME_HERO_IMAGE_SRC}
+            alt={HOME_HERO_IMAGE_ALT}
             fill
             priority
             className="object-cover object-[center_30%]"
@@ -108,7 +107,7 @@ export default async function HomePage() {
               verified programs, read reviews, and find the right fit for your family.
             </p>
 
-            <SearchBar surface="overlay" className="max-w-5xl" />
+            <SearchBarDynamic surface="overlay" className="max-w-5xl" />
 
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {heroStats.map((stat) => (
@@ -128,48 +127,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured Providers */}
-      <section id="featured-providers" className="py-20 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-tertiary">
-                Top picks near you
-              </span>
-              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
-                Featured Providers
-              </h2>
-              <p className="text-muted-foreground">
-                Top-rated early learning programs loved by local families
-              </p>
-            </div>
-            <Button variant="ghost" asChild className="hidden md:flex">
-              <Link href="/search">
-                View all providers
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProviders.length > 0 ? (
-              featuredProviders.map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} featured />
-              ))
-            ) : (
-              <p className="col-span-full rounded-2xl border border-dashed border-border/70 bg-muted/25 px-6 py-10 text-center text-muted-foreground">
-                No featured providers available right now.
-              </p>
-            )}
-          </div>
-
-          <div className="mt-8 text-center md:hidden">
-            <Button asChild>
-              <Link href="/search">View all providers</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+      <Suspense fallback={<FeaturedProvidersSectionSkeleton />}>
+        <HomeFeaturedProvidersSection />
+      </Suspense>
 
       {/* Browse by Program Type */}
       <section id="program-types" className="relative overflow-hidden py-20 md:py-24">
@@ -214,70 +174,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Browse by City / Popular Locations */}
-      <section id="cities" className="py-20 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="text-center mb-10">
-            <span className="mb-1 inline-block text-xs font-semibold uppercase tracking-wide text-tertiary">
-              Popular locations
-            </span>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
-              Browse by City
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Discover trusted nurseries and childcare in the most popular cities across the USA, UK and UAE.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur-sm shadow-sm p-6 md:p-8 lg:p-10">
-            <div className="grid gap-8 lg:gap-12 md:grid-cols-3">
-              {popularLocations.map((group) => (
-                <div key={group.country}>
-                  <h3 className="text-base md:text-lg font-semibold text-foreground pb-3 mb-4 border-b border-border/60">
-                    {group.country}
-                  </h3>
-                  <ul className="space-y-3">
-                    {group.locations.map((location, i) => (
-                      <li key={location.href}>
-                        <Link
-                          href={location.href}
-                          className={`group inline-flex items-center gap-2 text-sm md:text-base transition-colors ${
-                            i % 2 === 0
-                              ? "text-muted-foreground hover:text-primary"
-                              : "text-muted-foreground hover:text-tertiary"
-                          }`}
-                        >
-                          <span
-                            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
-                              i % 2 === 0
-                                ? "bg-primary/5 text-primary border-primary/10"
-                                : "bg-tertiary/8 text-tertiary border-tertiary/20"
-                            }`}
-                          >
-                            <MapPin className="h-3.5 w-3.5" />
-                          </span>
-                          <span className="underline-offset-2 group-hover:underline">
-                            {location.label}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-10 flex justify-center">
-              <Button variant="outline" asChild>
-                <Link href="/childcare/locations/">
-                  View all locations
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Suspense fallback={<HomePopularLocationsSectionSkeleton />}>
+        <HomePopularLocationsSection />
+      </Suspense>
 
       {/* Why Parents Trust Us */}
       <section className="py-20 md:py-24 bg-linear-to-b from-primary/5 via-tertiary/5 to-primary/5">
@@ -318,75 +217,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured Blogs */}
-      <section className="py-20 md:py-24 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-            <div>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-tertiary">
-                From our blog
-              </span>
-              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
-                Featured Articles for Parents
-              </h2>
-              <p className="text-muted-foreground max-w-xl">
-                Short, practical reads to help you compare programs, prepare for tours, and support big transitions.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" asChild>
-                <Link href="/blogs">
-                  View all articles
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featuredBlogs.map((post) => (
-              <Link
-                key={post.slug}
-                href={`/blogs/${post.slug}`}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card hover:bg-background/80 shadow-sm hover:shadow-md transition-all duration-200"
-              >
-                <div className="relative h-48 w-full overflow-hidden">
-                  <Image
-                    src={post.image}
-                    alt={post.title}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/35 via-black/10 to-transparent" />
-                </div>
-                <div className="flex flex-1 flex-col p-4 md:p-5">
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground mb-2">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {post.readingTime}
-                    </span>
-                    <span className="hidden sm:inline-flex items-center gap-1">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Parent guide
-                    </span>
-                  </div>
-                  <h3 className="text-base md:text-lg font-semibold text-foreground mb-1 line-clamp-2 group-hover:text-tertiary">
-                    {post.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-3 flex-1">
-                    {post.excerpt}
-                  </p>
-                  <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-tertiary">
-                    <span>Read article</span>
-                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      <Suspense fallback={<HomeFeaturedBlogsSectionSkeleton />}>
+        <HomeFeaturedBlogsSection />
+      </Suspense>
 
       {/* CTA Section */}
       <section className="py-20 md:py-24">

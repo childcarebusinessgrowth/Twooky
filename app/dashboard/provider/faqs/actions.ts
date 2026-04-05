@@ -2,6 +2,19 @@
 
 import { revalidatePath } from "next/cache"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+
+async function revalidateProviderPublicProfileForFaqs(profileId: string) {
+  const admin = getSupabaseAdminClient()
+  const { data } = await admin
+    .from("provider_profiles")
+    .select("provider_slug")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
+}
 
 export type AddProviderFaqResult = { id: string } | { error: string }
 
@@ -56,7 +69,7 @@ export async function addProviderFaq(
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  revalidatePath("/providers")
+  await revalidateProviderPublicProfileForFaqs(user.id)
   return { id: row.id }
 }
 
@@ -99,7 +112,7 @@ export async function updateProviderFaq(
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  revalidatePath("/providers")
+  await revalidateProviderPublicProfileForFaqs(user.id)
   return { ok: true }
 }
 
@@ -128,7 +141,7 @@ export async function deleteProviderFaq(id: string): Promise<DeleteProviderFaqRe
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  revalidatePath("/providers")
+  await revalidateProviderPublicProfileForFaqs(user.id)
   return { ok: true }
 }
 
@@ -163,6 +176,6 @@ export async function reorderProviderFaqs(ids: string[]): Promise<ReorderProvide
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  revalidatePath("/providers")
+  await revalidateProviderPublicProfileForFaqs(user.id)
   return { ok: true }
 }

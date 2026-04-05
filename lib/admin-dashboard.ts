@@ -361,6 +361,24 @@ export type ContactMessageRow = {
 
 const CONTACT_MESSAGES_PAGE_SIZE = 50
 const ADMIN_REVIEWS_PAGE_SIZE = 200
+const ADMIN_REVIEW_REPORTS_PAGE_SIZE = 100
+
+export type AdminReviewReportRow = {
+  report_id: string
+  review_id: string
+  reporter_profile_id: string
+  reason: string
+  details: string | null
+  reported_at: string
+  rating: number
+  review_text: string
+  review_created_at: string
+  parent_profile_id: string | null
+  parent_display_name: string | null
+  provider_profile_id: string
+  provider_business_name: string | null
+  provider_slug: string | null
+}
 
 export type AdminReviewRow = {
   id: string
@@ -433,6 +451,86 @@ export async function loadAdminReviews(): Promise<{
     return {
       reviews: [],
       error: e instanceof Error ? e.message : "Failed to load reviews",
+    }
+  }
+}
+
+export async function loadAdminReviewReports(): Promise<{
+  reports: AdminReviewReportRow[]
+  error: string | null
+}> {
+  try {
+    const supabase = getSupabaseAdminClient()
+    const { data: reportRows, error } = await supabase
+      .from("review_reports")
+      .select("id, review_id, reporter_profile_id, reason, details, created_at")
+      .order("created_at", { ascending: false })
+      .limit(ADMIN_REVIEW_REPORTS_PAGE_SIZE)
+    if (error) return { reports: [], error: error.message }
+    if (!reportRows || reportRows.length === 0) return { reports: [], error: null }
+
+    const reviewIds = [...new Set(reportRows.map((r) => r.review_id))]
+    const { data: reviews, error: reviewsError } = await supabase
+      .from("parent_reviews")
+      .select("id, parent_profile_id, provider_profile_id, rating, review_text, created_at")
+      .in("id", reviewIds)
+    if (reviewsError || !reviews) {
+      return { reports: [], error: reviewsError?.message ?? "Failed to load reviews for reports" }
+    }
+
+    const reviewById = new Map(reviews.map((v) => [v.id, v]))
+    const providerIds = [...new Set(reviews.map((v) => v.provider_profile_id))]
+    const parentIds = [
+      ...new Set(reviews.map((v) => v.parent_profile_id).filter((id): id is string => id != null)),
+    ]
+
+    const [providerProfilesRes, profilesRes] = await Promise.all([
+      supabase
+        .from("provider_profiles")
+        .select("profile_id, business_name, provider_slug")
+        .in("profile_id", providerIds),
+      parentIds.length > 0
+        ? supabase.from("profiles").select("id, display_name").in("id", parentIds)
+        : Promise.resolve({ data: [] as { id: string; display_name: string | null }[] }),
+    ])
+
+    const providerBy = new Map(
+      (providerProfilesRes.data ?? []).map((p) => [
+        p.profile_id,
+        { business_name: p.business_name, provider_slug: p.provider_slug },
+      ])
+    )
+    const nameBy = new Map((profilesRes.data ?? []).map((p) => [p.id, p.display_name]))
+
+    const reports: AdminReviewReportRow[] = []
+    for (const rr of reportRows) {
+      const rev = reviewById.get(rr.review_id)
+      if (!rev) continue
+      const provider = providerBy.get(rev.provider_profile_id)
+      reports.push({
+        report_id: rr.id,
+        review_id: rev.id,
+        reporter_profile_id: rr.reporter_profile_id,
+        reason: rr.reason,
+        details: rr.details ?? null,
+        reported_at: rr.created_at,
+        rating: rev.rating,
+        review_text: rev.review_text,
+        review_created_at: rev.created_at,
+        parent_profile_id: rev.parent_profile_id,
+        parent_display_name:
+          rev.parent_profile_id == null ? "Anonymous" : (nameBy.get(rev.parent_profile_id) ?? null),
+        provider_profile_id: rev.provider_profile_id,
+        provider_business_name: provider?.business_name ?? null,
+        provider_slug: provider?.provider_slug ?? null,
+      })
+    }
+
+    return { reports, error: null }
+  } catch (e) {
+    return {
+      reports: [],
+      error: e instanceof Error ? e.message : "Failed to load review reports",
     }
   }
 }

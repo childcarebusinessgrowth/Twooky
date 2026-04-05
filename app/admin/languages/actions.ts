@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 
@@ -27,6 +28,7 @@ export async function createLanguage(input: LanguageInput) {
 
   revalidatePath(ADMIN_LANGUAGES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function updateLanguage(id: string, input: LanguageInput) {
@@ -47,6 +49,7 @@ export async function updateLanguage(id: string, input: LanguageInput) {
 
   revalidatePath(ADMIN_LANGUAGES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }
 
 export async function deleteLanguage(id: string) {
@@ -60,4 +63,5 @@ export async function deleteLanguage(id: string) {
 
   revalidatePath(ADMIN_LANGUAGES_PATH)
   revalidatePath("/admin/directory")
+  revalidateDirectoryMetadataCaches()
 }

@@ -58,13 +58,28 @@ export async function GET() {
       label: row.name,
     }))
 
-    return NextResponse.json({
-      ageGroups: ageGroupOptions,
-      programTypes: programTypeOptions,
-    })
+    return NextResponse.json(
+      {
+        ageGroups: ageGroupOptions,
+        programTypes: programTypeOptions,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
+        },
+      },
+    )
   } catch (error) {
     console.error("[search-options] Unexpected error", error)
-    return NextResponse.json({ ageGroups: [], programTypes: [] }, { status: 200 })
+    return NextResponse.json(
+      { ageGroups: [], programTypes: [] },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
+        },
+      },
+    )
   }
 }
 

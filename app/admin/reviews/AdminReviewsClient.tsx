@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Search, Star, Building2, MessageSquare } from "lucide-react"
+import { useRouter, usePathname } from "next/navigation"
+import { Search, Star, Building2, MessageSquare, Flag } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -14,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { AdminReviewRow } from "@/lib/admin-dashboard"
+import type { AdminReviewReportRow, AdminReviewRow } from "@/lib/admin-dashboard"
+import { acceptReviewReportAndDeleteReview, dismissReviewReport } from "./actions"
 
 function formatDate(iso: string) {
   try {
@@ -127,14 +131,145 @@ function ReviewCard({ review }: ReviewCardProps) {
   )
 }
 
-type Props = {
-  initialReviews: AdminReviewRow[]
-  loadError: string | null
+type ReportQueueCardProps = {
+  report: AdminReviewReportRow
+  busyId: string | null
+  onRemove: (reviewId: string) => void
+  onDismiss: (reportId: string) => void
 }
 
-export function AdminReviewsClient({ initialReviews, loadError }: Props) {
+function ReportQueueCard({ report, busyId, onRemove, onDismiss }: ReportQueueCardProps) {
+  const initials = getInitials(report.parent_display_name ?? "Anonymous")
+  const parentName = report.parent_display_name?.trim() || "Anonymous"
+  const providerName = report.provider_business_name?.trim() || "Unknown provider"
+
+  return (
+    <Card className="border-border/60 border-l-4 border-l-amber-500/80">
+      <CardContent className="p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex gap-3 min-w-0">
+            <Avatar className="h-12 w-12 shrink-0 border-2 border-background shadow-md ring-1 ring-border/50">
+              <AvatarFallback className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm font-semibold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 space-y-1">
+              <p className="font-semibold text-foreground">{parentName}</p>
+              {report.provider_slug ? (
+                <Link
+                  href={`/providers/${report.provider_slug}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  {providerName}
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  {providerName}
+                </span>
+              )}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <StarRating rating={report.rating} />
+                <span className="text-xs text-muted-foreground">
+                  Review {formatDate(report.review_created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Badge variant="secondary" className="shrink-0">
+            Reported {formatDate(report.reported_at)}
+          </Badge>
+        </div>
+
+        <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Report reason</p>
+          <p className="text-sm text-foreground">{report.reason}</p>
+          {report.details?.trim() && (
+            <>
+              <p className="text-xs font-medium text-muted-foreground pt-2">Details</p>
+              <p className="text-sm text-foreground">{report.details}</p>
+            </>
+          )}
+        </div>
+
+        <p className="text-sm text-foreground leading-relaxed border-t border-border/60 pt-3">
+          {report.review_text}
+        </p>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={busyId != null}
+            onClick={() => void onRemove(report.review_id)}
+          >
+            {busyId === `remove-${report.review_id}` ? "Removing…" : "Remove review"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busyId != null}
+            onClick={() => void onDismiss(report.report_id)}
+          >
+            {busyId === `dismiss-${report.report_id}` ? "Dismissing…" : "Dismiss report"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+type Props = {
+  initialReviews: AdminReviewRow[]
+  initialReports: AdminReviewReportRow[]
+  loadError: string | null
+  reportsLoadError: string | null
+  defaultTab: "all" | "reports"
+}
+
+export function AdminReviewsClient({
+  initialReviews,
+  initialReports,
+  loadError,
+  reportsLoadError,
+  defaultTab,
+}: Props) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [tab, setTab] = useState<"all" | "reports">(defaultTab)
+
+  useEffect(() => {
+    setTab(defaultTab)
+  }, [defaultTab])
+
   const [search, setSearch] = useState("")
   const [providerFilter, setProviderFilter] = useState<string>("all")
+
+  function handleTabChange(value: string) {
+    const next = value === "reports" ? "reports" : "all"
+    setTab(next)
+    if (next === "reports") {
+      router.replace(`${pathname}?reports=1`, { scroll: false })
+    } else {
+      router.replace(pathname, { scroll: false })
+    }
+  }
+
+  async function runRemoveReview(reviewId: string) {
+    setBusyId(`remove-${reviewId}`)
+    const res = await acceptReviewReportAndDeleteReview(reviewId)
+    setBusyId(null)
+    if (!res.error) router.refresh()
+  }
+
+  async function runDismissReport(reportId: string) {
+    setBusyId(`dismiss-${reportId}`)
+    const res = await dismissReviewReport(reportId)
+    setBusyId(null)
+    if (!res.error) router.refresh()
+  }
 
   const uniqueProviders = useMemo(() => {
     const seen = new Map<string, string>()
@@ -181,25 +316,6 @@ export function AdminReviewsClient({ initialReviews, loadError }: Props) {
     return { total, avgRating, newThisMonth }
   }, [initialReviews])
 
-  if (loadError) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reviews</h1>
-          <p className="text-muted-foreground">
-            All parent reviews across providers
-          </p>
-        </div>
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="p-6">
-            <p className="text-destructive font-medium">Could not load reviews</p>
-            <p className="text-sm text-muted-foreground mt-1">{loadError}</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-8">
       {/* Header with gradient */}
@@ -211,10 +327,10 @@ export function AdminReviewsClient({ initialReviews, loadError }: Props) {
                 Reviews
               </h1>
               <p className="mt-1 text-muted-foreground">
-                All parent reviews across providers
+                Browse all reviews and moderate provider reports
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Badge
                 variant="secondary"
                 className="gap-1.5 px-3 py-1.5 text-sm font-medium"
@@ -222,6 +338,12 @@ export function AdminReviewsClient({ initialReviews, loadError }: Props) {
                 <MessageSquare className="h-4 w-4" />
                 {stats.total} total
               </Badge>
+              {initialReports.length > 0 && (
+                <Badge className="gap-1.5 px-3 py-1.5 text-sm font-medium bg-amber-600/90 text-white">
+                  <Flag className="h-4 w-4" />
+                  {initialReports.length} reported
+                </Badge>
+              )}
               {stats.newThisMonth > 0 && (
                 <Badge className="gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary/90">
                   <Star className="h-4 w-4" />
@@ -233,94 +355,157 @@ export function AdminReviewsClient({ initialReviews, loadError }: Props) {
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid sm:grid-cols-3 gap-4">
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardDescription>Total Reviews</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <span className="text-3xl font-bold text-foreground">
-              {stats.total}
-            </span>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardDescription>Average Rating</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold text-foreground">
-                {stats.avgRating}
+      <Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2 h-11">
+          <TabsTrigger value="all">All reviews</TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            Reported
+            {initialReports.length > 0 && (
+              <span className="rounded-full bg-background/80 px-2 py-0.5 text-xs font-semibold tabular-nums">
+                {initialReports.length}
               </span>
-              <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardDescription>New This Month</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <span className="text-3xl font-bold text-foreground">
-              {stats.newThisMonth}
-            </span>
-          </CardContent>
-        </Card>
-      </div>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Search and filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search by parent, provider, or review text..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-11 rounded-xl border-border/60 bg-background/80"
-          />
-        </div>
-        <Select value={providerFilter} onValueChange={setProviderFilter}>
-          <SelectTrigger className="w-full sm:w-[220px] h-11 rounded-xl border-border/60">
-            <SelectValue placeholder="Filter by provider" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All providers</SelectItem>
-            {uniqueProviders.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
+        <TabsContent value="all" className="space-y-8 mt-6">
+          {loadError && (
+            <Card className="border-destructive/50 bg-destructive/5">
+              <CardContent className="p-6">
+                <p className="text-destructive font-medium">Could not load reviews</p>
+                <p className="text-sm text-muted-foreground mt-1">{loadError}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!loadError && (
+            <>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Reviews</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-3xl font-bold text-foreground">
+                      {stats.total}
+                    </span>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardDescription>Average Rating</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-bold text-foreground">
+                        {stats.avgRating}
+                      </span>
+                      <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardDescription>New This Month</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-3xl font-bold text-foreground">
+                      {stats.newThisMonth}
+                    </span>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search by parent, provider, or review text..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 h-11 rounded-xl border-border/60 bg-background/80"
+                  />
+                </div>
+                <Select value={providerFilter} onValueChange={setProviderFilter}>
+                  <SelectTrigger className="w-full sm:w-[220px] h-11 rounded-xl border-border/60">
+                    <SelectValue placeholder="Filter by provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All providers</SelectItem>
+                    {uniqueProviders.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredReviews.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <p className="font-medium text-foreground">
+                      {search.trim() || providerFilter !== "all"
+                        ? "No reviews match your filters"
+                        : "No reviews yet"}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                      {search.trim() || providerFilter !== "all"
+                        ? "Try adjusting your search or provider filter."
+                        : "Parent reviews will appear here once they are submitted."}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {filteredReviews.map((review) => (
+                    <ReviewCard key={review.id} review={review} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4 mt-6">
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            Providers can flag reviews they believe are fake or inappropriate. Removing a review
+            notifies the provider that their report was accepted. Dismissing keeps the review and
+            only removes this report.
+          </p>
+          {reportsLoadError && (
+            <Card className="border-destructive/50 bg-destructive/5">
+              <CardContent className="p-6">
+                <p className="text-destructive font-medium">Could not load reports</p>
+                <p className="text-sm text-muted-foreground mt-1">{reportsLoadError}</p>
+              </CardContent>
+            </Card>
+          )}
+          {!reportsLoadError && initialReports.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Flag className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="font-medium text-foreground">No open reports</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  When a provider reports a review, it will appear here for moderation.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {!reportsLoadError &&
+            initialReports.map((report) => (
+              <ReportQueueCard
+                key={report.report_id}
+                report={report}
+                busyId={busyId}
+                onRemove={runRemoveReview}
+                onDismiss={runDismissReport}
+              />
             ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Review cards */}
-      {filteredReviews.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <p className="font-medium text-foreground">
-              {search.trim() || providerFilter !== "all"
-                ? "No reviews match your filters"
-                : "No reviews yet"}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              {search.trim() || providerFilter !== "all"
-                ? "Try adjusting your search or provider filter."
-                : "Parent reviews will appear here once they are submitted."}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredReviews.map((review) => (
-            <ReviewCard key={review.id} review={review} />
-          ))}
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

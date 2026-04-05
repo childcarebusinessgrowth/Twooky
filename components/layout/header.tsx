@@ -2,11 +2,10 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/components/AuthProvider"
 
 import {
   DropdownMenu,
@@ -43,65 +42,33 @@ function resolveDashboardHref(role: unknown): string {
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
-  const [isAuthResolved, setIsAuthResolved] = useState(false)
-  const [isServerAuthenticated, setIsServerAuthenticated] = useState(false)
-  const [dashboardHref, setDashboardHref] = useState("/dashboard/parent")
-  const { user, loading } = useAuth()
+  const [resolvedRole, setResolvedRole] = useState<AuthRole | null>(null)
 
-  const roleFromAppMetadata = user?.app_metadata?.role
-  const roleFromUserMetadata = user?.user_metadata?.role
-  const role = (roleFromAppMetadata ?? roleFromUserMetadata) as AuthRole | undefined
   useEffect(() => {
     let cancelled = false
 
-    async function resolveServerAuth() {
-      if (loading) return
-      if (!user) {
-        if (!cancelled) {
-          setIsServerAuthenticated(false)
-          setDashboardHref(resolveDashboardHref(role))
-          setIsAuthResolved(true)
-        }
-        return
-      }
-
+    const resolveRole = async () => {
       try {
         const response = await fetch("/api/auth/role", { cache: "no-store" })
-        const payload = (await response.json().catch(() => ({}))) as {
-          redirectPath?: string
-          unresolvedRole?: boolean
+        if (!response.ok) {
+          if (!cancelled) setResolvedRole(null)
+          return
         }
-
-        if (cancelled) return
-
-        if (response.ok && payload.redirectPath) {
-          setIsServerAuthenticated(true)
-          setDashboardHref(payload.redirectPath)
-        } else {
-          setIsServerAuthenticated(false)
-          setDashboardHref(resolveDashboardHref(role))
-        }
+        const payload = (await response.json()) as { role?: AuthRole }
+        if (!cancelled) setResolvedRole(payload.role ?? null)
       } catch {
-        if (!cancelled) {
-          setIsServerAuthenticated(false)
-          setDashboardHref(resolveDashboardHref(role))
-        }
-      } finally {
-        if (!cancelled) {
-          setIsAuthResolved(true)
-        }
+        if (!cancelled) setResolvedRole(null)
       }
     }
 
-    setIsAuthResolved(false)
-    void resolveServerAuth()
-
+    void resolveRole()
     return () => {
       cancelled = true
     }
-  }, [loading, role, user])
+  }, [])
 
-  const showDashboardAction = !loading && isAuthResolved && isServerAuthenticated
+  const dashboardHref = useMemo(() => resolveDashboardHref(resolvedRole), [resolvedRole])
+  const showDashboardAction = resolvedRole !== null
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
@@ -113,7 +80,7 @@ export function Header() {
             alt="Twooky logo"
             width={200}
             height={60}
-            priority
+            sizes="200px"
             className="h-14 w-auto"
           />
         </Link>

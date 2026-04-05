@@ -267,6 +267,16 @@ export async function createReviewReport(
 ): Promise<{ error: string | null }> {
   const trimmedReason = reason.trim()
   if (trimmedReason.length === 0) return { error: "Reason is required." }
+  const { data: review, error: reviewError } = await supabase
+    .from("parent_reviews")
+    .select("id, provider_profile_id")
+    .eq("id", reviewId)
+    .maybeSingle()
+  if (reviewError) return { error: reviewError.message }
+  if (!review) return { error: "Review not found." }
+  if (review.provider_profile_id !== reporterProfileId) {
+    return { error: "You can only report reviews for your own listing." }
+  }
   const { error } = await supabase.from("review_reports").insert({
     review_id: reviewId,
     reporter_profile_id: reporterProfileId,

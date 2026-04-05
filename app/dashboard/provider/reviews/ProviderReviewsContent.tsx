@@ -37,6 +37,7 @@ const REPORT_REASONS = [
   { value: "inappropriate", label: "Inappropriate content" },
   { value: "spam", label: "Spam" },
   { value: "harassment", label: "Harassment" },
+  { value: "fake", label: "Suspected fake or misleading review" },
   { value: "other", label: "Other" },
 ] as const
 

@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { BlogEditor } from "@/components/blog-editor"
+import { BlogEditorLazy } from "@/components/blog-editor-lazy"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useToast } from "@/hooks/use-toast"
 import type { BlogInput } from "@/lib/blog-shared"
@@ -481,7 +481,7 @@ export function ProviderBlogsPageClient({ initialPosts, hasWebsite, websiteId }:
 
                       <div className="space-y-2">
                         <Label>Body content</Label>
-                        <BlogEditor
+                        <BlogEditorLazy
                           value={manageForm.contentHtml}
                           onChange={(html) =>
                             setManageForm((prev) => ({
@@ -724,7 +724,7 @@ export function ProviderBlogsPageClient({ initialPosts, hasWebsite, websiteId }:
 
               <div className="space-y-2">
                 <Label>Body content</Label>
-                <BlogEditor
+                <BlogEditorLazy
                   value={editorForm.contentHtml}
                   onChange={(html) => setEditorForm((prev) => ({ ...prev, contentHtml: html }))}
                   onUploadImage={uploadInlineImage}

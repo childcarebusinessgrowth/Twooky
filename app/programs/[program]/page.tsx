@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { headers } from "next/headers"
 import { ArrowRight, Check } from "lucide-react"
 import { Baby } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,9 +12,6 @@ import {
 } from "@/components/ui/accordion"
 import { ProviderCard } from "@/components/provider-card"
 import { getFeaturedProvidersForProgram } from "@/lib/search-providers-db"
-import { parseVisitorGeoFromHeaders } from "@/lib/visitor-geo"
-
-export const dynamic = "force-dynamic"
 import {
   getActiveProgramTypes,
   getAgeGroupsById,
@@ -24,6 +20,8 @@ import {
   iconMap,
   slugToIcon,
 } from "@/lib/program-types"
+
+export const revalidate = 120
 
 interface ProgramPageProps {
   params: Promise<{ program: string }>
@@ -77,8 +75,7 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
     .slice(0, 5)
     .map((row) => programTypeToCardShape(row, ageGroupsById))
 
-  const visitorGeo = parseVisitorGeoFromHeaders(await headers())
-  const featuredProviders = await getFeaturedProvidersForProgram(slug, 3, visitorGeo)
+  const featuredProviders = await getFeaturedProvidersForProgram(slug, 3, null)
 
   return (
     <div className="min-h-screen bg-background">

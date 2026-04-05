@@ -1,6 +1,6 @@
 import "server-only"
 import sanitizeHtml from "sanitize-html"
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 type BlogRow = {
   slug: string
@@ -16,6 +16,8 @@ type BlogRow = {
   meta_description: string | null
 }
 
+type BlogListRow = Omit<BlogRow, "content_html">
+
 export type PublishedBlog = {
   slug: string
   title: string
@@ -29,6 +31,8 @@ export type PublishedBlog = {
   seoTitle: string | null
   metaDescription: string | null
 }
+
+export type PublishedBlogListItem = Omit<PublishedBlog, "contentHtml">
 
 const BLOG_FALLBACK_IMAGE = "/images/blogs/quality-early-learning.svg"
 
@@ -48,8 +52,23 @@ function mapBlog(row: BlogRow): PublishedBlog {
   }
 }
 
+function mapBlogList(row: BlogListRow): PublishedBlogListItem {
+  return {
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    publishedAt: row.published_at ?? new Date().toISOString(),
+    readingTime: row.reading_time || "3 min read",
+    image: row.cover_image_url || BLOG_FALLBACK_IMAGE,
+    imageAlt: row.cover_image_alt || row.title,
+    tags: row.tags ?? [],
+    seoTitle: row.seo_title,
+    metaDescription: row.meta_description,
+  }
+}
+
 export async function getPublishedBlogs(): Promise<PublishedBlog[]> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("blogs")
     .select(
@@ -66,8 +85,26 @@ export async function getPublishedBlogs(): Promise<PublishedBlog[]> {
   return (data ?? []).map((row) => mapBlog(row as BlogRow))
 }
 
+export async function getPublishedBlogPreviews(): Promise<PublishedBlogListItem[]> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("blogs")
+    .select(
+      "slug, title, excerpt, published_at, reading_time, cover_image_url, cover_image_alt, tags, seo_title, meta_description",
+    )
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+
+  if (error) {
+    console.error("[blogs] Failed to fetch published blog previews", error.message)
+    return []
+  }
+
+  return (data ?? []).map((row) => mapBlogList(row as BlogListRow))
+}
+
 export async function getPublishedBlogBySlug(slug: string): Promise<PublishedBlog | null> {
-  const supabase = await createSupabaseServerClient()
+  const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("blogs")
     .select(
@@ -86,12 +123,12 @@ export async function getPublishedBlogBySlug(slug: string): Promise<PublishedBlo
   return mapBlog(data as BlogRow)
 }
 
-export async function getRecentPublishedBlogs(limit = 3): Promise<PublishedBlog[]> {
-  const supabase = await createSupabaseServerClient()
+export async function getRecentPublishedBlogs(limit = 3): Promise<PublishedBlogListItem[]> {
+  const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("blogs")
     .select(
-      "slug, title, excerpt, content_html, published_at, reading_time, cover_image_url, cover_image_alt, tags, seo_title, meta_description",
+      "slug, title, excerpt, published_at, reading_time, cover_image_url, cover_image_alt, tags, seo_title, meta_description",
     )
     .eq("status", "published")
     .order("published_at", { ascending: false })
@@ -102,7 +139,30 @@ export async function getRecentPublishedBlogs(limit = 3): Promise<PublishedBlog[
     return []
   }
 
-  return (data ?? []).map((row) => mapBlog(row as BlogRow))
+  return (data ?? []).map((row) => mapBlogList(row as BlogListRow))
+}
+
+export async function getRelatedPublishedBlogs(
+  excludeSlug: string,
+  limit = 3,
+): Promise<PublishedBlogListItem[]> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("blogs")
+    .select(
+      "slug, title, excerpt, published_at, reading_time, cover_image_url, cover_image_alt, tags, seo_title, meta_description",
+    )
+    .eq("status", "published")
+    .neq("slug", excludeSlug)
+    .order("published_at", { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error("[blogs] Failed to fetch related blogs", error.message)
+    return []
+  }
+
+  return (data ?? []).map((row) => mapBlogList(row as BlogListRow))
 }
 
 /** Normalize protocol-less URLs so they pass allowedSchemes and work as external links. */

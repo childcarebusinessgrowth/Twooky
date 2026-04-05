@@ -1,6 +1,7 @@
 import { guardRoleOrRedirect } from "@/lib/authzServer"
 import { AdminLayoutClient } from "./admin-layout-client"
 import { getPendingClaimsCount } from "./claims/actions"
+import { AuthProviderClient } from "@/components/auth-provider-client"
 
 export default async function AdminLayout({
   children,
@@ -10,8 +11,10 @@ export default async function AdminLayout({
   await guardRoleOrRedirect("admin")
   const pendingClaimsCount = await getPendingClaimsCount()
   return (
-    <AdminLayoutClient pendingClaimsCount={pendingClaimsCount}>
-      {children}
-    </AdminLayoutClient>
+    <AuthProviderClient>
+      <AdminLayoutClient pendingClaimsCount={pendingClaimsCount}>
+        {children}
+      </AdminLayoutClient>
+    </AuthProviderClient>
   )
 }

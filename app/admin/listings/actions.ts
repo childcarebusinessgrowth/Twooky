@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
+import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertServerRole } from "@/lib/authzServer"
 import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
@@ -441,9 +442,20 @@ export async function updateListingStatus(
 ): Promise<{ error?: string }> {
   await assertServerRole("admin")
   const supabase = getSupabaseAdminClient()
+  const { data: before } = await supabase
+    .from("provider_profiles")
+    .select("listing_status")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+  const previousStatus = before?.listing_status ?? "pending"
+  const shouldVerify =
+    status === "active" && (previousStatus === "pending" || previousStatus === "draft")
   const { data, error } = await supabase
     .from("provider_profiles")
-    .update({ listing_status: status })
+    .update({
+      listing_status: status,
+      ...(shouldVerify ? { verified_provider_badge: true } : {}),
+    })
     .eq("profile_id", profileId)
     .select("provider_slug")
     .maybeSingle()
@@ -462,6 +474,8 @@ export async function updateListingStatus(
   revalidatePath("/dashboard/provider")
   revalidatePath("/dashboard/provider/listing")
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   if (data?.provider_slug) {
     revalidatePath(`/providers/${data.provider_slug}`)
   }
@@ -474,13 +488,23 @@ export async function updateListingFeatured(
 ): Promise<{ error?: string }> {
   await assertServerRole("admin")
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("provider_profiles")
     .update({ featured })
     .eq("profile_id", profileId)
+    .select("provider_slug")
+    .maybeSingle()
   if (error) return { error: error.message }
   revalidatePath(LISTINGS_PATH)
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/dashboard/provider/listing")
+  revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
   return {}
 }
 
@@ -501,6 +525,8 @@ export async function updateListingEarlyLearningExcellenceBadge(
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
   revalidatePath("/dashboard/provider")
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   if (data?.provider_slug) {
     revalidatePath(`/providers/${data.provider_slug}`)
   }
@@ -524,6 +550,8 @@ export async function updateListingVerifiedProviderBadge(
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
   revalidatePath("/dashboard/provider")
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   if (data?.provider_slug) {
     revalidatePath(`/providers/${data.provider_slug}`)
   }
@@ -548,6 +576,8 @@ export async function updateListingVerifiedProviderBadgeColor(
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
   revalidatePath("/dashboard/provider")
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   if (data?.provider_slug) {
     revalidatePath(`/providers/${data.provider_slug}`)
   }
@@ -613,6 +643,8 @@ export async function deleteListingPhoto(
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
   revalidatePath("/dashboard/provider")
   revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   if (profile?.provider_slug) {
     revalidatePath(`/providers/${profile.provider_slug}`)
   }
@@ -645,6 +677,9 @@ export async function deleteListing(profileId: string): Promise<{ error?: string
   if (error) return { error: error.message }
   revalidatePath(LISTINGS_PATH)
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
   return {}
 }
 
@@ -730,8 +765,21 @@ export async function addListingPhotos(
     }
   }
 
+  const { data: profileAfter } = await supabase
+    .from("provider_profiles")
+    .select("provider_slug")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+
   revalidatePath(LISTINGS_PATH)
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/dashboard/provider/photos")
+  revalidatePath("/search")
+  revalidateProviderDirectoryCaches()
+  if (profileAfter?.provider_slug) {
+    revalidatePath(`/providers/${profileAfter.provider_slug}`)
+  }
   return { ok: true, added: photos.length }
 }
 

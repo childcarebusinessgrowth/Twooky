@@ -1,6 +1,6 @@
 import { Suspense } from "react"
-import { SearchResults } from "@/components/search-results"
-import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { SearchResultsSection } from "@/app/search/search-results-section"
+import type { SearchPageQueryParams } from "@/lib/search-page-data"
 
 export const metadata = {
   title: "Search Childcare | Twooky",
@@ -11,15 +11,19 @@ interface SearchPageProps {
   searchParams?: Promise<SearchPageQueryParams>
 }
 
-export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const resolvedSearchParams = (await searchParams) ?? {}
-  const { providers, filterOptions } = await getSearchPageData({
-    searchParams: resolvedSearchParams,
-  })
-
+function SearchResultsFallback() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <SearchResults providers={providers} filterOptions={filterOptions} />
+    <div className="min-h-screen flex flex-col items-center justify-center gap-2 text-muted-foreground">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden />
+      <span className="text-sm">Loading providers…</span>
+    </div>
+  )
+}
+
+export default function SearchPage({ searchParams }: SearchPageProps) {
+  return (
+    <Suspense fallback={<SearchResultsFallback />}>
+      <SearchResultsSection searchParams={searchParams} />
     </Suspense>
   )
 }

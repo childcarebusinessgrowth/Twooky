@@ -40,7 +40,18 @@ const TOUR_STEPS: DriveStep[] = [
     element: "[data-tour-tab-operating]",
     popover: {
       title: "Operating Details",
-      description: "Set your hours, tuition range, and capacity.",
+      description:
+        "Set your opening and closing hours and your monthly tuition range so families know what to expect.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: "[data-tour-tab-availability]",
+    popover: {
+      title: "Availability",
+      description:
+        "Enter your total enrollment capacity, the number of children your program can serve. This helps families understand openings at a glance.",
       side: "bottom",
       align: "start",
     },
