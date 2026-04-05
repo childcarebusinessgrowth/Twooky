@@ -35,6 +35,7 @@ import { ProviderLocationMapLazy } from "@/components/provider-location-map-lazy
 import { ProviderReviewsTab } from "@/components/provider-reviews-tab"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { AuthProviderClient } from "@/components/auth-provider-client"
 
 interface ProviderPageProps {
   params: Promise<{ slug: string }>
@@ -79,8 +80,9 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
   const p = provider
 
   return (
-    <div className="min-h-screen bg-background">
-      <ProviderProfileViewTracker slug={p.slug} />
+    <AuthProviderClient>
+      <div className="min-h-screen bg-background">
+        <ProviderProfileViewTracker slug={p.slug} />
       {/* Hero Image */}
       <section className="relative h-64 md:h-80 lg:h-96 bg-muted overflow-hidden">
         <Image
@@ -537,6 +539,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </AuthProviderClient>
   )
 }

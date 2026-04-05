@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
-import { ProviderCard } from "@/components/provider-card"
 import { Button } from "@/components/ui/button"
+import { HomeFeaturedProvidersClient } from "@/components/home-featured-providers-client"
 import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
 import {
   activeProviderRowToCardData,
@@ -73,17 +73,7 @@ export async function HomeFeaturedProvidersSection() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredProviders.length > 0 ? (
-            featuredProviders.map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} featured />
-            ))
-          ) : (
-            <p className="col-span-full rounded-2xl border border-dashed border-border/70 bg-muted/25 px-6 py-10 text-center text-muted-foreground">
-              No featured providers available right now.
-            </p>
-          )}
-        </div>
+        <HomeFeaturedProvidersClient initialProviders={featuredProviders} />
 
         <div className="mt-8 text-center md:hidden">
           <Button asChild>

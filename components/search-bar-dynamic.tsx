@@ -6,7 +6,10 @@ import { SearchBarFallback } from "@/components/search-bar"
 
 const SearchBarLazy = dynamic(
   () => import("@/components/search-bar").then((m) => m.SearchBar),
-  { loading: () => <SearchBarFallback /> },
+  {
+    ssr: false,
+    loading: () => <SearchBarFallback />,
+  },
 )
 
 export function SearchBarDynamic(props: SearchBarProps) {

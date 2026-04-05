@@ -22,10 +22,24 @@ export type UserCoordinates = {
   lng: number
 }
 
+export const CLIENT_LOCATION_CACHE_KEY = "eld:client-location-cache"
+export const CLIENT_LOCATION_UPDATED_EVENT = "eld:client-location-updated"
+
+export type ClientLocationCacheValue = {
+  locationText: string
+  city?: string
+  state?: string
+  countryCode?: string
+  lat?: number
+  lng?: number
+  updatedAt: number
+}
+
 type ReverseGeocodeResult = {
   locationText: string
   city?: string
   state?: string
+  countryCode?: string
   postalCode?: string
   formattedAddress?: string
 }
@@ -160,10 +174,12 @@ export async function reverseGeocodeCoordinates(
     pickComponent(components, "postal_town") ||
     pickComponent(components, "administrative_area_level_2")
   const stateComponent = pickComponent(components, "administrative_area_level_1")
+  const countryComponent = pickComponent(components, "country")
   const postalComponent = pickComponent(components, "postal_code")
 
   const city = cityComponent?.long_name
   const state = stateComponent?.short_name ?? stateComponent?.long_name
+  const countryCode = countryComponent?.short_name?.toUpperCase()
   const postalCode = postalComponent?.long_name
   const formattedAddress = primaryResult.formatted_address
   const locationText = formatLocationText(city, state, postalCode, formattedAddress)
@@ -176,7 +192,38 @@ export async function reverseGeocodeCoordinates(
     locationText,
     city,
     state,
+    countryCode,
     postalCode,
     formattedAddress,
   }
+}
+
+export function readClientLocationCache(): ClientLocationCacheValue | null {
+  if (typeof window === "undefined") return null
+  const raw = window.sessionStorage.getItem(CLIENT_LOCATION_CACHE_KEY)
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<ClientLocationCacheValue>
+    if (!parsed || typeof parsed.locationText !== "string" || typeof parsed.updatedAt !== "number") {
+      return null
+    }
+    return {
+      locationText: parsed.locationText,
+      city: typeof parsed.city === "string" ? parsed.city : undefined,
+      state: typeof parsed.state === "string" ? parsed.state : undefined,
+      countryCode: typeof parsed.countryCode === "string" ? parsed.countryCode : undefined,
+      lat: typeof parsed.lat === "number" ? parsed.lat : undefined,
+      lng: typeof parsed.lng === "number" ? parsed.lng : undefined,
+      updatedAt: parsed.updatedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function writeClientLocationCache(value: Omit<ClientLocationCacheValue, "updatedAt">): void {
+  if (typeof window === "undefined") return
+  const payload: ClientLocationCacheValue = { ...value, updatedAt: Date.now() }
+  window.sessionStorage.setItem(CLIENT_LOCATION_CACHE_KEY, JSON.stringify(payload))
+  window.dispatchEvent(new CustomEvent(CLIENT_LOCATION_UPDATED_EVENT, { detail: payload }))
 }

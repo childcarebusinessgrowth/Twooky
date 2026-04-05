@@ -13,10 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  CLIENT_LOCATION_UPDATED_EVENT,
   GeolocationError,
   getCurrentPosition,
   getGeolocationErrorMessage,
+  readClientLocationCache,
   reverseGeocodeCoordinates,
+  writeClientLocationCache,
 } from "@/lib/location-client"
 
 export interface SearchBarProps {
@@ -27,8 +30,6 @@ export interface SearchBarProps {
   searchButtonLabel?: string
   targetPath?: string
 }
-
-const AUTO_LOCATION_VALUE_KEY = "eld:auto-location-value"
 
 function normalizeCountryCode(raw: string): string {
   const trimmed = raw.trim()
@@ -142,9 +143,11 @@ function SearchBarContent({
       if (!mapsApiKey) {
         const fallbackValue = `${coordinates.lat.toFixed(5)}, ${coordinates.lng.toFixed(5)}`
         setLocation(fallbackValue)
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(AUTO_LOCATION_VALUE_KEY, fallbackValue)
-        }
+        writeClientLocationCache({
+          locationText: fallbackValue,
+          lat: coordinates.lat,
+          lng: coordinates.lng,
+        })
         return
       }
 
@@ -152,17 +155,24 @@ function SearchBarContent({
         const geocoded = await reverseGeocodeCoordinates(coordinates, mapsApiKey)
         const resolvedLocation = geocoded.locationText
         setLocation(resolvedLocation)
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(AUTO_LOCATION_VALUE_KEY, resolvedLocation)
-        }
+        writeClientLocationCache({
+          locationText: resolvedLocation,
+          city: geocoded.city,
+          state: geocoded.state,
+          countryCode: geocoded.countryCode,
+          lat: coordinates.lat,
+          lng: coordinates.lng,
+        })
       } catch {
         // Keep UX useful even if geocoding fails or API quota is hit.
         const fallbackValue = `${coordinates.lat.toFixed(5)}, ${coordinates.lng.toFixed(5)}`
         setLocation(fallbackValue)
         setLocationError("Precise city name unavailable right now. Using your coordinates instead.")
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(AUTO_LOCATION_VALUE_KEY, fallbackValue)
-        }
+        writeClientLocationCache({
+          locationText: fallbackValue,
+          lat: coordinates.lat,
+          lng: coordinates.lng,
+        })
       }
     } catch (error) {
       if (error instanceof GeolocationError) {
@@ -229,9 +239,26 @@ function SearchBarContent({
     if (isOnTargetPath && hasLocationQuery) return
     hasAutoDetectedRef.current = true
 
-    const cachedLocation = window.sessionStorage.getItem(AUTO_LOCATION_VALUE_KEY)
-    if (cachedLocation) {
-      setLocation(cachedLocation)
+    const cached = readClientLocationCache()
+    if (cached?.locationText) {
+      setLocation(cached.locationText)
+    }
+  }, [hasLocationQuery, isOnTargetPath])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (isOnTargetPath && hasLocationQuery) return
+
+    const syncFromCache = () => {
+      const cached = readClientLocationCache()
+      if (cached?.locationText) {
+        setLocation(cached.locationText)
+      }
+    }
+
+    window.addEventListener(CLIENT_LOCATION_UPDATED_EVENT, syncFromCache)
+    return () => {
+      window.removeEventListener(CLIENT_LOCATION_UPDATED_EVENT, syncFromCache)
     }
   }, [hasLocationQuery, isOnTargetPath])
 
@@ -322,7 +349,7 @@ function SearchBarContent({
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="City, state, or zip"
-                className={`w-full pl-10 pr-10 h-11 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${inputClassName}`}
+                className={`w-full pl-10 pr-4 h-11 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${inputClassName}`}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 onKeyDown={(e) => {
@@ -332,19 +359,6 @@ function SearchBarContent({
                   }
                 }}
               />
-              <button
-                type="button"
-                onClick={() => void detectCurrentLocation()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70"
-                aria-label="Use my current location"
-                title="Use my current location"
-              >
-                {isDetectingLocation ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LocateFixed className="h-4 w-4" />
-                )}
-              </button>
             </div>
             {(locationError || geolocationHint) && (
               <p className="text-xs text-muted-foreground mt-1">
