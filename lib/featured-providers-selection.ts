@@ -2,7 +2,7 @@ import type { VisitorGeo } from "./visitor-geo"
 import { visitorHasLatLng } from "./visitor-geo"
 import type { ActiveProviderRow } from "./search-providers-db"
 
-function matchesAgeTags(row: ActiveProviderRow, ageTags: string[]): boolean {
+export function matchesAgeTags(row: ActiveProviderRow, ageTags: string[]): boolean {
   const served = row.age_groups_served ?? []
   if (!served.length) return false
   return ageTags.some((tag) => served.some((s) => s.toLowerCase() === tag.toLowerCase()))
@@ -53,7 +53,11 @@ function cityMatchesVisitor(
   return pc.includes(vc) || vc.includes(pc) || pa.includes(vc)
 }
 
-function matchesByDistance(pool: ActiveProviderRow[], geo: VisitorGeo): ActiveProviderRow[] {
+function matchesByDistance(
+  pool: ActiveProviderRow[],
+  geo: VisitorGeo,
+  radiusKm: number
+): ActiveProviderRow[] {
   if (!visitorHasLatLng(geo) || geo.latitude === null || geo.longitude === null) return []
 
   const vl = geo.latitude
@@ -65,8 +69,60 @@ function matchesByDistance(pool: ActiveProviderRow[], geo: VisitorGeo): ActivePr
     if (lat === null || lng === null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       return false
     }
-    return haversineKm(vl, vg, lat, lng) <= LOCAL_RADIUS_KM
+    return haversineKm(vl, vg, lat, lng) <= radiusKm
   })
+}
+
+export type FilterProvidersByVisitorGeoOptions = {
+  /** Default: 100 (featured “local” radius). */
+  radiusKm?: number
+  /**
+   * When true and `visitorGeo.city` is set: city → country → distance (metro-wide listings).
+   * Avoids hiding whole-city matches because the parent pin is only within a small radius of geocoded center.
+   */
+  preferCityFirst?: boolean
+  /** Radius (km) for the distance tier when `preferCityFirst` is true (after city/country). Defaults to `radiusKm`. */
+  distanceRadiusKm?: number
+}
+
+/**
+ * All active providers in `pool` that match visitor geo: default order is distance → city → country.
+ * With `preferCityFirst`, order is city → country → distance (when city is non-empty).
+ * Returns [] if `visitorGeo` is null or no tier matches.
+ */
+export function filterProvidersByVisitorGeo(
+  pool: ActiveProviderRow[],
+  visitorGeo: VisitorGeo | null,
+  options?: FilterProvidersByVisitorGeoOptions
+): ActiveProviderRow[] {
+  if (!visitorGeo) return []
+  const radiusKm = options?.radiusKm ?? LOCAL_RADIUS_KM
+  const preferCityFirst = options?.preferCityFirst ?? false
+  const distanceRadius = options?.distanceRadiusKm ?? radiusKm
+
+  if (preferCityFirst && visitorGeo.city?.trim()) {
+    const byCityFirst = matchesByCity(pool, visitorGeo)
+    if (byCityFirst.length > 0) return byCityFirst
+
+    const byCountryFirst = matchesByCountryOnly(pool, visitorGeo)
+    if (byCountryFirst.length > 0) return byCountryFirst
+
+    const byDistAfterCity = matchesByDistance(pool, visitorGeo, distanceRadius)
+    if (byDistAfterCity.length > 0) return byDistAfterCity
+
+    return []
+  }
+
+  const byDist = matchesByDistance(pool, visitorGeo, radiusKm)
+  if (byDist.length > 0) return byDist
+
+  const byCity = matchesByCity(pool, visitorGeo)
+  if (byCity.length > 0) return byCity
+
+  const byCountry = matchesByCountryOnly(pool, visitorGeo)
+  if (byCountry.length > 0) return byCountry
+
+  return []
 }
 
 function matchesByCity(pool: ActiveProviderRow[], geo: VisitorGeo): ActiveProviderRow[] {
@@ -131,22 +187,7 @@ export function selectFeaturedProviders(
     }
   }
 
-  const pickLocal = (): ActiveProviderRow[] => {
-    if (!visitorGeo) return []
-
-    const byDist = matchesByDistance(primaryPool, visitorGeo)
-    if (byDist.length > 0) return byDist
-
-    const byCity = matchesByCity(primaryPool, visitorGeo)
-    if (byCity.length > 0) return byCity
-
-    const byCountry = matchesByCountryOnly(primaryPool, visitorGeo)
-    if (byCountry.length > 0) return byCountry
-
-    return []
-  }
-
-  const local = pickLocal()
+  const local = filterProvidersByVisitorGeo(primaryPool, visitorGeo)
   if (local.length > 0) {
     return [...local].sort(sortFeaturedQuality).slice(0, limit)
   }
@@ -161,8 +202,10 @@ export const __test = {
   haversineKm,
   normalizeGeoText,
   cityMatchesVisitor,
-  matchesByDistance,
+  matchesByDistance: (pool: ActiveProviderRow[], geo: VisitorGeo, radiusKm = LOCAL_RADIUS_KM) =>
+    matchesByDistance(pool, geo, radiusKm),
   matchesByCity,
   matchesByCountryOnly,
   sortFeaturedQuality,
+  LOCAL_RADIUS_KM,
 }

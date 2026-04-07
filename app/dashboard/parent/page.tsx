@@ -16,6 +16,7 @@ import {
   getRecentInquiriesByParentProfileId,
   getCompareProvidersByParentProfileId,
 } from "@/lib/parent-engagement"
+import { resolveParentVisitorGeo } from "@/lib/parent-dashboard-geo"
 import { getRecommendedProvidersForDashboard } from "@/lib/search-providers-db"
 import { ParentSavedPreviewRow } from "@/components/parent-saved-preview-row"
 import { RecommendedProviderSaveButton } from "@/components/recommended-provider-save-button"
@@ -49,6 +50,14 @@ function getChildAgeGroupDisplay(value: string | null): string | null {
   if (!value || typeof value !== "string") return null
   const trimmed = value.trim().toLowerCase()
   return CHILD_AGE_GROUP_LABELS[trimmed] ?? trimmed
+}
+
+/** Maps parent_profiles.child_age_group to provider age_groups_served tags. */
+function childAgeGroupToSearchTags(childAgeGroup: string | null): string[] | undefined {
+  if (!childAgeGroup?.trim()) return undefined
+  const v = childAgeGroup.trim().toLowerCase()
+  const tag = v === "school" || v === "schoolage" ? "school_age" : v
+  return [tag]
 }
 
 function toCleanString(value: unknown): string | null {
@@ -154,14 +163,14 @@ function buildQuickStats(
       id: "saved",
       label: "Saved providers",
       value: String(savedCount),
-      description: "Places you&apos;re keeping an eye on",
+      description: "Places you're keeping an eye on",
       icon: Heart,
     },
     {
       id: "inquiries",
       label: "Inquiries sent",
       value: String(inquiryCount),
-      description: "Providers you&apos;ve reached out to",
+      description: "Providers you've reached out to",
       icon: Mail,
     },
     {
@@ -210,10 +219,19 @@ export default async function ParentDashboardPage() {
   const compareProviders = user
     ? await getCompareProvidersByParentProfileId(supabase, user.id, baseUrl, { limit: 3 })
     : []
+  const parentVisitorGeo = await resolveParentVisitorGeo(
+    parentProfile.cityName,
+    parentProfile.countryName
+  )
   const recommendedProviders = await getRecommendedProvidersForDashboard(
     supabase,
     baseUrl,
-    3
+    3,
+    {
+      visitorGeo: parentVisitorGeo,
+      ageTags: childAgeGroupToSearchTags(parentProfile.childAgeGroup),
+      parentCityName: parentProfile.cityName,
+    }
   )
 
   return (

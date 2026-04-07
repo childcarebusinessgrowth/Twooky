@@ -1,7 +1,7 @@
 import "server-only"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { absoluteUrl, BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
-import { getResendClient, getResendFromAddress } from "@/lib/email/resendClient"
+import { getResendClient, getResendFromAddress, logResendSendError } from "@/lib/email/resendClient"
 
 export type NotifyParentFirstProviderReplyParams = {
   inquiryId: string
@@ -164,7 +164,7 @@ export async function notifyParentOfFirstProviderReply(
     })
 
     if (sent.error) {
-      console.error("[email] Resend send failed (parent first reply):", sent.error)
+      logResendSendError("parent first reply", sent.error)
     }
   } catch (e) {
     console.error("[email] notifyParentOfFirstProviderReply error:", e)

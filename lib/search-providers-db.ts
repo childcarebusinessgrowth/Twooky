@@ -8,7 +8,11 @@ import { geocodeAddressToCoordinates } from "./geocode-server"
 import { formatDailyFeeRange } from "./currency"
 import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
 import { getSupabaseAdminClient } from "./supabaseAdmin"
-import { selectFeaturedProviders } from "./featured-providers-selection"
+import {
+  filterProvidersByVisitorGeo,
+  matchesAgeTags as rowMatchesFeaturedAgeTags,
+  selectFeaturedProviders,
+} from "./featured-providers-selection"
 import type { VisitorGeo } from "./visitor-geo"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
@@ -571,22 +575,120 @@ export async function getFeaturedProvidersForProgram(
 
 export type { VisitorGeo } from "./visitor-geo"
 
+/** Metro-wide radius for dashboard distance fallback (city/country tiers take priority when using `preferCityFirst`). */
+const DASHBOARD_DISTANCE_RADIUS_KM = 100
+
+export type GetRecommendedProvidersForDashboardOptions = {
+  visitorGeo: VisitorGeo | null
+  /** When set, prefer providers serving these age tags; falls back to all ages if geo yields no rows. */
+  ageTags?: string[]
+  /** Profile `city_name` — used for lenient matching when strict geo tiers return nothing (or when visitorGeo is null). */
+  parentCityName?: string | null
+}
+
+function sortByRatingThenReviews(a: ActiveProviderRow, b: ActiveProviderRow): number {
+  const ra = a.avg_rating ?? 0
+  const rb = b.avg_rating ?? 0
+  if (rb !== ra) return rb - ra
+  return (b.review_count ?? 0) - (a.review_count ?? 0)
+}
+
+function normalizeForParentLocationMatch(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 /**
- * Fetch recommended providers for parent dashboard: active, listed providers
- * sorted by rating (desc) then review count (desc), limited to `limit`.
+ * Lenient “same city” check on provider city + address (handles formatting differences vs strict geo matching).
+ */
+function rowMatchesParentCityLoose(row: ActiveProviderRow, parentCityRaw: string | null): boolean {
+  if (!parentCityRaw?.trim()) return false
+  const primary = parentCityRaw.split(",")[0]?.trim() ?? parentCityRaw.trim()
+  if (primary.length < 2) return false
+  const vc = normalizeForParentLocationMatch(primary)
+  if (!vc) return false
+  const hay = normalizeForParentLocationMatch(`${row.city ?? ""} ${row.address ?? ""}`)
+  if (!hay) return false
+  if (hay.includes(vc)) return true
+  const words = vc.split(/\s+/).filter((w) => w.length >= 3)
+  return words.length > 1 && words.every((w) => hay.includes(w))
+}
+
+function rowMatchesParentAreaLoose(
+  row: ActiveProviderRow,
+  parentCity: string | null,
+  visitorCountryCode: string | null
+): boolean {
+  if (!rowMatchesParentCityLoose(row, parentCity)) return false
+  if (visitorCountryCode && row.country_code) {
+    return visitorCountryCode.toUpperCase() === row.country_code.toUpperCase()
+  }
+  return true
+}
+
+/**
+ * Fetch recommended providers for parent dashboard: active listed providers in the
+ * visitor’s area (distance → city → country), sorted by rating then reviews.
+ * Returns [] when `visitorGeo` is null or no providers match the area.
  */
 export async function getRecommendedProvidersForDashboard(
   _supabase: SupabaseClient,
   baseUrl: string,
-  limit = 3
+  limit = 3,
+  options?: GetRecommendedProvidersForDashboardOptions
 ): Promise<RecommendedProviderForDashboard[]> {
+  const visitorGeo = options?.visitorGeo ?? null
+  const ageTags = options?.ageTags
+  const parentCityName = options?.parentCityName ?? null
+
   const rows = await getActiveProvidersFromDbCached()
-  const sorted = [...rows].sort((a, b) => {
-    const ra = a.avg_rating ?? 0
-    const rb = b.avg_rating ?? 0
-    if (rb !== ra) return rb - ra
-    return (b.review_count ?? 0) - (a.review_count ?? 0)
-  })
+
+  let pool: ActiveProviderRow[] = rows
+  if (ageTags?.length) {
+    const scoped = rows.filter((row) => rowMatchesFeaturedAgeTags(row, ageTags))
+    if (scoped.length > 0) {
+      pool = scoped
+    }
+  }
+
+  const geoOpts = {
+    radiusKm: DASHBOARD_DISTANCE_RADIUS_KM,
+    preferCityFirst: Boolean(visitorGeo?.city?.trim()),
+    distanceRadiusKm: DASHBOARD_DISTANCE_RADIUS_KM,
+  }
+
+  let local: ActiveProviderRow[] = []
+
+  if (visitorGeo) {
+    local = filterProvidersByVisitorGeo(pool, visitorGeo, geoOpts)
+    if (local.length === 0) {
+      local = filterProvidersByVisitorGeo(rows, visitorGeo, geoOpts)
+    }
+    if (local.length === 0 && parentCityName?.trim()) {
+      local = pool.filter((r) =>
+        rowMatchesParentAreaLoose(r, parentCityName, visitorGeo.countryCode)
+      )
+    }
+    if (local.length === 0 && parentCityName?.trim()) {
+      local = rows.filter((r) =>
+        rowMatchesParentAreaLoose(r, parentCityName, visitorGeo.countryCode)
+      )
+    }
+  } else if (parentCityName?.trim()) {
+    local = pool.filter((r) => rowMatchesParentAreaLoose(r, parentCityName, null))
+    if (local.length === 0) {
+      local = rows.filter((r) => rowMatchesParentAreaLoose(r, parentCityName, null))
+    }
+  }
+
+  if (local.length === 0) {
+    return []
+  }
+
+  const sorted = [...local].sort(sortByRatingThenReviews)
   const top = sorted.slice(0, limit)
   return top.map((row) => {
     const slug = row.provider_slug ?? row.profile_id

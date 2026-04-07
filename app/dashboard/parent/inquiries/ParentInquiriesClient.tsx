@@ -71,6 +71,19 @@ export function ParentInquiriesClient({
   const [composeSubmitting, setComposeSubmitting] = useState(false)
   const [composeError, setComposeError] = useState<string | null>(null)
 
+  const [localInquiries, setLocalInquiries] = useState(inquiries)
+
+  useEffect(() => {
+    setLocalInquiries(inquiries)
+  }, [inquiries])
+
+  const touchThreadInList = useCallback((inquiryId: string) => {
+    const now = new Date().toISOString()
+    setLocalInquiries((prev) =>
+      prev.map((i) => (i.id === inquiryId ? { ...i, updated_at: now } : i))
+    )
+  }, [])
+
   const fetchThread = useCallback(async (inquiryId: string) => {
     setLoadingThread(true)
     try {
@@ -101,10 +114,9 @@ export function ParentInquiriesClient({
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
     refreshTimerRef.current = setTimeout(() => {
       const currentId = selectedIdRef.current
-      router.refresh()
       if (currentId) void fetchThread(currentId)
     }, 150)
-  }, [fetchThread, router])
+  }, [fetchThread])
 
   useEffect(() => {
     if (initialOpenId && !selectedId) setSelectedId(initialOpenId)
@@ -132,8 +144,29 @@ export function ParentInquiriesClient({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "inquiries" },
-          () => {
-            if (!cancelled) queueRealtimeSync()
+          (payload) => {
+            if (cancelled) return
+            if (payload.eventType === "UPDATE" && payload.new) {
+              const row = payload.new as {
+                id: string
+                inquiry_subject?: string | null
+                updated_at?: string
+              }
+              if (row.id) {
+                setLocalInquiries((prev) =>
+                  prev.map((i) =>
+                    i.id === row.id
+                      ? {
+                          ...i,
+                          inquiry_subject: row.inquiry_subject ?? i.inquiry_subject,
+                          updated_at: row.updated_at ?? i.updated_at,
+                        }
+                      : i
+                  )
+                )
+              }
+            }
+            queueRealtimeSync()
           }
         )
         .on(
@@ -143,8 +176,8 @@ export function ParentInquiriesClient({
             if (cancelled) return
             const currentId = selectedIdRef.current
             const inquiryId = (payload.new as { inquiry_id?: string } | null)?.inquiry_id
+            if (inquiryId) touchThreadInList(inquiryId)
             if (currentId && inquiryId === currentId) void fetchThread(currentId)
-            queueRealtimeSync()
           }
         )
         .subscribe()
@@ -160,7 +193,7 @@ export function ParentInquiriesClient({
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
       }
     }
-  }, [fetchThread, queueRealtimeSync])
+  }, [fetchThread, queueRealtimeSync, touchThreadInList])
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -177,6 +210,7 @@ export function ParentInquiriesClient({
         return
       }
       setReplyText("")
+      touchThreadInList(selectedId)
       await fetchThread(selectedId)
     } finally {
       setSendingReply(false)
@@ -212,13 +246,14 @@ export function ParentInquiriesClient({
       setComposeConsent(false)
       setSelectedId(newId)
       router.replace(`/dashboard/parent/inquiries?open=${newId}`, { scroll: false })
+      router.refresh()
       await fetchThread(newId)
     } finally {
       setComposeSubmitting(false)
     }
   }
 
-  const selectedInquiry = inquiries.find((i) => i.id === selectedId)
+  const selectedInquiry = localInquiries.find((i) => i.id === selectedId)
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1.5fr)] lg:gap-6">
@@ -228,13 +263,13 @@ export function ParentInquiriesClient({
           <CardTitle className="text-sm font-medium text-muted-foreground">Conversations</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {inquiries.length === 0 && !composeFor ? (
+          {localInquiries.length === 0 && !composeFor ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No inquiries yet. Use &quot;Send Inquiry&quot; on a provider page to start a conversation.
             </div>
           ) : (
             <ul className="divide-y divide-border/60">
-              {inquiries.map((inv) => (
+              {localInquiries.map((inv) => (
                 <li key={inv.id}>
                   <button
                     type="button"

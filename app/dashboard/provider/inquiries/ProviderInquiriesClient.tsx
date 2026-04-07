@@ -7,7 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageCircle, Send, User, Mail, Phone, Calendar, Baby, Download, Search, StickyNote } from "lucide-react"
+import {
+  MessageCircle,
+  Send,
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Baby,
+  Download,
+  Search,
+  StickyNote,
+  Trash2,
+} from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import type {
   ProviderInquiryPreviewRow,
@@ -181,12 +193,31 @@ export function ProviderInquiriesClient({
   const [notesLoading, setNotesLoading] = useState(false)
   const [newNoteText, setNewNoteText] = useState("")
   const [addingNote, setAddingNote] = useState(false)
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+
+  const [localInquiries, setLocalInquiries] = useState(inquiries)
+  const [localGuestInquiries, setLocalGuestInquiries] = useState(guestInquiries)
+
+  useEffect(() => {
+    setLocalInquiries(inquiries)
+  }, [inquiries])
+
+  useEffect(() => {
+    setLocalGuestInquiries(guestInquiries)
+  }, [guestInquiries])
+
+  const touchThreadInList = useCallback((inquiryId: string) => {
+    const now = new Date().toISOString()
+    setLocalInquiries((prev) =>
+      prev.map((i) => (i.id === inquiryId ? { ...i, updated_at: now } : i))
+    )
+  }, [])
 
   const allListItems: ListItem[] = useMemo(
     () =>
       [
-        ...inquiries.map((i) => ({
+        ...localInquiries.map((i) => ({
           type: "thread" as const,
           id: i.id,
           label: getParentDisplayName(i),
@@ -196,7 +227,7 @@ export function ProviderInquiriesClient({
           source: i.source ?? null,
           childAge: i.child_age_group ?? null,
         })),
-        ...guestInquiries.map((g) => ({
+        ...localGuestInquiries.map((g) => ({
           type: "guest" as const,
           id: g.id,
           label: `${g.first_name} ${g.last_name}`.trim() || "Guest",
@@ -206,7 +237,7 @@ export function ProviderInquiriesClient({
           programInterest: g.program_interest ?? null,
         })),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [inquiries, guestInquiries, leadStatusOverrides]
+    [localInquiries, localGuestInquiries, leadStatusOverrides]
   )
 
   const listItems = useMemo(() => {
@@ -277,11 +308,10 @@ export function ProviderInquiriesClient({
     refreshTimerRef.current = setTimeout(() => {
       const currentId = selectedIdRef.current
       const currentType = selectedTypeRef.current
-      router.refresh()
       if (currentType === "thread" && currentId) void fetchThread(currentId)
       if (currentType === "guest" && currentId) void fetchGuestDetail(currentId)
     }, 150)
-  }, [fetchGuestDetail, fetchThread, router])
+  }, [fetchGuestDetail, fetchThread])
 
   useEffect(() => {
     if (!initialOpenId) return
@@ -344,6 +374,22 @@ export function ProviderInquiriesClient({
     }
   }
 
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedId || !selectedType || deletingNoteId) return
+    setDeletingNoteId(noteId)
+    try {
+      const leadType = selectedType === "thread" ? "inquiry" : "guest-inquiry"
+      const res = await fetch(`/api/leads/${leadType}/${selectedId}/notes/${noteId}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setNotes((prev) => prev.filter((n) => n.id !== noteId))
+      }
+    } finally {
+      setDeletingNoteId(null)
+    }
+  }
+
   const handleExport = async () => {
     if (exporting) return
     setExporting(true)
@@ -390,8 +436,34 @@ export function ProviderInquiriesClient({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "inquiries" },
-          () => {
-            if (!cancelled) queueRealtimeSync()
+          (payload) => {
+            if (cancelled) return
+            if (payload.eventType === "INSERT") {
+              router.refresh()
+              queueRealtimeSync()
+              return
+            }
+            if (payload.eventType === "UPDATE" && payload.new) {
+              const row = payload.new as {
+                id: string
+                lead_status?: string | null
+                updated_at?: string
+              }
+              if (row.id) {
+                setLocalInquiries((prev) =>
+                  prev.map((i) =>
+                    i.id === row.id
+                      ? {
+                          ...i,
+                          lead_status: row.lead_status ?? i.lead_status,
+                          updated_at: row.updated_at ?? i.updated_at,
+                        }
+                      : i
+                  )
+                )
+              }
+            }
+            queueRealtimeSync()
           }
         )
         .on(
@@ -402,10 +474,10 @@ export function ProviderInquiriesClient({
             const currentId = selectedIdRef.current
             const currentType = selectedTypeRef.current
             const inquiryId = (payload.new as { inquiry_id?: string } | null)?.inquiry_id
+            if (inquiryId) touchThreadInList(inquiryId)
             if (currentType === "thread" && currentId && inquiryId === currentId) {
               void fetchThread(currentId)
             }
-            queueRealtimeSync()
           }
         )
         .on(
@@ -428,7 +500,7 @@ export function ProviderInquiriesClient({
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
       }
     }
-  }, [fetchGuestDetail, fetchThread, queueRealtimeSync])
+  }, [fetchGuestDetail, fetchThread, queueRealtimeSync, router, touchThreadInList])
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -442,6 +514,7 @@ export function ProviderInquiriesClient({
       })
       if (!res.ok) return
       setReplyText("")
+      touchThreadInList(selectedId)
       await fetchThread(selectedId)
     } finally {
       setSendingReply(false)
@@ -472,8 +545,8 @@ export function ProviderInquiriesClient({
     }
   }
 
-  const selectedThread = inquiries.find((i) => i.id === selectedId)
-  const selectedGuest = guestInquiries.find((g) => g.id === selectedId)
+  const selectedThread = localInquiries.find((i) => i.id === selectedId)
+  const selectedGuest = localGuestInquiries.find((g) => g.id === selectedId)
 
   return (
     <div className="space-y-6">
@@ -711,10 +784,27 @@ export function ProviderInquiriesClient({
                             key={n.id}
                             className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
                           >
-                            <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              {formatDate(n.createdAt)}
-                            </p>
+                            <div className="flex gap-2 justify-between items-start">
+                              <div className="min-w-0 flex-1">
+                                <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  {formatDate(n.createdAt)}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => void handleDeleteNote(n.id)}
+                                disabled={deletingNoteId !== null}
+                                aria-label="Delete note"
+                              >
+                                <Trash2
+                                  className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
+                                />
+                              </Button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -834,10 +924,27 @@ export function ProviderInquiriesClient({
                                 key={n.id}
                                 className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
                               >
-                                <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                  {formatDate(n.createdAt)}
-                                </p>
+                                <div className="flex gap-2 justify-between items-start">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                      {formatDate(n.createdAt)}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => void handleDeleteNote(n.id)}
+                                    disabled={deletingNoteId !== null}
+                                    aria-label="Delete note"
+                                  >
+                                    <Trash2
+                                      className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
+                                    />
+                                  </Button>
+                                </div>
                               </li>
                             ))}
                           </ul>

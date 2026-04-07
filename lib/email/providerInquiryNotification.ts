@@ -1,7 +1,7 @@
 import "server-only"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { absoluteUrl, BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
-import { getResendClient, getResendFromAddress } from "@/lib/email/resendClient"
+import { getResendClient, getResendFromAddress, logResendSendError } from "@/lib/email/resendClient"
 
 export type ProviderInquiryKind = "inquiry" | "guest"
 
@@ -120,6 +120,61 @@ function buildInquiryEmailParts(params: {
   return { subject, html, text: textLines.join("\n") }
 }
 
+type ProviderProfileEmailRow = {
+  business_name: string | null
+  notify_new_inquiries: boolean
+}
+
+/**
+ * Loads provider_profiles for inquiry emails. If `notify_new_inquiries` column is missing
+ * on an older database, falls back to business_name only and treats notifications as enabled.
+ */
+async function loadProviderProfileForInquiryEmail(
+  admin: ReturnType<typeof getSupabaseAdminClient>,
+  providerProfileId: string
+): Promise<{ data: ProviderProfileEmailRow | null; error: { message: string } | null }> {
+  const full = await admin
+    .from("provider_profiles")
+    .select("business_name, notify_new_inquiries")
+    .eq("profile_id", providerProfileId)
+    .maybeSingle()
+
+  if (!full.error) {
+    const row = full.data
+    if (!row) return { data: null, error: null }
+    return {
+      data: {
+        business_name: row.business_name,
+        notify_new_inquiries: row.notify_new_inquiries ?? true,
+      },
+      error: null,
+    }
+  }
+
+  const msg = full.error.message ?? ""
+  if (msg.includes("notify_new_inquiries") || msg.includes("does not exist")) {
+    console.warn(
+      "[email] provider_profiles.notify_new_inquiries missing; using business_name only and defaulting notifications to on. Apply supabase/migrations/*provider_notification_prefs*.sql on your database.",
+    )
+    const minimal = await admin
+      .from("provider_profiles")
+      .select("business_name")
+      .eq("profile_id", providerProfileId)
+      .maybeSingle()
+    if (minimal.error) return { data: null, error: minimal.error }
+    if (!minimal.data) return { data: null, error: null }
+    return {
+      data: {
+        business_name: minimal.data.business_name,
+        notify_new_inquiries: true,
+      },
+      error: null,
+    }
+  }
+
+  return { data: null, error: full.error }
+}
+
 /**
  * Sends a branded notification to the provider when a new inquiry is created.
  * Never throws; logs errors. Respects notify_new_inquiries and skips if RESEND_API_KEY is unset.
@@ -136,25 +191,45 @@ export async function notifyProviderNewInquiry(params: NotifyProviderNewInquiryP
   try {
     const admin = getSupabaseAdminClient()
 
-    const [{ data: profileRow, error: profileErr }, { data: ppRow, error: ppErr }] = await Promise.all([
+    const [{ data: profileRow, error: profileErr }, ppRes] = await Promise.all([
       admin.from("profiles").select("email").eq("id", providerProfileId).maybeSingle(),
-      admin
-        .from("provider_profiles")
-        .select("business_name, notify_new_inquiries")
-        .eq("profile_id", providerProfileId)
-        .maybeSingle(),
+      loadProviderProfileForInquiryEmail(admin, providerProfileId),
     ])
+
+    const ppRow = ppRes.data
+    const ppErr = ppRes.error
 
     if (profileErr || ppErr) {
       console.error("[email] Provider lookup failed:", profileErr ?? ppErr)
       return
     }
 
-    if (!ppRow?.notify_new_inquiries) return
+    if (!ppRow) {
+      console.warn("[email] No provider_profiles row; skipping inquiry notification.", { providerProfileId })
+      return
+    }
 
-    const to = profileRow?.email?.trim()
+    if (!ppRow.notify_new_inquiries) {
+      console.warn(
+        "[email] Provider has new-inquiry emails turned off in settings; skipping inquiry notification.",
+        { providerProfileId },
+      )
+      return
+    }
+
+    let to = profileRow?.email?.trim() ?? ""
     if (!to) {
-      console.warn("[email] No provider email on file; skipping inquiry notification.")
+      const { data: authUserData, error: authUserErr } = await admin.auth.admin.getUserById(providerProfileId)
+      if (authUserErr) {
+        console.error("[email] Could not load auth user for provider email fallback:", authUserErr)
+      }
+      to = authUserData?.user?.email?.trim() ?? ""
+    }
+    if (!to) {
+      console.warn(
+        "[email] No provider email on profiles or in Auth; skipping inquiry notification.",
+        { providerProfileId },
+      )
       return
     }
 
@@ -184,7 +259,9 @@ export async function notifyProviderNewInquiry(params: NotifyProviderNewInquiryP
     })
 
     if (sent.error) {
-      console.error("[email] Resend send failed:", sent.error)
+      logResendSendError("provider inquiry", sent.error)
+    } else {
+      console.info("[email] Provider inquiry notification sent.", { to, inquiryId })
     }
   } catch (e) {
     console.error("[email] notifyProviderNewInquiry error:", e)

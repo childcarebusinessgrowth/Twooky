@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { __test, selectFeaturedProviders } from "./featured-providers-selection"
+import { __test, filterProvidersByVisitorGeo, selectFeaturedProviders } from "./featured-providers-selection"
 import type { ActiveProviderRow } from "./search-providers-db"
 
 function row(p: Partial<ActiveProviderRow> & { profile_id: string }): ActiveProviderRow {
@@ -59,6 +59,69 @@ describe("cityMatchesVisitor", () => {
       country_code: "CA",
     })
     expect(__test.cityMatchesVisitor(r, "London", "GB")).toBe(false)
+  })
+})
+
+describe("filterProvidersByVisitorGeo", () => {
+  it("returns [] when visitorGeo is null", () => {
+    const rows = [row({ profile_id: "1", featured: false, country_code: "UAE" })]
+    expect(filterProvidersByVisitorGeo(rows, null)).toEqual([])
+  })
+
+  it("excludes providers outside a small radius when radiusKm is set", () => {
+    const dubaiCenter = { latitude: 25.2048, longitude: 55.2708, city: "Dubai", countryCode: "UAE" }
+    const nearDubai = row({
+      profile_id: "near",
+      latitude: 25.21,
+      longitude: 55.28,
+      country_code: "UAE",
+      featured: false,
+    })
+    const london = row({
+      profile_id: "far",
+      latitude: 51.5074,
+      longitude: -0.1278,
+      country_code: "UK",
+      featured: false,
+      avg_rating: 5,
+    })
+    const pool = [nearDubai, london]
+    const tight = filterProvidersByVisitorGeo(pool, dubaiCenter, { radiusKm: 8.05 })
+    expect(tight.map((p) => p.profile_id)).toEqual(["near"])
+  })
+
+  it("includes all rows in country when distance and city do not match", () => {
+    const geo = { latitude: null, longitude: null, city: null, countryCode: "UAE" }
+    const a = row({ profile_id: "a", country_code: "UAE", avg_rating: 4, featured: false })
+    const b = row({ profile_id: "b", country_code: "UK", featured: false })
+    const picked = filterProvidersByVisitorGeo([a, b], geo)
+    expect(picked.map((p) => p.profile_id)).toEqual(["a"])
+  })
+
+  it("preferCityFirst returns same-city rows before distance, even if listings are outside a small radius", () => {
+    const geo = { latitude: 25.0, longitude: 55.0, city: "Dubai", countryCode: "UAE" }
+    const inCityFar = row({
+      profile_id: "dubai",
+      city: "Dubai",
+      latitude: 25.45,
+      longitude: 55.55,
+      country_code: "UAE",
+      featured: false,
+    })
+    const nearButOtherCity = row({
+      profile_id: "near",
+      city: "Sharjah",
+      latitude: 25.01,
+      longitude: 55.01,
+      country_code: "UAE",
+      featured: false,
+    })
+    const picked = filterProvidersByVisitorGeo([inCityFar, nearButOtherCity], geo, {
+      preferCityFirst: true,
+      radiusKm: 5,
+      distanceRadiusKm: 5,
+    })
+    expect(picked.map((p) => p.profile_id)).toEqual(["dubai"])
   })
 })
 
