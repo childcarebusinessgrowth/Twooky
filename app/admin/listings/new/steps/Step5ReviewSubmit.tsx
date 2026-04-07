@@ -6,6 +6,7 @@ import { WizardStepHeader } from "../_components/WizardStepHeader"
 import { Badge } from "@/components/ui/badge"
 import { PROVIDER_TYPES } from "@/lib/provider-types"
 import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
+import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import type { FaqItem, PhotoItem } from "../types"
 
 type Step5ReviewSubmitProps = {
@@ -90,6 +91,7 @@ export function Step5ReviewSubmit({
     .filter(Boolean)
   const validVirtualTours = virtualTourUrls.filter((u) => u.trim())
   const validFaqs = faqs.filter((f) => f.question.trim() && f.answer.trim())
+  const websiteHref = normalizeProviderWebsiteUrl(website)
 
   return (
     <div className="space-y-6">
@@ -108,11 +110,13 @@ export function Step5ReviewSubmit({
         <CardContent className="space-y-2 text-sm">
           <p className="font-medium">{formatValue(businessName)}</p>
           {phone && <p className="text-muted-foreground">{phone}</p>}
-          {website && (
-            <a href={website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+          {website && websiteHref ? (
+            <a href={websiteHref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
               {website}
             </a>
-          )}
+          ) : website ? (
+            <span>{website}</span>
+          ) : null}
           {description && <p className="line-clamp-3 text-muted-foreground">{description}</p>}
         </CardContent>
       </Card>

@@ -8,6 +8,7 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
 import { resolveGooglePlaceIdFromText } from "@/lib/google-place-id"
 import { parseYouTubeUrl } from "@/lib/youtube"
+import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
@@ -183,7 +184,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   const businessName = asTrimmedText(formData.get("businessName"))
   const description = asTrimmedText(formData.get("description"))
   const phone = asTrimmedText(formData.get("phone"))
-  const website = asTrimmedText(formData.get("website"))
+  const website = normalizeProviderWebsiteUrl(asTrimmedText(formData.get("website")))
   const address = asTrimmedText(formData.get("address"))
   const city = asTrimmedText(formData.get("city"))
   const listingStatus = asTrimmedText(formData.get("listingStatus")) || "active"
@@ -492,7 +493,7 @@ export async function updateAdminProvider(
   const businessName = asTrimmedText(formData.get("businessName"))
   const description = asTrimmedText(formData.get("description"))
   const phone = asTrimmedText(formData.get("phone"))
-  const website = asTrimmedText(formData.get("website"))
+  const website = normalizeProviderWebsiteUrl(asTrimmedText(formData.get("website")))
   const address = asTrimmedText(formData.get("address"))
   const city = asTrimmedText(formData.get("city"))
   const listingStatus = asTrimmedText(formData.get("listingStatus")) || "active"

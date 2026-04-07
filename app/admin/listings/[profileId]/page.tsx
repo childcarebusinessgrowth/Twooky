@@ -39,6 +39,7 @@ import {
 } from "@/lib/listing-labels"
 import { formatDailyFeeRange } from "@/lib/currency"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 
 type PageProps = {
   params: Promise<{ profileId: string }>
@@ -129,6 +130,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
 
   const { profile, photos, faqs, documents } = data
   const name = profile.business_name || profile.provider_slug || profileId
+  const websiteHref = normalizeProviderWebsiteUrl(profile.website)
 
   const hasVirtualTour =
     (profile.virtual_tour_urls?.length ?? 0) > 0 || !!profile.virtual_tour_url
@@ -220,9 +222,9 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
           <Field
             label="Website"
             value={
-              profile.website ? (
+              profile.website && websiteHref ? (
                 <a
-                  href={profile.website}
+                  href={websiteHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-primary hover:underline"
@@ -230,6 +232,8 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                   <span className="min-w-0 break-all">{profile.website}</span>
                   <ExternalLink className="h-3 w-3 shrink-0" />
                 </a>
+              ) : profile.website ? (
+                <span className="min-w-0 break-all">{profile.website}</span>
               ) : null
             }
             icon={Globe}

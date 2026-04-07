@@ -35,6 +35,7 @@ import {
   PROVIDER_DOCUMENTS_BUCKET,
   MAX_FILE_SIZE_BYTES,
 } from "@/lib/provider-documents-constants"
+import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 
 const DOCUMENT_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"] as const
 
@@ -652,7 +653,7 @@ export default function ManageListingPage() {
           virtual_tour_urls: normalizedVirtualTourUrls.length > 0 ? normalizedVirtualTourUrls : null,
           description: description.trim() || null,
           phone: phone.trim() || null,
-          website: website.trim() || null,
+          website: normalizeProviderWebsiteUrl(website.trim()),
           google_place_id: resolvedGooglePlaceId,
           address: address.trim() || null,
           provider_types: providerTypes.length > 0 ? providerTypes : null,

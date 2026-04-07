@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/accordion"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { getActivePublicProviderBySlug } from "@/lib/get-public-provider"
+import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { ProviderFavoriteButton } from "@/components/provider-favorite-button"
 import { ProviderProfileViewTracker } from "@/components/provider-profile-view-tracker"
 import { SendInquiryButton } from "@/components/send-inquiry-button"
@@ -78,6 +79,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
   }
 
   const p = provider
+  const websiteHref = normalizeProviderWebsiteUrl(p.website)
 
   return (
     <AuthProviderClient>
@@ -173,9 +175,9 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       providerProfileId={p.profileId}
                       providerSlug={slug}
                     />
-                    {p.website ? (
+                    {websiteHref ? (
                       <Button className="bg-primary hover:bg-primary/90" asChild>
-                        <a href={p.website} target="_blank" rel="noopener noreferrer">
+                        <a href={websiteHref} target="_blank" rel="noopener noreferrer">
                           <Globe className="h-4 w-4 mr-2" />
                           Visit Website
                         </a>
@@ -492,9 +494,9 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       </a>
                     </Button>
                   ) : null}
-                  {p.website ? (
+                  {websiteHref ? (
                     <Button variant="outline" className="w-full" asChild>
-                      <a href={p.website} target="_blank" rel="noopener noreferrer">
+                      <a href={websiteHref} target="_blank" rel="noopener noreferrer">
                         <Globe className="h-4 w-4 mr-2" />
                         Visit Website
                       </a>
