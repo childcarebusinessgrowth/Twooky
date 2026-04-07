@@ -1,6 +1,7 @@
 "use server"
 
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { notifyFavoritingParentsOfAvailabilityChange } from "@/lib/email/favoriteProviderAvailabilityNotification"
 
 export type ProviderAvailabilityStatus = "openings" | "waitlist" | "full"
 
@@ -55,6 +56,13 @@ export async function getProviderAvailability(): Promise<{
   }
 }
 
+function normalizeAvailabilityStatus(
+  raw: string | null | undefined
+): ProviderAvailabilityStatus {
+  if (raw === "waitlist" || raw === "full") return raw
+  return "openings"
+}
+
 export async function updateProviderAvailability(input: {
   availabilityStatus: ProviderAvailabilityStatus
   availableSpotsCount: number | null
@@ -80,6 +88,14 @@ export async function updateProviderAvailability(input: {
     return { error: "Enter a valid number of available spots greater than 0." }
   }
 
+  const { data: existingRow } = await supabase
+    .from("provider_profiles")
+    .select("availability_status")
+    .eq("profile_id", user.id)
+    .maybeSingle()
+
+  const previousStatus = normalizeAvailabilityStatus(existingRow?.availability_status ?? null)
+
   const { error } = await supabase.from("provider_profiles").upsert(
     {
       profile_id: user.id,
@@ -90,5 +106,20 @@ export async function updateProviderAvailability(input: {
   )
 
   if (error) return { error: error.message }
+
+  const nextStatus = input.availabilityStatus
+  if (nextStatus === "full" && previousStatus !== "full") {
+    void notifyFavoritingParentsOfAvailabilityChange({
+      providerProfileId: user.id,
+      kind: "full",
+    })
+  }
+  if (nextStatus === "waitlist" && previousStatus !== "waitlist") {
+    void notifyFavoritingParentsOfAvailabilityChange({
+      providerProfileId: user.id,
+      kind: "waitlist",
+    })
+  }
+
   return {}
 }

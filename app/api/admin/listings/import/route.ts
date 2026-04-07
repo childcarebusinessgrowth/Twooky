@@ -176,6 +176,7 @@ export async function POST(request: Request) {
         }
 
         const fd = new FormData()
+        fd.set("skipVerifiedBadgeOnCreate", "true")
         fd.set("businessName", businessName)
         fd.set("description", description)
         fd.set("phone", asText(row.phone))

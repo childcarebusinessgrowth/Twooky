@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { notifyParentOfFirstProviderReply } from "@/lib/email/parentFirstReplyNotification"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -102,6 +103,11 @@ export async function POST(
         { status: 500 }
       )
     }
+
+    void notifyParentOfFirstProviderReply({
+      inquiryId,
+      providerProfileId: user.id,
+    })
 
     return NextResponse.json({ id: replyId }, { status: 201 })
   } catch (e) {

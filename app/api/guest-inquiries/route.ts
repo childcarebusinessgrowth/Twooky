@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { publicMessageForError } from "@/lib/publicErrors"
+import { notifyProviderNewInquiry } from "@/lib/email/providerInquiryNotification"
 
 type GuestInquiryPayload = {
   providerSlug?: string
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
       typeof body.programInterest === "string" ? body.programInterest.trim() || null : null
 
     const supabase = getSupabaseAdminClient()
+    let resolvedProviderProfileId: string | null = null
 
     if (websiteSubdomain) {
       const { data: siteRow, error: siteErr } = await supabase
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
 
       providerSlug = profileRow.provider_slug
       source = "microsite"
+      resolvedProviderProfileId = siteRow.profile_id
     } else {
       source = rawSource === "compare" ? "compare" : "directory"
     }
@@ -159,6 +162,7 @@ export async function POST(request: Request) {
           { status: 403 },
         )
       }
+      resolvedProviderProfileId = providerRow.profile_id
     }
 
     const { data: id, error: rpcError } = await supabase.rpc("create_guest_inquiry", {
@@ -181,6 +185,18 @@ export async function POST(request: Request) {
         { error: publicMessageForError(rpcError, "Failed to submit inquiry. Please try again.") },
         { status: 500 },
       )
+    }
+
+    const guestDisplayName = `${firstName} ${lastName}`.trim() || null
+
+    if (resolvedProviderProfileId && id != null) {
+      void notifyProviderNewInquiry({
+        providerProfileId: resolvedProviderProfileId,
+        inquiryId: String(id),
+        kind: "guest",
+        fromName: guestDisplayName,
+        source,
+      })
     }
 
     return NextResponse.json({ id }, { status: 201 })

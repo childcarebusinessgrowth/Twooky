@@ -187,6 +187,8 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   const address = asTrimmedText(formData.get("address"))
   const city = asTrimmedText(formData.get("city"))
   const listingStatus = asTrimmedText(formData.get("listingStatus")) || "active"
+  /** Bulk import sets this so new rows stay unverified until an admin enables the badge. */
+  const skipVerifiedBadgeOnCreate = asTrimmedText(formData.get("skipVerifiedBadgeOnCreate")) === "true"
   const featured = parseBooleanCheckbox(formData.get("featured"))
   const curriculumTypes = formData
     .getAll("curriculumTypes")
@@ -402,7 +404,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       total_capacity: totalCapacity,
       currency_id: resolvedCurrencyId,
       listing_status: listingStatus,
-      verified_provider_badge: listingStatus === "active",
+      verified_provider_badge: skipVerifiedBadgeOnCreate ? false : listingStatus === "active",
       featured,
       is_admin_managed: true,
       country_id: resolvedCountryId,

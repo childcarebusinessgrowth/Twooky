@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
 import { publicMessageForError } from "@/lib/publicErrors"
+import { notifyProviderNewInquiry } from "@/lib/email/providerInquiryNotification"
 
 type CreateInquiryPayload = {
   providerSlug?: string
@@ -108,6 +109,22 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
+
+    const { data: parentProfile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    const parentLabel = parentProfile?.display_name?.trim() || null
+
+    void notifyProviderNewInquiry({
+      providerProfileId: providerRow.profile_id,
+      inquiryId: String(inquiryId),
+      kind: "inquiry",
+      fromName: parentLabel,
+      source,
+    })
 
     return NextResponse.json(
       { id: inquiryId, redirectUrl: `/dashboard/parent/inquiries?open=${inquiryId}` },

@@ -19,7 +19,6 @@ import {
   ArrowRight,
   CheckCircle,
   Star,
-  PlusCircle,
   Flag,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
@@ -46,7 +45,6 @@ function getSidebarItems(pendingClaimsCount: number) {
   return [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { label: "Listings", href: "/admin/listings", icon: Building2 },
-    { label: "Add Provider", href: "/admin/listings/new", icon: PlusCircle },
     { label: "Parents", href: "/admin/parents", icon: UsersRound },
     { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
     { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
