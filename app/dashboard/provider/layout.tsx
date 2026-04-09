@@ -255,9 +255,10 @@ export default function ProviderDashboardLayout({
             <Image
               src="/images/twooky-logo.png"
               alt="Twooky logo"
-              width={200}
-              height={60}
-              className="h-10 w-auto"
+              width={383}
+              height={156}
+              sizes="180px"
+              className="h-11 w-auto"
             />
           </Link>
         </div>
@@ -298,9 +299,10 @@ export default function ProviderDashboardLayout({
                 <Image
                   src="/images/twooky-logo.png"
                   alt="Twooky logo"
-                  width={200}
-                  height={60}
-                  className="h-10 w-auto"
+                  width={383}
+                  height={156}
+                  sizes="180px"
+                  className="h-11 w-auto"
                 />
               </div>
               <div className="py-4">

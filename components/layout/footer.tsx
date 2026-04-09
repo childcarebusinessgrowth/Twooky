@@ -37,9 +37,10 @@ export function Footer({ cities }: FooterProps) {
               <Image
                 src="/images/twooky-logo.png"
                 alt="Twooky logo"
-                width={200}
-                height={60}
-                className="h-14 w-auto"
+                width={383}
+                height={156}
+                sizes="240px"
+                className="h-16 w-auto sm:h-17"
               />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">

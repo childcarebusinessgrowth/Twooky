@@ -24,9 +24,10 @@ export default function NotFound() {
           <Image
             src="/images/twooky-logo.png"
             alt="Twooky logo"
-            width={200}
-            height={60}
-            className="h-12 w-auto"
+            width={383}
+            height={156}
+            sizes="200px"
+            className="h-14 w-auto sm:h-16"
           />
           <div className="text-left">
             <p className="text-sm text-muted-foreground">

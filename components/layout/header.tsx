@@ -78,10 +78,11 @@ export function Header() {
           <Image
             src="/images/twooky-logo.png"
             alt="Twooky logo"
-            width={200}
-            height={60}
-            sizes="200px"
-            className="h-14 w-auto"
+            width={383}
+            height={156}
+            sizes="(max-width: 1024px) 240px, 280px"
+            className="h-16 w-auto sm:h-17"
+            priority
           />
         </Link>
 
