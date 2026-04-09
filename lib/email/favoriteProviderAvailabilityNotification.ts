@@ -1,6 +1,13 @@
 import "server-only"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
+import {
+  BRAND_BACKGROUND,
+  BRAND_MUTED,
+  BRAND_PRIMARY,
+  BRAND_SECONDARY,
+  EMAIL_HEADER_BACKGROUND,
+  getSiteOrigin,
+} from "@/lib/email/brand"
 import { getResendClient, getResendFromAddress, logResendSendError } from "@/lib/email/resendClient"
 import { getTwookyLogoInlineAttachment, twookyLogoEmailImgTag } from "@/lib/email/twookyLogoInline"
 
@@ -55,7 +62,7 @@ function buildEmailParts(params: {
       <td align="center">
         <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr>
-            <td style="padding:28px 28px 12px 28px;background:linear-gradient(135deg,${BRAND_PRIMARY} 0%,#152a4a 100%);">
+            <td bgcolor="#ffffff" style="padding:28px 28px 12px 28px;background-color:${EMAIL_HEADER_BACKGROUND};border-bottom:1px solid #e2e8f0;">
               ${logoImg}
             </td>
           </tr>

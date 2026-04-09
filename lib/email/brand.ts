@@ -1,5 +1,7 @@
 /** Align with app/globals.css marketing tokens for transactional email. */
 export const BRAND_PRIMARY = "#203e68"
+/** Header strip behind the logo in HTML emails (white; pairs with re-artworked logo asset). */
+export const EMAIL_HEADER_BACKGROUND = "#ffffff"
 export const BRAND_SECONDARY = "#F9BB11"
 export const BRAND_TERTIARY = "#0ba5aa"
 export const BRAND_MUTED = "#64748b"

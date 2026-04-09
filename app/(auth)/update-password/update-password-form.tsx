@@ -13,17 +13,107 @@ import { getSupabaseClient } from "@/lib/supabaseClient"
 const ROLE_UNRESOLVED_MESSAGE =
   "Your password was updated, but we could not determine your role. Please contact support or sign in from the login page."
 
-function hashLooksLikeRecovery(): boolean {
-  if (typeof window === "undefined") return false
-  const h = window.location.hash
-  return h.includes("type=recovery") || h.includes("type%3Drecovery")
+/** Split fragment/query like `a=b&c=d` where values may contain `=` (e.g. JWT). */
+function parseAmpDelimitedParams(segment: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!segment) return out
+  const trimmed = segment.startsWith("#") ? segment.slice(1) : segment
+  for (const part of trimmed.split("&")) {
+    const eq = part.indexOf("=")
+    if (eq <= 0) continue
+    const key = decodeURIComponent(part.slice(0, eq))
+    const value = decodeURIComponent(part.slice(eq + 1))
+    out[key] = value
+  }
+  return out
+}
+
+function getAuthParamsFromUrl(): Record<string, string> {
+  if (typeof window === "undefined") return {}
+  const fromSearch = parseAmpDelimitedParams(window.location.search.replace(/^\?/, ""))
+  const fromHash = parseAmpDelimitedParams(window.location.hash)
+  return { ...fromHash, ...fromSearch }
+}
+
+/**
+ * `createBrowserClient` from @supabase/ssr forces `flowType: "pkce"`, but recovery links from
+ * `auth.admin.generateLink` redirect with implicit-grant tokens in the hash. GoTrue refuses to
+ * parse that URL when the client is PKCE-only — we apply the session from the URL explicitly.
+ */
+async function establishRecoverySessionFromUrl(supabase: ReturnType<typeof getSupabaseClient>): Promise<
+  "ok" | "none" | "error"
+> {
+  const searchParams = new URLSearchParams(window.location.search)
+  const code = searchParams.get("code")
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      window.history.replaceState(null, "", window.location.pathname)
+      return "ok"
+    }
+    // PKCE exchange often fails for email links (no code verifier in this browser). Try hash/query below.
+  }
+
+  const token_hash = searchParams.get("token_hash")
+  const typeParam = searchParams.get("type")
+  if (token_hash && typeParam === "recovery") {
+    const { error } = await supabase.auth.verifyOtp({
+      type: "recovery",
+      token_hash,
+    })
+    if (!error) {
+      window.history.replaceState(null, "", window.location.pathname)
+      return "ok"
+    }
+    return "error"
+  }
+
+  const params = getAuthParamsFromUrl()
+  const access_token = params.access_token
+  const refresh_token = params.refresh_token
+  const type = params.type
+  const hashStr = typeof window !== "undefined" ? window.location.hash : ""
+  const hashSaysRecovery =
+    hashStr.includes("type=recovery") || hashStr.includes("type%3Drecovery")
+
+  const looksLikeImplicitRecovery =
+    Boolean(access_token && refresh_token) &&
+    (type === "recovery" || (hashSaysRecovery && type !== "magiclink" && type !== "signup"))
+
+  if (looksLikeImplicitRecovery) {
+    const { error } = await supabase.auth.setSession({
+      access_token: access_token!,
+      refresh_token: refresh_token!,
+    })
+    if (!error) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search)
+      return "ok"
+    }
+    return "error"
+  }
+
+  return "none"
 }
 
 type Phase = "loading" | "form" | "invalid"
 
+function urlHasRecoverySignals(): boolean {
+  if (typeof window === "undefined") return false
+  const h = window.location.hash
+  const s = window.location.search
+  return (
+    h.includes("access_token") ||
+    h.includes("type=recovery") ||
+    h.includes("type%3Drecovery") ||
+    s.includes("code=") ||
+    s.includes("token_hash=") ||
+    s.includes("access_token")
+  )
+}
+
 export function UpdatePasswordForm() {
   const router = useRouter()
-  const hadRecoveryHashRef = useRef(false)
+  const initialUrlHadRecoverySignals = useRef(false)
   const [phase, setPhase] = useState<Phase>("loading")
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState("")
@@ -32,34 +122,57 @@ export function UpdatePasswordForm() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    hadRecoveryHashRef.current = hashLooksLikeRecovery()
+    initialUrlHadRecoverySignals.current = urlHasRecoverySignals()
     const supabase = getSupabaseClient()
+    let cancelled = false
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setPhase("form")
+        return
+      }
+      // Recovery completion often emits SIGNED_IN (implicit tokens / PKCE), not PASSWORD_RECOVERY.
+      if (event === "SIGNED_IN" && session && initialUrlHadRecoverySignals.current) {
+        setPhase((p) => (p === "loading" ? "form" : p))
       }
     })
 
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && hadRecoveryHashRef.current) {
+    void (async () => {
+      const established = await establishRecoverySessionFromUrl(supabase)
+      if (cancelled) return
+
+      if (established === "ok") {
         setPhase("form")
+        return
       }
-    })
+      if (established === "error") {
+        setPhase("invalid")
+        return
+      }
+
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (cancelled) return
+        if (session && initialUrlHadRecoverySignals.current) {
+          setPhase("form")
+        }
+      })
+    })()
 
     const timeoutId = window.setTimeout(() => {
       void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (cancelled) return
         setPhase((current) => {
           if (current !== "loading") return current
-          if (session && hadRecoveryHashRef.current) return "form"
+          if (session && initialUrlHadRecoverySignals.current) return "form"
           return "invalid"
         })
       })
-    }, 4000)
+    }, 6000)
 
     return () => {
+      cancelled = true
       subscription.unsubscribe()
       window.clearTimeout(timeoutId)
     }

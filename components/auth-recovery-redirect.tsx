@@ -15,6 +15,12 @@ export function AuthRecoveryRedirect() {
     if (pathname === "/update-password") return
     if (typeof window === "undefined") return
 
+    const search = window.location.search
+    if (search.includes("code=")) {
+      window.location.replace(`${window.location.origin}/update-password${search}`)
+      return
+    }
+
     const raw = window.location.hash
     if (!raw || raw.length < 2) return
 

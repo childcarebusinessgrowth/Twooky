@@ -12,7 +12,7 @@ let cachedLogo: Buffer | null | undefined
 function readLogoBuffer(): Buffer | null {
   if (cachedLogo !== undefined) return cachedLogo
   try {
-    const filePath = path.join(process.cwd(), "public", "images", "twooky-logo.png")
+    const filePath = path.join(process.cwd(), "public", "images", "twooky-logo-email.png")
     cachedLogo = fs.readFileSync(filePath)
     return cachedLogo
   } catch {
@@ -26,7 +26,7 @@ export function getTwookyLogoInlineAttachment(): Attachment | null {
   const buf = readLogoBuffer()
   if (!buf) return null
   return {
-    filename: "twooky-logo.png",
+    filename: "twooky-logo-email.png",
     content: buf,
     contentType: "image/png",
     contentId: TWOOKY_LOGO_CONTENT_ID,
@@ -38,10 +38,15 @@ export function getTwookyLogoEmailImgSrc(): string {
   if (readLogoBuffer()) {
     return `cid:${TWOOKY_LOGO_CONTENT_ID}`
   }
-  return absoluteUrl("/images/twooky-logo.png")
+  return absoluteUrl("/images/twooky-logo-email.png")
+}
+
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
 }
 
 export function twookyLogoEmailImgTag(): string {
   const src = getTwookyLogoEmailImgSrc()
-  return `<img src="${src}" alt="Twooky" width="160" height="48" style="display:block;height:auto;max-width:160px;border:0;"/>`
+  const alt = escapeHtmlAttr("Twooky — The world of opportunities for kids & youngsters")
+  return `<img src="${src}" alt="${alt}" width="280" style="display:block;height:auto;max-width:280px;width:100%;border:0;background-color:#ffffff;"/>`
 }
