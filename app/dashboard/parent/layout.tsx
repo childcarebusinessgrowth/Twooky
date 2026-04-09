@@ -212,9 +212,6 @@ export default function ParentDashboardLayout({
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/parent/settings">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
                   <Link href="/dashboard/parent/settings">Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
