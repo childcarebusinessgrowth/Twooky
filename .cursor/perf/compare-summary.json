@@ -1,0 +1,117 @@
+{
+    "provider":  {
+                     "before":  {
+                                    "score":  39,
+                                    "lcpMs":  8151,
+                                    "tbtMs":  1741,
+                                    "docLatencyMs":  6685,
+                                    "transferKB":  1529
+                                },
+                     "after":  {
+                                   "score":  56,
+                                   "lcpMs":  7433,
+                                   "tbtMs":  758,
+                                   "docLatencyMs":  1626,
+                                   "transferKB":  1495
+                               },
+                     "delta":  {
+                                   "score":  17,
+                                   "lcpMs":  -718,
+                                   "tbtMs":  -983,
+                                   "docLatencyMs":  -5059,
+                                   "transferKB":  -34
+                               }
+                 },
+    "blog-detail":  {
+                        "before":  {
+                                       "score":  43,
+                                       "lcpMs":  8575,
+                                       "tbtMs":  1487,
+                                       "docLatencyMs":  2667,
+                                       "transferKB":  1297
+                                   },
+                        "after":  {
+                                      "score":  62,
+                                      "lcpMs":  8011,
+                                      "tbtMs":  464,
+                                      "docLatencyMs":  980,
+                                      "transferKB":  1300
+                                  },
+                        "delta":  {
+                                      "score":  19,
+                                      "lcpMs":  -564,
+                                      "tbtMs":  -1023,
+                                      "docLatencyMs":  -1687,
+                                      "transferKB":  3
+                                  }
+                    },
+    "search":  {
+                   "before":  {
+                                  "score":  41,
+                                  "lcpMs":  12762,
+                                  "tbtMs":  2536,
+                                  "docLatencyMs":  80,
+                                  "transferKB":  2233
+                              },
+                   "after":  {
+                                 "score":  56,
+                                 "lcpMs":  8929,
+                                 "tbtMs":  710,
+                                 "docLatencyMs":  215,
+                                 "transferKB":  1548
+                             },
+                   "delta":  {
+                                 "score":  15,
+                                 "lcpMs":  -3833,
+                                 "tbtMs":  -1826,
+                                 "docLatencyMs":  135,
+                                 "transferKB":  -685
+                             }
+               },
+    "blogs":  {
+                  "before":  {
+                                 "score":  53,
+                                 "lcpMs":  8549,
+                                 "tbtMs":  933,
+                                 "docLatencyMs":  419,
+                                 "transferKB":  1292
+                             },
+                  "after":  {
+                                "score":  72,
+                                "lcpMs":  7914,
+                                "tbtMs":  187,
+                                "docLatencyMs":  418,
+                                "transferKB":  1295
+                            },
+                  "delta":  {
+                                "score":  19,
+                                "lcpMs":  -635,
+                                "tbtMs":  -746,
+                                "docLatencyMs":  -1,
+                                "transferKB":  3
+                            }
+              },
+    "home":  {
+                 "before":  {
+                                "score":  46,
+                                "lcpMs":  9514,
+                                "tbtMs":  2325,
+                                "docLatencyMs":  532,
+                                "transferKB":  1624
+                            },
+                 "after":  {
+                               "score":  44,
+                               "lcpMs":  9653,
+                               "tbtMs":  1681,
+                               "docLatencyMs":  1242,
+                               "transferKB":  1645
+                           },
+                 "delta":  {
+                               "score":  -2,
+                               "lcpMs":  139,
+                               "tbtMs":  -644,
+                               "docLatencyMs":  710,
+                               "transferKB":  21
+                           }
+             }
+}

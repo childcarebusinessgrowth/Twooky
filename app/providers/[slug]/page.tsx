@@ -37,6 +37,7 @@ import { ProviderReviewsTab } from "@/components/provider-reviews-tab"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { AuthProviderClient } from "@/components/auth-provider-client"
+import { ProviderProgramOwnerStrip } from "@/components/provider-program-owner-strip"
 
 interface ProviderPageProps {
   params: Promise<{ slug: string }>
@@ -99,6 +100,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 lg:px-8 -mt-20 relative z-10">
+        <ProviderProgramOwnerStrip />
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Content */}
           <div className="flex-1">

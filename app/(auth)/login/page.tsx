@@ -3,7 +3,6 @@
 import { Suspense, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Mail, Lock, Eye, EyeOff, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -123,8 +122,12 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-md shadow-lg border-border/50 bg-card/95 backdrop-blur-sm">
       <CardHeader className="text-center pb-3">
-        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <UserRound className="h-5 w-5" />
+        <div
+          className="font-emoji mx-auto mb-3 flex h-12 w-12 items-center justify-center text-3xl leading-none"
+          role="img"
+          aria-label="Welcome"
+        >
+          👋
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight">Welcome Back</CardTitle>
         <CardDescription className="text-sm text-muted-foreground">
@@ -138,7 +141,12 @@ function LoginForm() {
             <Field>
               <FieldLabel>Email</FieldLabel>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <span
+                  className="font-emoji pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base leading-none select-none"
+                  aria-hidden
+                >
+                  📧
+                </span>
                 <Input
                   type="email"
                   placeholder="you@example.com"
@@ -158,11 +166,16 @@ function LoginForm() {
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <span
+                  className="font-emoji pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base leading-none select-none"
+                  aria-hidden
+                >
+                  🔒
+                </span>
                 <Input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-11"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -170,9 +183,10 @@ function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="font-emoji absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-base leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <span aria-hidden>{showPassword ? "🙈" : "👁️"}</span>
                 </button>
               </div>
             </Field>
@@ -204,8 +218,12 @@ function LoginFallback() {
   return (
     <Card className="w-full max-w-md shadow-lg border-border/50 bg-card/95 backdrop-blur-sm">
       <CardHeader className="text-center pb-3">
-        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <UserRound className="h-5 w-5" />
+        <div
+          className="font-emoji mx-auto mb-3 flex h-12 w-12 items-center justify-center text-3xl leading-none"
+          role="img"
+          aria-label="Welcome"
+        >
+          👋
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight">Welcome Back</CardTitle>
         <CardDescription className="text-sm text-muted-foreground">

@@ -145,7 +145,7 @@ export function Header() {
                 <Link href="/login">Sign In</Link>
               </Button>
               <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                <Link href="/claim-listing" className="text-inherit">Claim Your Listing</Link>
+                <Link href="/for-providers" className="text-inherit">For providers</Link>
               </Button>
             </>
           )}
@@ -213,7 +213,7 @@ export function Header() {
                   <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
                 </Button>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                  <Link href="/claim-listing" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>Claim Your Listing</Link>
+                  <Link href="/for-providers" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>For providers</Link>
                 </Button>
               </>
             )}

@@ -177,3 +177,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Prefer system color emoji fonts (Apple / Segoe / Noto) for Unicode emoji — matches inline 👋 on dashboards */
+@layer utilities {
+  .font-emoji {
+    font-family:
+      "Apple Color Emoji",
+      "Segoe UI Emoji",
+      "Segoe UI Symbol",
+      "Noto Color Emoji",
+      sans-serif;
+  }
+}

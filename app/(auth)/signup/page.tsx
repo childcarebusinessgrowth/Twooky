@@ -1,22 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Mail,
   Lock,
   Eye,
   EyeOff,
   User,
-  Users,
   Building2,
   Phone,
   MapPin,
   Baby,
   ArrowLeft,
   Heart,
-  CheckCircle2,
   BarChart3,
   MessageCircle,
   AlertCircle,
@@ -32,8 +30,9 @@ import type { CountryOption, CityOption } from "@/lib/location-directory"
 
 type AccountType = "select" | "parent" | "provider"
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<AccountType>("select")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -55,6 +54,12 @@ export default function SignupPage() {
   const [locationLoadError, setLocationLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { signUpWithEmail, authError } = useAuth()
+
+  useEffect(() => {
+    if (searchParams.get("role") === "provider") {
+      setStep("provider")
+    }
+  }, [searchParams])
 
   useEffect(() => {
     async function loadCountries() {
@@ -283,9 +288,13 @@ export default function SignupPage() {
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
             <CardHeader className="pt-7">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
+              <span
+                className="font-emoji mb-3 block text-4xl leading-none md:text-[2.75rem]"
+                role="img"
+                aria-label="Parent and child"
+              >
+                🧑‍🍼
+              </span>
               <CardTitle className="text-lg md:text-xl">Parent Account</CardTitle>
               <CardDescription className="text-base">
                 Search and review childcare providers in your area
@@ -293,20 +302,28 @@ export default function SignupPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2.5 text-sm text-muted-foreground mb-5">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    ✅
+                  </span>
                   Search verified providers
                 </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    ✅
+                  </span>
                   Read and write reviews
                 </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    ✅
+                  </span>
                   Save favorite listings
                 </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    ✅
+                  </span>
                   Contact providers directly
                 </li>
               </ul>
@@ -332,9 +349,13 @@ export default function SignupPage() {
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-secondary" />
             <CardHeader className="pt-7">
-              <div className="h-12 w-12 rounded-2xl bg-secondary/10 flex items-center justify-center mb-3">
-                <Building2 className="h-6 w-6 text-secondary" />
-              </div>
+              <span
+                className="font-emoji mb-3 block text-4xl leading-none md:text-[2.75rem]"
+                role="img"
+                aria-label="Building"
+              >
+                🏢
+              </span>
               <CardTitle className="text-lg md:text-xl">Provider Account</CardTitle>
               <CardDescription className="text-base">
                 Manage your childcare listing and receive inquiries
@@ -342,20 +363,28 @@ export default function SignupPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2.5 text-sm text-muted-foreground mb-5">
-                <li className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-secondary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    📝
+                  </span>
                   Create your listing
                 </li>
-                <li className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-secondary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    💬
+                  </span>
                   Receive parent inquiries
                 </li>
-                <li className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-secondary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    ⭐
+                  </span>
                   Respond to reviews
                 </li>
-                <li className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-secondary" />
+                <li className="flex items-center gap-2.5">
+                  <span className="font-emoji shrink-0 text-base leading-none" aria-hidden>
+                    📊
+                  </span>
                   Track analytics
                 </li>
               </ul>
@@ -827,5 +856,23 @@ export default function SignupPage() {
         </p>
       </CardContent>
     </Card>
+  )
+}
+
+function SignupPageFallback() {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl justify-center px-4 py-8 sm:px-6 md:py-10 lg:px-8">
+      <Card className="w-full max-w-md">
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">Loading…</CardContent>
+      </Card>
+    </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageContent />
+    </Suspense>
   )
 }

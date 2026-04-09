@@ -230,7 +230,7 @@ export default async function HomePage() {
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
               Join thousands of schools and programs who use Twooky to connect with local families.
-              Claim your free listing today and start growing your enrollment.
+              Get started in minutes—whether you&apos;re claiming an existing profile or adding a new listing.
             </p>
             <div className="mb-8 flex flex-col items-center gap-2 text-primary-foreground/80 text-sm">
               <span className="font-semibold uppercase tracking-wide text-xs opacity-90">
@@ -242,12 +242,22 @@ export default async function HomePage() {
                 <li>Collect reviews and build trust with your community</li>
               </ul>
             </div>
-            <Button size="lg" variant="secondary" className="text-white hover:text-white hover:bg-secondary/90" asChild>
-              <Link href="/claim-listing" className="text-inherit">
-                Claim Your Listing
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Link>
-            </Button>
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button size="lg" variant="secondary" className="text-white hover:text-white hover:bg-secondary/90" asChild>
+                <Link href="/for-providers" className="text-inherit">
+                  Get started
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                asChild
+              >
+                <Link href="/claim-listing">Claim an existing listing</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>

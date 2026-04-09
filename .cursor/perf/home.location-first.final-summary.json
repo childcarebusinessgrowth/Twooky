@@ -1,0 +1,35 @@
+{
+  "before": {
+    "score": 81,
+    "fcpMs": 1226,
+    "lcpMs": 4601,
+    "tbtMs": 75,
+    "siMs": 4075,
+    "mainThreadMs": 1088,
+    "jsExecMs": 469,
+    "transferBytes": 546651,
+    "cls": 0
+  },
+  "after": {
+    "score": 79,
+    "fcpMs": 1219,
+    "lcpMs": 5119,
+    "tbtMs": 24,
+    "siMs": 4109,
+    "mainThreadMs": 1097,
+    "jsExecMs": 500,
+    "transferBytes": 780228,
+    "cls": 0
+  },
+  "delta": {
+    "score": -2,
+    "fcpMs": -7,
+    "lcpMs": 518,
+    "tbtMs": -51,
+    "siMs": 34,
+    "mainThreadMs": 9,
+    "jsExecMs": 31,
+    "transferBytes": 233577,
+    "cls": 0
+  }
+}

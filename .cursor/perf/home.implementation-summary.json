@@ -1,0 +1,35 @@
+{
+  "baseline": {
+    "score": 69,
+    "fcpMs": 1235,
+    "lcpMs": 5360,
+    "tbtMs": 361,
+    "siMs": 4218,
+    "mainThreadMs": 2005,
+    "jsExecMs": 1133,
+    "unusedJsBytes": 59386,
+    "transferBytes": 799189
+  },
+  "after": {
+    "score": 81,
+    "fcpMs": 1226,
+    "lcpMs": 4601,
+    "tbtMs": 75,
+    "siMs": 4075,
+    "mainThreadMs": 1088,
+    "jsExecMs": 469,
+    "unusedJsBytes": 21405,
+    "transferBytes": 546651
+  },
+  "delta": {
+    "score": 12,
+    "fcpMs": -9,
+    "lcpMs": -759,
+    "tbtMs": -286,
+    "siMs": -143,
+    "mainThreadMs": -917,
+    "jsExecMs": -664,
+    "unusedJsBytes": -37981,
+    "transferBytes": -252538
+  }
+}

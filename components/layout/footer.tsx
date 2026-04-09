@@ -10,7 +10,7 @@ const footerLinks = {
     { name: "Browse Locations", href: "/childcare/locations" },
     { name: "Privacy", href: "/privacy" },
     { name: "Terms", href: "/terms" },
-    { name: "Provider Sign Up", href: "/claim-listing" },
+    { name: "For providers", href: "/for-providers" },
   ],
   searches: [
     { name: "Daycare Near Me", href: "/search" },

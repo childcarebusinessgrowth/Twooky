@@ -126,8 +126,8 @@ const rankingFactors = [
 const steps = [
   {
     step: "1",
-    title: "Search for Your Listing",
-    description: "Find your existing listing or create a new one in minutes."
+    title: "Tell us about your listing",
+    description: "Share your business details so we can match you to the right profile in our directory."
   },
   {
     step: "2",
@@ -167,8 +167,9 @@ export default function ClaimListingPage() {
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
-                Claim your listing in minutes and showcase your programs to families actively searching
-                in your area. Improve visibility, earn trust, and grow inquiries from qualified parents.
+                For programs <span className="font-medium text-foreground/90">already in our directory</span>, claim your
+                profile to verify ownership and unlock your dashboard. Showcase your programs to families actively
+                searching in your area.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-2.5">

@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Mail, Menu } from "lucide-react"
@@ -40,6 +41,29 @@ function resolveNavbarBrandLabel(
   const fromSub = formatSubdomainBrand(subdomainSlug)
   if (fromSub) return fromSub
   return "Menu"
+}
+
+const TWOOKY_SITE_URL = "http://twooky.com/"
+
+/** Credit line: every "Twooky" links to Twooky in a new tab (editor + published microsites). */
+function footerTextWithTwookyLink(text: string): ReactNode {
+  if (!text.includes("Twooky")) return text
+  const parts = text.split(/(Twooky)/g)
+  return parts.map((part, i) =>
+    part === "Twooky" ? (
+      <a
+        key={i}
+        href={TWOOKY_SITE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-inherit underline underline-offset-2 hover:opacity-90"
+      >
+        Twooky
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  )
 }
 
 export function CanvasNodeContent({
@@ -514,7 +538,9 @@ export function CanvasNodeContent({
             overflow: isMobileBreakpoint ? "visible" : "hidden",
           }}
         >
-          <span className="text-balance wrap-break-word">{p.text ?? ""}</span>
+          <span className="text-balance wrap-break-word">
+            {footerTextWithTwookyLink(p.text ?? "")}
+          </span>
         </footer>
       )
 
