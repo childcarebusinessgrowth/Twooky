@@ -4,8 +4,6 @@ import { useState } from "react"
 import { Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getSupabaseClient } from "@/lib/supabaseClient"
-
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -25,11 +23,25 @@ export function ForgotPasswordForm() {
     setSuccess(null)
 
     try {
-      const supabase = getSupabaseClient()
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim())
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      })
 
-      if (resetError) {
-        setError(resetError.message)
+      const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean
+        message?: string
+        error?: string
+      }
+
+      if (!response.ok) {
+        setError(data.error ?? "Unable to send reset email right now. Please try again later.")
+        return
+      }
+
+      if (data.ok && data.message) {
+        setSuccess(data.message)
       } else {
         setSuccess("If an account exists for this email, a reset link has been sent.")
       }
