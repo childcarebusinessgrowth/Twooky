@@ -1,7 +1,8 @@
 import "server-only"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { absoluteUrl, BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
+import { BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
 import { getResendClient, getResendFromAddress, logResendSendError } from "@/lib/email/resendClient"
+import { getTwookyLogoInlineAttachment, twookyLogoEmailImgTag } from "@/lib/email/twookyLogoInline"
 
 export type ProviderInquiryKind = "inquiry" | "guest"
 
@@ -49,7 +50,7 @@ function buildInquiryEmailParts(params: {
   const headline = kind === "guest" ? "New guest inquiry" : "New inquiry"
   const subject = `New lead on Twooky — ${businessName}`
 
-  const logoUrl = absoluteUrl("/images/twooky-logo.png")
+  const logoImg = twookyLogoEmailImgTag()
   const safeBusiness = escapeHtml(businessName)
   const safeFrom = escapeHtml(fromLine)
   const metaBlock =
@@ -67,7 +68,7 @@ function buildInquiryEmailParts(params: {
         <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr>
             <td style="padding:28px 28px 12px 28px;background:linear-gradient(135deg,${BRAND_PRIMARY} 0%,#152a4a 100%);">
-              <img src="${logoUrl}" alt="Twooky" width="160" height="48" style="display:block;height:auto;max-width:160px;border:0;"/>
+              ${logoImg}
             </td>
           </tr>
           <tr>
@@ -250,12 +251,15 @@ export async function notifyProviderNewInquiry(params: NotifyProviderNewInquiryP
       kind,
     })
 
+    const logoAtt = getTwookyLogoInlineAttachment()
+
     const sent = await resend.emails.send({
       from: getResendFromAddress(),
       to: [to],
       subject,
       html,
       text,
+      ...(logoAtt ? { attachments: [logoAtt] } : {}),
     })
 
     if (sent.error) {

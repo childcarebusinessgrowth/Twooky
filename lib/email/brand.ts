@@ -22,3 +22,21 @@ export function absoluteUrl(path: string): string {
   const p = path.startsWith("/") ? path : `/${path}`
   return `${base}${p}`
 }
+
+/**
+ * Supabase `redirect_to` for password recovery emails. Must match an entry in
+ * Supabase Dashboard → Authentication → URL configuration → Redirect URLs.
+ * Set PASSWORD_RESET_REDIRECT_URL if it must differ from `${origin}/update-password`.
+ */
+export function getPasswordResetRedirectUrl(): string {
+  const explicit = process.env.PASSWORD_RESET_REDIRECT_URL?.trim()
+  if (explicit) {
+    try {
+      const u = new URL(explicit)
+      return u.href.replace(/\/$/, "")
+    } catch {
+      return explicit.replace(/\/$/, "")
+    }
+  }
+  return `${getSiteOrigin().replace(/\/$/, "")}/update-password`
+}

@@ -1,7 +1,8 @@
 import "server-only"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { absoluteUrl, BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
+import { BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
 import { getResendClient, getResendFromAddress, logResendSendError } from "@/lib/email/resendClient"
+import { getTwookyLogoInlineAttachment, twookyLogoEmailImgTag } from "@/lib/email/twookyLogoInline"
 
 export type NotifyParentFirstProviderReplyParams = {
   inquiryId: string
@@ -23,7 +24,7 @@ function buildParentReplyEmailParts(params: {
 }): { subject: string; html: string; text: string } {
   const { businessName, dashboardUrl } = params
   const subject = `Twooky: ${businessName} replied to your inquiry`
-  const logoUrl = absoluteUrl("/images/twooky-logo.png")
+  const logoImg = twookyLogoEmailImgTag()
   const safeBusiness = escapeHtml(businessName)
 
   const html = `<!DOCTYPE html>
@@ -36,7 +37,7 @@ function buildParentReplyEmailParts(params: {
         <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr>
             <td style="padding:28px 28px 12px 28px;background:linear-gradient(135deg,${BRAND_PRIMARY} 0%,#152a4a 100%);">
-              <img src="${logoUrl}" alt="Twooky" width="160" height="48" style="display:block;height:auto;max-width:160px;border:0;"/>
+              ${logoImg}
             </td>
           </tr>
           <tr>
@@ -155,12 +156,15 @@ export async function notifyParentOfFirstProviderReply(
     const dashboardUrl = `${getSiteOrigin().replace(/\/$/, "")}/dashboard/parent/inquiries?open=${encodeURIComponent(inquiryId)}`
     const { subject, html, text } = buildParentReplyEmailParts({ businessName, dashboardUrl })
 
+    const logoAtt = getTwookyLogoInlineAttachment()
+
     const sent = await resend.emails.send({
       from: getResendFromAddress(),
       to: [to],
       subject,
       html,
       text,
+      ...(logoAtt ? { attachments: [logoAtt] } : {}),
     })
 
     if (sent.error) {

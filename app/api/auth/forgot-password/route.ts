@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getSiteOrigin } from "@/lib/email/brand"
+import { getPasswordResetRedirectUrl } from "@/lib/email/brand"
 import { sendPasswordResetEmail } from "@/lib/email/passwordReset"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 })
   }
 
-  const redirectTo = `${getSiteOrigin().replace(/\/$/, "")}/update-password`
+  const redirectTo = getPasswordResetRedirectUrl()
 
   try {
     const admin = getSupabaseAdminClient()

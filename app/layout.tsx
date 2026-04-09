@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Sans, Inter } from 'next/font/google'
+import { AuthRecoveryRedirect } from "@/components/auth-recovery-redirect"
 import { AnalyticsConsentGate } from '@/components/analytics-consent-gate'
 import { CookieConsentBannerLazy } from '@/components/cookie-consent-banner-lazy'
 import { DeferredClientRender } from "@/components/deferred-client-render"
@@ -47,6 +48,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased min-h-screen flex flex-col" suppressHydrationWarning>
+        <AuthRecoveryRedirect />
         <WebVitalsClient />
         <AppShell footer={<Footer cities={footerCities} />}>
           {children}

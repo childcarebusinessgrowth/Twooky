@@ -1,6 +1,8 @@
 import "server-only"
-import { absoluteUrl, BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY, getSiteOrigin } from "@/lib/email/brand"
+import type { Attachment } from "resend"
+import { BRAND_BACKGROUND, BRAND_MUTED, BRAND_PRIMARY, BRAND_SECONDARY } from "@/lib/email/brand"
 import { getResendClient, getResendFromAddress, logResendSendError } from "@/lib/email/resendClient"
+import { getTwookyLogoInlineAttachment, twookyLogoEmailImgTag } from "@/lib/email/twookyLogoInline"
 
 function escapeHtml(s: string): string {
   return s
@@ -10,9 +12,14 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
 }
 
-function buildPasswordResetEmailParts(resetLink: string): { subject: string; html: string; text: string } {
+function buildPasswordResetEmailParts(resetLink: string): {
+  subject: string
+  html: string
+  text: string
+  attachments: Attachment[]
+} {
   const subject = "Reset your Twooky password"
-  const logoUrl = absoluteUrl("/images/twooky-logo.png")
+  const logoImg = twookyLogoEmailImgTag()
   const safeLink = escapeHtml(resetLink)
 
   const html = `<!DOCTYPE html>
@@ -25,7 +32,7 @@ function buildPasswordResetEmailParts(resetLink: string): { subject: string; htm
         <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr>
             <td style="padding:28px 28px 12px 28px;background:linear-gradient(135deg,${BRAND_PRIMARY} 0%,#152a4a 100%);">
-              <img src="${logoUrl}" alt="Twooky" width="160" height="48" style="display:block;height:auto;max-width:160px;border:0;"/>
+              ${logoImg}
             </td>
           </tr>
           <tr>
@@ -47,7 +54,6 @@ function buildPasswordResetEmailParts(resetLink: string): { subject: string; htm
             </td>
           </tr>
         </table>
-        <p style="margin:0;padding:0 8px;font-size:12px;color:${BRAND_MUTED};text-align:center;">${escapeHtml(getSiteOrigin())}</p>
       </td>
     </tr>
   </table>
@@ -61,11 +67,13 @@ function buildPasswordResetEmailParts(resetLink: string): { subject: string; htm
     resetLink,
     "",
     "If you didn't request this, you can ignore this email.",
-    "",
-    getSiteOrigin(),
   ].join("\n")
 
-  return { subject, html, text }
+  const attachments: Attachment[] = []
+  const logoAtt = getTwookyLogoInlineAttachment()
+  if (logoAtt) attachments.push(logoAtt)
+
+  return { subject, html, text, attachments }
 }
 
 export type SendPasswordResetEmailResult = { ok: true } | { ok: false; reason: "missing_resend" | "send_failed" }
@@ -80,7 +88,7 @@ export async function sendPasswordResetEmail(to: string, resetLink: string): Pro
     return { ok: false, reason: "missing_resend" }
   }
 
-  const { subject, html, text } = buildPasswordResetEmailParts(resetLink)
+  const { subject, html, text, attachments } = buildPasswordResetEmailParts(resetLink)
 
   const sent = await resend.emails.send({
     from: getResendFromAddress(),
@@ -88,6 +96,7 @@ export async function sendPasswordResetEmail(to: string, resetLink: string): Pro
     subject,
     html,
     text,
+    ...(attachments.length > 0 ? { attachments } : {}),
   })
 
   if (sent.error) {
