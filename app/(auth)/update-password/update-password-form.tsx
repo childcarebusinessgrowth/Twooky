@@ -48,7 +48,6 @@ async function establishRecoverySessionFromUrl(supabase: ReturnType<typeof getSu
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      window.history.replaceState(null, "", window.location.pathname)
       return "ok"
     }
     // PKCE exchange often fails for email links (no code verifier in this browser). Try hash/query below.
@@ -62,7 +61,6 @@ async function establishRecoverySessionFromUrl(supabase: ReturnType<typeof getSu
       token_hash,
     })
     if (!error) {
-      window.history.replaceState(null, "", window.location.pathname)
       return "ok"
     }
     return "error"
@@ -86,13 +84,17 @@ async function establishRecoverySessionFromUrl(supabase: ReturnType<typeof getSu
       refresh_token: refresh_token!,
     })
     if (!error) {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search)
       return "ok"
     }
     return "error"
   }
 
   return "none"
+}
+
+function clearRecoveryParamsFromUrl(): void {
+  if (typeof window === "undefined") return
+  window.history.replaceState(null, "", window.location.pathname)
 }
 
 type Phase = "loading" | "form" | "invalid"
@@ -223,12 +225,27 @@ export function UpdatePasswordForm() {
 
     try {
       const supabase = getSupabaseClient()
+
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+
+      if (!currentSession) {
+        const established = await establishRecoverySessionFromUrl(supabase)
+        if (established !== "ok") {
+          setError("Your reset link is missing a valid session. Please request a new link and open it once.")
+          return
+        }
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({ password })
 
       if (updateError) {
         setError(updateError.message)
         return
       }
+
+      clearRecoveryParamsFromUrl()
 
       try {
         const roleResult = await resolveRoleRedirect()

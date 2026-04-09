@@ -39,8 +39,8 @@ export function Footer({ cities }: FooterProps) {
                 alt="Twooky logo"
                 width={383}
                 height={156}
-                sizes="240px"
-                className="h-16 w-auto sm:h-17"
+                sizes="220px"
+                className="h-15 w-auto sm:h-16"
               />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">

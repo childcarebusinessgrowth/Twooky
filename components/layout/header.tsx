@@ -80,8 +80,8 @@ export function Header() {
             alt="Twooky logo"
             width={383}
             height={156}
-            sizes="(max-width: 1024px) 240px, 280px"
-            className="h-16 w-auto sm:h-17"
+            sizes="(max-width: 1024px) 220px, 260px"
+            className="h-15 w-auto sm:h-16"
             priority
           />
         </Link>

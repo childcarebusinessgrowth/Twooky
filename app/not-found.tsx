@@ -26,8 +26,8 @@ export default function NotFound() {
             alt="Twooky logo"
             width={383}
             height={156}
-            sizes="200px"
-            className="h-14 w-auto sm:h-16"
+            sizes="180px"
+            className="h-12 w-auto sm:h-14"
           />
           <div className="text-left">
             <p className="text-sm text-muted-foreground">
