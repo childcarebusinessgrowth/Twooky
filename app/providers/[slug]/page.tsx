@@ -164,13 +164,15 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                         </div>
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {p.programTypes.map((type) => (
-                        <Badge key={type} variant="secondary">
-                          {type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Badge>
-                      ))}
-                    </div>
+                    {p.programTypes.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {p.programTypes.map((type) => (
+                          <Badge key={type} variant="secondary">
+                            {type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <ProviderFavoriteButton
@@ -315,30 +317,40 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
 
               {/* Programs Tab */}
               <TabsContent value="programs" className="mt-6">
-                <div className="grid gap-4">
-                  {p.programTypes.map((program, index) => (
-                    <Card key={program}>
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h3 className="font-semibold text-foreground mb-2">{program}</h3>
-                            <p className="text-muted-foreground text-sm mb-3">
-                              A comprehensive {program.toLowerCase()} program designed for early childhood development 
-                              with age-appropriate activities and experienced educators.
-                            </p>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Users className="h-4 w-4" />
-                                Ages {p.ageGroups[index % p.ageGroups.length] || ","}
-                              </span>
+                {p.programTypes.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-6">
+                      <p className="text-muted-foreground">
+                        No program details have been added for this listing yet.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {p.programTypes.map((program, index) => (
+                      <Card key={program}>
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <h3 className="font-semibold text-foreground mb-2">{program}</h3>
+                              <p className="text-muted-foreground text-sm mb-3">
+                                A comprehensive {program.toLowerCase()} program designed for early childhood development
+                                with age-appropriate activities and experienced educators.
+                              </p>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-4 w-4" />
+                                  Ages {p.ageGroups[index % p.ageGroups.length] || ","}
+                                </span>
+                              </div>
                             </div>
+                            <Button variant="outline" size="sm">Learn More</Button>
                           </div>
-                          <Button variant="outline" size="sm">Learn More</Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               {/* Virtual Tour Tab */}

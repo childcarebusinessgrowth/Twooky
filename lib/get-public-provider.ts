@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { fetchGooglePlaceDetailsSummary } from "@/lib/google-place-reviews"
+import { ageGroupsToProgramLabels } from "@/lib/age-groups-to-program-labels"
 import { formatDailyFeeRange } from "@/lib/currency"
 import {
   getReviewsByProviderProfileId,
@@ -208,7 +209,7 @@ export async function getActivePublicProviderBySlug(
     rating: displayRating,
     reviewCount: displayReviewCount,
     providerTypes: profile.provider_types ?? [],
-    programTypes: profile.provider_types ?? [],
+    programTypes: ageGroupsToProgramLabels(profile.age_groups_served ?? null),
     description: profile.description ?? "",
     ageGroups: profile.age_groups_served ?? [],
     hours,
