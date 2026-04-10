@@ -85,7 +85,7 @@ export default async function AdminContactMessagesPage() {
                         </a>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap truncate" title={row.phone ?? undefined}>
-                        {row.phone || "—"}
+                        {row.phone || ","}
                       </TableCell>
                       <TableCell className="min-w-0 w-[240px] max-w-[240px]">
                         <ContactMessageCell message={row.message} />

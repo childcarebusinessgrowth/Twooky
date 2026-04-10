@@ -52,7 +52,7 @@ export function ProviderReviewsTab({
     <div className="mt-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <h3 className="font-semibold text-foreground">
-          Parent Reviews ({reviews.length})
+          Twooky Reviews ({reviews.length})
         </h3>
         <ProviderWriteReview
           providerProfileId={providerProfileId}

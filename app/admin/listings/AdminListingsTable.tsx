@@ -512,7 +512,7 @@ export function AdminListingsTable({
                           href={`/admin/listings/${listing.profile_id}`}
                           className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
                         >
-                          {listing.business_name || listing.provider_slug || "—"}
+                          {listing.business_name || listing.provider_slug || ","}
                         </Link>
                         {listing.featured && (
                           <Badge variant="secondary" className="text-xs">
@@ -536,11 +536,11 @@ export function AdminListingsTable({
                       </div>
                       <div className="text-sm text-muted-foreground md:hidden flex items-center gap-1 mt-1">
                         <MapPin className="h-3 w-3" />
-                        {[listing.city, listing.address].filter(Boolean).join(", ") || "—"}
+                        {[listing.city, listing.address].filter(Boolean).join(", ") || ","}
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
-                      {[listing.city, listing.address].filter(Boolean).join(", ") || "—"}
+                      {[listing.city, listing.address].filter(Boolean).join(", ") || ","}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <Badge
@@ -568,7 +568,7 @@ export function AdminListingsTable({
                           <span>{listing.rating}</span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">,</span>
                       )}
                     </TableCell>
                     <TableCell>

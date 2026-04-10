@@ -283,7 +283,7 @@ export function AnalyticsCharts({ data, currentRange }: AnalyticsChartsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground">
-              {conversionRatePercent != null ? `${conversionRatePercent}%` : "—"}
+              {conversionRatePercent != null ? `${conversionRatePercent}%` : ","}
             </div>
             <p className="text-sm text-muted-foreground">of inquiries convert to enrollments</p>
           </CardContent>
@@ -295,7 +295,7 @@ export function AnalyticsCharts({ data, currentRange }: AnalyticsChartsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground">
-              {avgResponseTimeHours != null ? formatResponseTime(avgResponseTimeHours) : "—"}
+              {avgResponseTimeHours != null ? formatResponseTime(avgResponseTimeHours) : ","}
             </div>
             <p className="text-sm text-muted-foreground">time to first response</p>
           </CardContent>
@@ -307,7 +307,7 @@ export function AnalyticsCharts({ data, currentRange }: AnalyticsChartsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-foreground">
-              {searchRank != null ? `#${searchRank}` : "—"}
+              {searchRank != null ? `#${searchRank}` : ","}
             </div>
             <p className="text-sm text-muted-foreground">in {searchRankAreaLabel}</p>
           </CardContent>

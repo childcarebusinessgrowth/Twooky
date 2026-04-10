@@ -8,7 +8,7 @@ export const metadata = {
     "List your early learning program on Twooky: claim an existing listing or create a new one and reach local families.",
 }
 
-/** Renders in the OS emoji font (e.g. Apple Color Emoji) — same family as 👋 on the dashboard */
+/** Renders in the OS emoji font (e.g. Apple Color Emoji) , same family as 👋 on the dashboard */
 function EmojiIcon({
   emoji,
   label,
@@ -47,7 +47,7 @@ export default function ForProvidersPage() {
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
               If families can already find your program here, claim your listing. If you&apos;re not on the directory
-              yet, create a new listing—it only takes a few minutes to get started.
+              yet, create a new listing, it only takes a few minutes to get started.
             </p>
           </div>
 
@@ -111,7 +111,7 @@ export default function ForProvidersPage() {
                     <span className="font-emoji mt-0.5 shrink-0 text-base leading-none" aria-hidden>
                       ✅
                     </span>
-                    Publish when you&apos;re ready—no claim step needed
+                    Publish when you&apos;re ready, no claim step needed
                   </li>
                 </ul>
                 <Button
@@ -134,7 +134,7 @@ export default function ForProvidersPage() {
             <Link href="/contact" className="font-semibold text-primary underline-offset-4 hover:underline">
               Contact us
             </Link>
-            —we&apos;re happy to help.
+            , we&apos;re happy to help.
           </p>
         </div>
       </section>

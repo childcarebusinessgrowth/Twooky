@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Building2 } from "lucide-react"
+import { LayoutDashboard } from "lucide-react"
 
 export function ProviderProgramOwnerStrip() {
   const [hidden, setHidden] = useState(false)
@@ -30,7 +30,7 @@ export function ProviderProgramOwnerStrip() {
     <div className="mb-4 rounded-xl border border-border bg-muted/60 shadow-sm">
       <div className="flex flex-col items-start gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
         <p className="flex items-start gap-2 text-sm text-foreground">
-          <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          <LayoutDashboard className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           <span>
             Is this your program? Manage your listing, photos, and inquiries on Twooky.
           </span>

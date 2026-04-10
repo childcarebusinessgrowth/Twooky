@@ -219,7 +219,7 @@ export function AdminProgramTypesPageClient({
                   <TableRow key={item.id}>
                     <TableCell>{item.name}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {ageLabels.length > 0 ? ageLabels.join(", ") : "—"}
+                      {ageLabels.length > 0 ? ageLabels.join(", ") : ","}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{item.sort_order}</TableCell>
                   <TableCell className="hidden md:table-cell">

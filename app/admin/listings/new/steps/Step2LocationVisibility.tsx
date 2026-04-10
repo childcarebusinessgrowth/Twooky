@@ -83,7 +83,7 @@ export function Step2LocationVisibility({
         <CardHeader className="pb-4">
           <CardTitle className="text-base">Directory mapping</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Country is optional for filtering. Directory City is required — it sets the public city shown on the listing and links the provider for search.
+            Country is optional for filtering. Directory City is required , it sets the public city shown on the listing and links the provider for search.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

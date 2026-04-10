@@ -1,0 +1,372 @@
+import Link from "next/link"
+import { Fragment } from "react"
+import { BadgeCheck, Check, Minus, Star } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+import {
+  FEATURE_CATEGORIES,
+  PLAN_IDS,
+  PRICING_FOOTNOTE,
+  PRICING_PLANS,
+  type FeatureRow,
+  type PlanId,
+  type PlanTheme,
+} from "@/lib/pricing-data"
+
+const THEME: Record<
+  PlanTheme,
+  { bar: string; softBg: string; accentText: string }
+> = {
+  blue: {
+    bar: "from-sky-500 to-blue-600",
+    softBg: "bg-sky-500/[0.08]",
+    accentText: "text-sky-700 dark:text-sky-300",
+  },
+  lightGreen: {
+    bar: "from-emerald-400 to-teal-500",
+    softBg: "bg-emerald-500/[0.08]",
+    accentText: "text-emerald-800 dark:text-emerald-300",
+  },
+  darkGreen: {
+    bar: "from-emerald-700 to-green-900",
+    softBg: "bg-emerald-900/[0.12]",
+    accentText: "text-emerald-900 dark:text-emerald-200",
+  },
+  orange: {
+    bar: "from-amber-500 to-orange-600",
+    softBg: "bg-orange-500/[0.1]",
+    accentText: "text-orange-800 dark:text-orange-300",
+  },
+}
+
+function PriceBlock({ planId, featured }: { planId: PlanId; featured?: boolean }) {
+  const plan = PRICING_PLANS.find((p) => p.id === planId)!
+  const theme = THEME[plan.theme]
+
+  if (plan.monthlyUsd === null) {
+    return (
+      <div className="space-y-1">
+        <p
+          className={cn(
+            "font-bold tracking-tight",
+            featured ? "text-4xl md:text-[2.75rem]" : "text-3xl",
+            theme.accentText
+          )}
+        >
+          Free
+        </p>
+        <p className={cn("text-muted-foreground", featured ? "text-base" : "text-sm")}>Forever</p>
+      </div>
+    )
+  }
+
+  if (plan.monthlyUsd === undefined) {
+    return (
+      <div className="space-y-1">
+        <p
+          className={cn(
+            "font-bold tracking-tight",
+            featured ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl",
+            theme.accentText
+          )}
+        >
+          Custom
+        </p>
+        <p className={cn("text-muted-foreground", featured ? "text-base" : "text-sm")}>
+          Tailored to your service
+        </p>
+      </div>
+    )
+  }
+
+  const monthly = plan.monthlyUsd
+
+  return (
+    <div className="space-y-1">
+      <p
+        className={cn(
+          "font-bold tracking-tight",
+          featured ? "text-4xl md:text-[2.75rem]" : "text-3xl",
+          theme.accentText
+        )}
+      >
+        ${monthly}
+        <span
+          className={cn(
+            "font-semibold text-muted-foreground",
+            featured ? "text-xl md:text-2xl" : "text-lg"
+          )}
+        >
+          /mo
+        </span>
+      </p>
+    </div>
+  )
+}
+
+function FeatureCell({
+  row,
+  planId,
+}: {
+  row: FeatureRow
+  planId: PlanId
+}) {
+  const raw = row[planId]
+  const included = raw === true
+  const detail = row.detail?.[planId]
+
+  if (detail) {
+    return (
+      <div className="flex flex-col items-center gap-0.5 text-center">
+        <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        <span className="text-xs font-medium text-foreground">{detail}</span>
+      </div>
+    )
+  }
+
+  if (included) {
+    return <Check className="mx-auto h-4 w-4 text-primary" aria-label="Included" />
+  }
+
+  return <Minus className="mx-auto h-4 w-4 text-muted-foreground/50" aria-label="Not included" />
+}
+
+export function PricingPageClient() {
+  return (
+    <div className="min-h-screen bg-background">
+      <section className="relative isolate overflow-x-clip overflow-y-visible pb-12 pt-8 md:pb-16 md:pt-12 lg:pt-16">
+        <div className="pointer-events-none absolute inset-0 -z-20 bg-linear-to-b from-primary/[0.07] via-background to-background" />
+        <div className="pointer-events-none absolute -left-24 top-10 -z-10 h-80 w-80 rounded-full bg-primary/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 top-0 -z-10 h-72 w-72 rounded-full bg-secondary/20 blur-3xl" />
+
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <div className="mb-10 text-center md:mb-12">
+            <div className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-primary/15 bg-card/80 py-2 pl-3 pr-4 shadow-sm backdrop-blur-sm">
+              <span className="text-xl leading-none" aria-hidden>
+                ✨
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                Twooky packages
+              </span>
+            </div>
+            <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
+              Pricing that grows with your program
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
+              From a free directory presence to full marketing support, choose the package that fits your goals.
+            </p>
+          </div>
+
+          <div className="mx-auto w-full overflow-visible px-1 py-4 md:px-2 md:py-6">
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-7 md:grid-cols-2 md:gap-7",
+                "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.22fr)_minmax(0,1fr)]",
+                "xl:items-stretch xl:gap-7"
+              )}
+            >
+              {PRICING_PLANS.map((plan) => {
+                const theme = THEME[plan.theme]
+                const isPopular = plan.badge === "Most Popular"
+
+                return (
+                  <Card
+                    key={plan.id}
+                    className={cn(
+                      "group relative flex flex-col overflow-hidden rounded-2xl border bg-card/90 py-0 shadow-sm backdrop-blur-sm transition-all duration-300",
+                      "hover:-translate-y-0.5 hover:shadow-md",
+                      isPopular
+                        ? cn(
+                            "z-10 rounded-3xl border-2 border-emerald-600/35 shadow-2xl shadow-emerald-950/15",
+                            "ring-2 ring-emerald-500/25 dark:border-emerald-500/40 dark:ring-emerald-400/20",
+                            "md:scale-[1.03] xl:scale-[1.06] xl:shadow-[0_28px_60px_-20px_rgba(5,80,60,0.35)]"
+                          )
+                        : "border-border/70"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "bg-linear-to-r",
+                        theme.bar,
+                        isPopular ? "h-2.5 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]" : "h-1.5"
+                      )}
+                    />
+                    {plan.badge && (
+                      <div className="absolute right-3 top-4 md:right-4 md:top-5">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "gap-1.5 rounded-full border-amber-400/90 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm",
+                            "dark:border-amber-400/70 dark:bg-amber-950 dark:text-amber-50",
+                            isPopular && "tracking-wide"
+                          )}
+                        >
+                          <Star
+                            className="h-3.5 w-3.5 shrink-0 fill-amber-500 text-amber-600 dark:fill-amber-400 dark:text-amber-300"
+                            aria-hidden
+                          />
+                          {plan.badge}
+                        </Badge>
+                      </div>
+                    )}
+                    <CardHeader
+                      className={cn(
+                        "space-y-1.5 pb-2 px-6 pt-8",
+                        plan.badge && "pr-30 md:pr-32"
+                      )}
+                    >
+                      <CardTitle
+                        className={cn(
+                          "font-bold tracking-tight",
+                          isPopular ? "text-2xl md:text-[1.65rem]" : "text-xl",
+                          theme.accentText
+                        )}
+                      >
+                        {plan.name}
+                      </CardTitle>
+                      <CardDescription
+                        className={cn(
+                          "text-muted-foreground",
+                          isPopular ? "text-base leading-snug" : "text-base"
+                        )}
+                      >
+                        {plan.tagline}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col space-y-6 px-6 pb-6">
+                      <div
+                        className={cn(
+                          "rounded-2xl border border-black/4 dark:border-white/6 px-4 py-4",
+                          theme.softBg
+                        )}
+                      >
+                        <PriceBlock planId={plan.id} featured={isPopular} />
+                      </div>
+                      <ul className="space-y-3 text-sm leading-snug text-muted-foreground">
+                        {plan.highlights.map((h) => (
+                          <li key={h.text} className="flex gap-2.5">
+                            {h.exclusive ? (
+                              <BadgeCheck
+                                className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                                aria-hidden
+                              />
+                            ) : (
+                              <Check
+                                className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                                aria-hidden
+                              />
+                            )}
+                            <span
+                              className={cn(
+                                h.exclusive && "font-medium text-foreground"
+                              )}
+                            >
+                              {h.text}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                    <CardFooter className="mt-auto border-t border-border/50 bg-muted/25 px-6 py-5">
+                      <Button
+                        className={cn(
+                          "w-full rounded-xl font-semibold",
+                          isPopular ? "h-12 text-base shadow-md" : "h-11"
+                        )}
+                        variant={isPopular ? "default" : "outline"}
+                        asChild
+                      >
+                        <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border/60 bg-muted/20 py-14 md:py-20">
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <div className="mb-10 text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              Compare all features
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              A badge icon beside a feature means it is exclusive to KinderPath Pro.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-sm">
+            <table className="w-full min-w-[720px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="sticky left-0 z-2 bg-muted/95 px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                    Feature
+                  </th>
+                  {PRICING_PLANS.map((p) => (
+                    <th
+                      key={p.id}
+                      className="px-3 py-4 text-center text-xs font-semibold uppercase tracking-wider text-foreground"
+                    >
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURE_CATEGORIES.map((cat) => (
+                  <Fragment key={cat.title}>
+                    <tr className="bg-primary/5">
+                      <td
+                        colSpan={5}
+                        className="sticky left-0 z-1 px-4 py-3 text-xs font-bold uppercase tracking-wider text-primary"
+                      >
+                        {cat.title}
+                      </td>
+                    </tr>
+                    {cat.rows.map((row) => (
+                      <tr
+                        key={row.label}
+                        className={cn(
+                          "border-b border-border/60",
+                          row.exclusive && "bg-primary/5"
+                        )}
+                      >
+                        <td className="sticky left-0 z-1 max-w-56 bg-card/95 px-4 py-3 text-left text-foreground backdrop-blur-sm">
+                          <span className="flex items-start gap-1.5">
+                            {row.exclusive && (
+                              <BadgeCheck
+                                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+                                aria-hidden
+                              />
+                            )}
+                            <span className={cn(row.exclusive && "font-medium text-foreground")}>
+                              {row.label}
+                            </span>
+                          </span>
+                        </td>
+                        {PLAN_IDS.map((pid) => (
+                          <td key={pid} className="px-2 py-3 text-center">
+                            <FeatureCell row={row} planId={pid} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
+            {PRICING_FOOTNOTE}
+          </p>
+        </div>
+      </section>
+    </div>
+  )
+}

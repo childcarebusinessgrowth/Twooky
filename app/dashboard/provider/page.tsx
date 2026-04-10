@@ -97,7 +97,7 @@ export default async function ProviderDashboardPage() {
     {
       title: "Parent Inquiries",
       value: totalInquiries.toLocaleString(),
-      change: "—",
+      change: ",",
       trend: "up" as const,
       icon: MessageSquare,
       description: "total",
@@ -112,8 +112,8 @@ export default async function ProviderDashboardPage() {
     },
     {
       title: "Average Rating",
-      value: overview.averageRating != null ? overview.averageRating.toFixed(1) : "—",
-      change: "—",
+      value: overview.averageRating != null ? overview.averageRating.toFixed(1) : ",",
+      change: ",",
       trend: "up" as const,
       icon: TrendingUp,
       description: "out of 5.0",
@@ -138,7 +138,7 @@ export default async function ProviderDashboardPage() {
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="pt-6">
             <p className="text-sm text-foreground">
-              Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live. In the meantime, add photos in the Photos section—photos help families see your space.
+              Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live. In the meantime, add photos in the Photos section,photos help families see your space.
             </p>
           </CardContent>
         </Card>
@@ -220,7 +220,7 @@ export default async function ProviderDashboardPage() {
             <CardContent>
               <div className="text-3xl font-bold text-foreground">{stat.value}</div>
               <div className="flex items-center gap-1 mt-1">
-                {stat.change !== "—" && (
+                {stat.change !== "," && (
                   <>
                     {stat.trend === "up" ? (
                       <ArrowUpRight className="h-4 w-4 text-green-600" />

@@ -438,7 +438,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                     return (
                       <TableRow key={city.id}>
                         <TableCell>{city.name}</TableCell>
-                        <TableCell className="hidden md:table-cell">{country?.name ?? "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell">{country?.name ?? ","}</TableCell>
                         <TableCell className="hidden lg:table-cell font-mono text-xs">
                           {href}
                         </TableCell>

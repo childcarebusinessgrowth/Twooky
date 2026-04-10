@@ -1322,6 +1322,101 @@ export interface Database {
         }
         Relationships: []
       }
+      local_service_deals: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          image_url: string
+          location: string
+          age_target: string
+          provider_id: string
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          image_url: string
+          location: string
+          age_target: string
+          provider_id: string
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          image_url?: string
+          location?: string
+          age_target?: string
+          provider_id?: string
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_service_deals_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      sponsor_discounts: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          image_url: string
+          discount_code: string | null
+          external_link: string | null
+          category: string
+          offer_badge: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          image_url: string
+          discount_code?: string | null
+          external_link?: string | null
+          category: string
+          offer_badge?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          image_url?: string
+          discount_code?: string | null
+          external_link?: string | null
+          category?: string
+          offer_badge?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           id: string

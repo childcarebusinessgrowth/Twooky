@@ -260,7 +260,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                 getLabel={getProviderTypeLabel}
               />
               {!profile.provider_types?.length && (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground">,</span>
               )}
             </div>
           </div>
@@ -274,7 +274,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                 getLabel={getAgeGroupLabel}
               />
               {!profile.age_groups_served?.length && (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground">,</span>
               )}
             </div>
           </div>
@@ -288,7 +288,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                 getLabel={getCurriculumLabel}
               />
               {!profile.curriculum_type?.length && (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground">,</span>
               )}
             </div>
           </div>
@@ -306,7 +306,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                 getLabel={(x) => x}
               />
               {!(profile.languages_spoken ?? "").trim() && (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground">,</span>
               )}
             </div>
           </div>
@@ -320,7 +320,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                 getLabel={getAmenityLabel}
               />
               {!profile.amenities?.length && (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground">,</span>
               )}
             </div>
           </div>

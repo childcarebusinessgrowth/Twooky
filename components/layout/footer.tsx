@@ -5,6 +5,7 @@ import type { FooterCityLink } from "@/lib/locations"
 const footerLinks = {
   company: [
     { name: "About", href: "/about" },
+    { name: "Pricing", href: "/pricing" },
     { name: "Blog", href: "/blogs" },
     { name: "Contact", href: "/contact" },
     { name: "Browse Locations", href: "/childcare/locations" },

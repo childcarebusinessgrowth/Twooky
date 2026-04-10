@@ -111,7 +111,7 @@ function formatDate(s: string): string {
 }
 
 function formatDateOnly(s: string | null): string {
-  if (!s) return "—"
+  if (!s) return ","
   return new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
 }
 

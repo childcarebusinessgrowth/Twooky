@@ -47,7 +47,7 @@ export function ContactMessageCell({ message }: ContactMessageCellProps) {
           className="whitespace-pre-wrap wrap-break-word rounded-md border border-border bg-muted/30 p-4 text-sm text-foreground"
           style={{ maxHeight: "60vh", overflowY: "auto" }}
         >
-          {message || "—"}
+          {message || ","}
         </p>
       </DialogContent>
     </Dialog>

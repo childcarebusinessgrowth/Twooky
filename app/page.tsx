@@ -146,7 +146,7 @@ export default async function HomePage() {
                 Browse by Program Type
               </h2>
               <p className="mx-auto max-w-2xl text-muted-foreground">
-                Explore age-specific and learning-focused options to find the best fit for your child&apos;s stage and needs.
+                Explore age-specific options across early education—from preschools and nurseries to Montessori, enrichment, and beyond—to find the best fit for your child&apos;s stage and interests.
               </p>
             </div>
 
@@ -189,7 +189,7 @@ export default async function HomePage() {
               Why Parents Trust Us
             </h2>
             <p className="text-muted-foreground">
-              We make finding quality early learning programs simple and stress-free
+              We make finding the right early childhood fit—education, preschools, nurseries, Montessori, enrichment, and more—simple and stress-free
             </p>
           </div>
 
@@ -230,7 +230,7 @@ export default async function HomePage() {
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
               Join thousands of schools and programs who use Twooky to connect with local families.
-              Get started in minutes—whether you&apos;re claiming an existing profile or adding a new listing.
+              Get started in minutes, whether you&apos;re claiming an existing profile or adding a new listing.
             </p>
             <div className="mb-8 flex flex-col items-center gap-2 text-primary-foreground/80 text-sm">
               <span className="font-semibold uppercase tracking-wide text-xs opacity-90">

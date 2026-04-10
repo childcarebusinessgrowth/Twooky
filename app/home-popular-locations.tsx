@@ -45,7 +45,7 @@ export async function HomePopularLocationsSection() {
             Browse by City
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Discover trusted nurseries and childcare in the most popular cities across the USA, UK and UAE.
+            Discover trusted early childhood programs—education, preschools, nurseries, Montessori, enrichment, and more—in the most popular cities across the USA, UK and UAE.
           </p>
         </div>
 

@@ -62,7 +62,7 @@ export async function HomeFeaturedProvidersSection() {
               Featured Providers
             </h2>
             <p className="text-muted-foreground">
-              Top-rated childcare centers loved by local families
+              Top-rated early learning providers loved by local families—preschools, nurseries, Montessori, enrichment, and more.
             </p>
           </div>
           <Button variant="ghost" asChild className="hidden md:flex">

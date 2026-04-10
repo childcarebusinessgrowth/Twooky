@@ -30,7 +30,7 @@ export function ProcessedClaimRow({ claim }: { claim: AdminClaimRow }) {
         day: "numeric",
         year: "numeric",
       })
-    : "—"
+    : ","
 
   async function handleDelete() {
     setIsDeleting(true)

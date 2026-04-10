@@ -103,7 +103,7 @@ export default function ProviderSearchPage() {
           Search across inquiries and reviews
           {q && (
             <span className="ml-1 font-medium text-foreground">
-              — &ldquo;{q}&rdquo;
+              , &ldquo;{q}&rdquo;
             </span>
           )}
         </p>
@@ -114,7 +114,7 @@ export default function ProviderSearchPage() {
           <CardContent className="py-12 text-center text-muted-foreground">
             <p className="font-medium text-foreground">Enter a search term</p>
             <p className="mt-1 text-sm">
-              Use the search bar above to find inquiries by parent name, email, or subject — and
+              Use the search bar above to find inquiries by parent name, email, or subject , and
               reviews by parent name or review text.
             </p>
           </CardContent>

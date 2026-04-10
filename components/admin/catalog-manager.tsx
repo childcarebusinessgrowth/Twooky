@@ -233,7 +233,7 @@ export function CatalogManager({
               {items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.name}</TableCell>
-                  {hasSecondaryField && <TableCell>{item.secondary_value ?? "—"}</TableCell>}
+                  {hasSecondaryField && <TableCell>{item.secondary_value ?? ","}</TableCell>}
                   <TableCell className="hidden md:table-cell">{item.sort_order}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {item.is_active ? (

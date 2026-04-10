@@ -618,7 +618,7 @@ export default function WebsiteBuilderClient() {
     pointerId: number
     captureEl: Element | null
   } | null>(null)
-  /** Layout coords are pre-transform; canvas uses CSS scale — convert screen delta to artboard px */
+  /** Layout coords are pre-transform; canvas uses CSS scale , convert screen delta to artboard px */
   const canvasScaleRef = useRef(1)
 
   const onCanvasPointerMove = useCallback(
@@ -809,7 +809,7 @@ export default function WebsiteBuilderClient() {
           </div>
           <CardTitle className="text-xl">No website yet</CardTitle>
           <CardDescription className="text-base leading-relaxed">
-            Choose a childcare template or start from a blank canvas on the start page — then you will land here to
+            Choose a childcare template or start from a blank canvas on the start page , then you will land here to
             edit and publish.
           </CardDescription>
         </CardHeader>

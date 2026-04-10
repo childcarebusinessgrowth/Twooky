@@ -20,6 +20,7 @@ import {
   CheckCircle,
   Star,
   Flag,
+  Handshake,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -35,23 +36,59 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { RequireAuth } from "@/components/RequireAuth"
 import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
 import type { AdminNotificationItem } from "@/app/api/admin/notifications/route"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import type { LucideIcon } from "lucide-react"
 
-function getSidebarItems(pendingClaimsCount: number) {
+type SidebarLinkItem = {
+  kind: "link"
+  label: string
+  href: string
+  icon: LucideIcon
+  badge?: number
+}
+
+type SidebarGroupItem = {
+  kind: "group"
+  label: string
+  icon: LucideIcon
+  children: { label: string; href: string }[]
+}
+
+function getSidebarItems(pendingClaimsCount: number): (SidebarLinkItem | SidebarGroupItem)[] {
   return [
-    { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { label: "Listings", href: "/admin/listings", icon: Building2 },
-    { label: "Parents", href: "/admin/parents", icon: UsersRound },
-    { label: "Blogs", href: "/admin/blogs", icon: Newspaper },
-    { label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
-    { label: "Reviews", href: "/admin/reviews", icon: Star },
-    { label: "Claim Requests", href: "/admin/claims", icon: FileCheck, badge: pendingClaimsCount },
-    { label: "Directory", href: "/admin/directory", icon: FolderTree },
-    { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { kind: "link", label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { kind: "link", label: "Listings", href: "/admin/listings", icon: Building2 },
+    { kind: "link", label: "Parents", href: "/admin/parents", icon: UsersRound },
+    { kind: "link", label: "Blogs", href: "/admin/blogs", icon: Newspaper },
+    {
+      kind: "group",
+      label: "Sponsors & Advertisers",
+      icon: Handshake,
+      children: [
+        { label: "Discounts", href: "/admin/sponsors/discounts" },
+        { label: "Local Services & Deals", href: "/admin/sponsors/local-services" },
+      ],
+    },
+    { kind: "link", label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
+    { kind: "link", label: "Reviews", href: "/admin/reviews", icon: Star },
+    {
+      kind: "link",
+      label: "Claim Requests",
+      href: "/admin/claims",
+      icon: FileCheck,
+      badge: pendingClaimsCount,
+    },
+    { kind: "link", label: "Directory", href: "/admin/directory", icon: FolderTree },
+    { kind: "link", label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   ]
 }
 
@@ -62,6 +99,21 @@ function SidebarNav({ onItemClick, pendingClaimsCount }: { onItemClick?: () => v
   return (
     <nav className="flex flex-col gap-1 px-3">
       {sidebarItems.map((item) => {
+        if (item.kind === "group") {
+          const groupPathPrefix = "/admin/sponsors"
+          const hasActiveChild = item.children.some((c) => pathname === c.href)
+          return (
+            <AdminSidebarGroup
+              key={item.label}
+              item={item}
+              pathname={pathname}
+              groupPathPrefix={groupPathPrefix}
+              hasActiveChild={hasActiveChild}
+              onItemClick={onItemClick}
+            />
+          )
+        }
+
         const isActive = pathname === item.href
         return (
           <Link
@@ -74,7 +126,7 @@ function SidebarNav({ onItemClick, pendingClaimsCount }: { onItemClick?: () => v
             )}
           >
             <span className="flex items-center gap-3">
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-5 w-5 shrink-0" />
               {item.label}
             </span>
             {item.badge != null && item.badge > 0 && (
@@ -86,6 +138,68 @@ function SidebarNav({ onItemClick, pendingClaimsCount }: { onItemClick?: () => v
         )
       })}
     </nav>
+  )
+}
+
+function AdminSidebarGroup({
+  item,
+  pathname,
+  groupPathPrefix,
+  hasActiveChild,
+  onItemClick,
+}: {
+  item: SidebarGroupItem
+  pathname: string
+  groupPathPrefix: string
+  hasActiveChild: boolean
+  onItemClick?: () => void
+}) {
+  const [open, setOpen] = useState(() => pathname.startsWith(groupPathPrefix))
+  const Icon = item.icon
+
+  useEffect(() => {
+    if (pathname.startsWith(groupPathPrefix)) setOpen(true)
+  }, [pathname, groupPathPrefix])
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger
+        className={cn(
+          "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          hasActiveChild
+            ? "bg-primary/15 text-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+        )}
+      >
+        <span className="flex items-center gap-3">
+          <Icon className="h-5 w-5 shrink-0" />
+          {item.label}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1 space-y-0.5 pl-2">
+        <div className="ml-2 border-l border-border pl-2">
+          {item.children.map((child) => {
+            const childActive = pathname === child.href
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={onItemClick}
+                className={cn(
+                  "flex rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  childActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {child.label}
+              </Link>
+            )
+          })}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 

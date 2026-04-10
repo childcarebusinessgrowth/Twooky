@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
 import { CACHE_TAGS } from "@/lib/cache-tags"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
-import { fetchGooglePlaceReviewSummary } from "./google-place-reviews"
+import { fetchGooglePlaceDetailsSummary, type GooglePlaceDetailsSummary } from "./google-place-reviews"
+import { resolveGooglePlaceIdFromText } from "./google-place-id"
 import { geocodeAddressToCoordinates } from "./geocode-server"
 import { formatDailyFeeRange } from "./currency"
 import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
@@ -14,8 +15,7 @@ import {
   selectFeaturedProviders,
 } from "./featured-providers-selection"
 import type { VisitorGeo } from "./visitor-geo"
-
-const PROVIDER_PHOTOS_BUCKET = "provider-photos"
+import { buildProviderCardImageUrl } from "./provider-card-image"
 
 export type ActiveProviderRow = {
   profile_id: string
@@ -46,6 +46,8 @@ export type ActiveProviderRow = {
   saved_by_parent_count: number
   /** ISO 3166-1 alpha-2 from `countries.code` when `country_id` is set */
   country_code: string | null
+  /** First Places API photo ref when no primary upload; used with `/api/place-photo`. */
+  google_photo_reference: string | null
 }
 
 export type ProviderCardDataFromDb = {
@@ -70,12 +72,6 @@ export type ProviderCardDataFromDb = {
   savedByParentCount: number
 }
 
-function buildPhotoPublicUrl(storagePath: string, baseUrl: string): string {
-  return `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${storagePath}`
-}
-
-/** Local placeholder when provider has no primary photo (avoids external domain restrictions). */
-const PLACEHOLDER_IMAGE = "/images/placeholder-provider.svg"
 const VALID_PROVIDER_TYPE_IDS = new Set<ProviderTypeId>(PROVIDER_TYPES.map((type) => type.id))
 
 function toProviderTypeIds(values: string[] | null): ProviderTypeId[] {
@@ -143,10 +139,8 @@ export async function getActiveProvidersFromDb(
     savedByParentCountByProfile[providerId] = parents.size
   }
 
-  const googleSummaryByProfile: Record<
-    string,
-    { rating: number; reviewCount: number; latitude?: number; longitude?: number } | null
-  > = {}
+  const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
+  const findPlaceByKey = new Map<string, Promise<string | null>>()
   const geocodeByAddress = new Map<string, Promise<{ lat: number; lng: number } | null>>()
 
   const getGeocodedCoords = async (address: string): Promise<{ lat: number; lng: number } | null> => {
@@ -161,10 +155,41 @@ export async function getActiveProvidersFromDb(
     return pending
   }
 
+  const resolvePlaceIdFromTextCached = (name: string, addressLine: string): Promise<string | null> => {
+    const key = `${name.toLowerCase()}|${addressLine.toLowerCase()}`
+    let pending = findPlaceByKey.get(key)
+    if (!pending) {
+      pending = resolveGooglePlaceIdFromText(name, addressLine)
+      findPlaceByKey.set(key, pending)
+    }
+    return pending
+  }
+
   const coordsByProfile: Record<string, { lat: number; lng: number } | null> = {}
   await Promise.all(
     profiles.map(async (profile) => {
-      const summary = await fetchGooglePlaceReviewSummary(profile.google_place_id, googleApiKey)
+      const hasPrimary = Boolean(primaryPhotoByProfile[profile.profile_id])
+      const name = profile.business_name?.trim() ?? ""
+      const addressLine = [profile.address, profile.city].filter(Boolean).join(", ").trim()
+
+      let placeId = (profile.google_place_id as string | null | undefined)?.trim() || null
+      if (!placeId && !hasPrimary && name && addressLine) {
+        placeId = await resolvePlaceIdFromTextCached(name, addressLine)
+      }
+
+      let summary = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+
+      // Stored place_id may be wrong or have no Places photos; try text resolution for photo only.
+      if (!hasPrimary && name && addressLine && !summary?.photoReference) {
+        const textPlaceId = await resolvePlaceIdFromTextCached(name, addressLine)
+        if (textPlaceId && textPlaceId !== placeId) {
+          const alt = await fetchGooglePlaceDetailsSummary(textPlaceId, googleApiKey)
+          if (alt?.photoReference) {
+            summary = { ...(summary ?? {}), photoReference: alt.photoReference }
+          }
+        }
+      }
+
       googleSummaryByProfile[profile.profile_id] = summary
 
       if (
@@ -197,6 +222,7 @@ export async function getActiveProvidersFromDb(
     const googleSummary = googleSummaryByProfile[p.profile_id]
     const count = googleSummary?.reviewCount ?? platformCount
     const avgRating = googleSummary?.rating ?? platformAvgRating
+    const googlePhotoRef = googleSummary?.photoReference ?? null
 
     const countriesRel = (p as { countries?: { code?: string } | null }).countries
     const countryCode =
@@ -237,6 +263,7 @@ export async function getActiveProvidersFromDb(
       available_spots_count: (p as { available_spots_count?: number | null }).available_spots_count ?? null,
       saved_by_parent_count: savedByParentCountByProfile[p.profile_id] ?? 0,
       country_code: countryCode,
+      google_photo_reference: googlePhotoRef,
     }
   })
 }
@@ -251,7 +278,7 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v1"],
+  ["directory-active-providers-v2-google-photos"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 
@@ -270,6 +297,7 @@ type HomeFeaturedProfileRow = {
   early_learning_excellence_badge: boolean | null
   verified_provider_badge: boolean | null
   verified_provider_badge_color: string | null
+  google_place_id: string | null
 }
 
 /**
@@ -285,7 +313,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       const { data: profiles, error: profilesError } = await supabase
         .from("provider_profiles")
         .select(
-          "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color",
+          "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id",
         )
         .eq("listing_status", "active")
         .eq("featured", true)
@@ -300,48 +328,133 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       }
 
       const profileIds = profiles.map((row) => row.profile_id)
-      const { data: photos } = await supabase
-        .from("provider_photos")
-        .select("provider_profile_id, storage_path")
-        .in("provider_profile_id", profileIds)
-        .eq("is_primary", true)
+      const googleApiKey =
+        process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
+      const [{ data: photos }, reviewsResult, favoritesResult] = await Promise.all([
+        supabase
+          .from("provider_photos")
+          .select("provider_profile_id, storage_path")
+          .in("provider_profile_id", profileIds)
+          .eq("is_primary", true),
+        supabase
+          .from("parent_reviews")
+          .select("provider_profile_id, rating")
+          .in("provider_profile_id", profileIds),
+        supabase
+          .from("parent_favorites")
+          .select("provider_profile_id, parent_profile_id")
+          .in("provider_profile_id", profileIds),
+      ])
 
       const photoByProfileId: Record<string, string> = {}
       ;(photos ?? []).forEach((row) => {
         photoByProfileId[row.provider_profile_id] = row.storage_path
       })
 
+      const reviewStatsByProfile: Record<string, { count: number; sum: number }> = {}
+      ;(reviewsResult.data ?? []).forEach((r) => {
+        const cur = reviewStatsByProfile[r.provider_profile_id] ?? { count: 0, sum: 0 }
+        cur.count += 1
+        cur.sum += r.rating
+        reviewStatsByProfile[r.provider_profile_id] = cur
+      })
+
+      const seenByProvider: Record<string, Set<string>> = {}
+      ;(favoritesResult.data ?? []).forEach((row) => {
+        const providerId = row.provider_profile_id
+        const parentId = row.parent_profile_id
+        if (!providerId || !parentId) return
+        if (!seenByProvider[providerId]) seenByProvider[providerId] = new Set()
+        seenByProvider[providerId].add(parentId)
+      })
+      const savedByParentCountByProfile: Record<string, number> = {}
+      for (const [providerId, parents] of Object.entries(seenByProvider)) {
+        savedByParentCountByProfile[providerId] = parents.size
+      }
+
+      const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
+      const findPlaceByKey = new Map<string, Promise<string | null>>()
+      const resolvePlaceIdFromTextCachedHome = (name: string, addressLine: string): Promise<string | null> => {
+        const key = `${name.toLowerCase()}|${addressLine.toLowerCase()}`
+        let pending = findPlaceByKey.get(key)
+        if (!pending) {
+          pending = resolveGooglePlaceIdFromText(name, addressLine)
+          findPlaceByKey.set(key, pending)
+        }
+        return pending
+      }
+      await Promise.all(
+        (profiles as HomeFeaturedProfileRow[]).map(async (profile) => {
+          const hasPrimary = Boolean(photoByProfileId[profile.profile_id])
+          const name = profile.business_name?.trim() ?? ""
+          const addressLine = [profile.address, profile.city].filter(Boolean).join(", ").trim()
+
+          let placeId = profile.google_place_id?.trim() || null
+          if (!placeId && !hasPrimary && name && addressLine) {
+            placeId = await resolvePlaceIdFromTextCachedHome(name, addressLine)
+          }
+
+          let summary = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+
+          if (!hasPrimary && name && addressLine && !summary?.photoReference) {
+            const textPlaceId = await resolvePlaceIdFromTextCachedHome(name, addressLine)
+            if (textPlaceId && textPlaceId !== placeId) {
+              const alt = await fetchGooglePlaceDetailsSummary(textPlaceId, googleApiKey)
+              if (alt?.photoReference) {
+                summary = { ...(summary ?? {}), photoReference: alt.photoReference }
+              }
+            }
+          }
+
+          googleSummaryByProfile[profile.profile_id] = summary
+        })
+      )
+
       return (profiles as HomeFeaturedProfileRow[]).map((row) => {
         const slug = row.provider_slug ?? row.profile_id
         const symbol = (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
-        const image = photoByProfileId[row.profile_id]
-          ? buildPhotoPublicUrl(photoByProfileId[row.profile_id], baseUrl)
-          : PLACEHOLDER_IMAGE
+        const googleSummary = googleSummaryByProfile[row.profile_id]
+        const image = buildProviderCardImageUrl(
+          photoByProfileId[row.profile_id] ?? null,
+          googleSummary?.photoReference ?? null,
+          baseUrl
+        )
+
+        const stats = reviewStatsByProfile[row.profile_id]
+        const platformCount = stats?.count ?? 0
+        const platformAvgRating =
+          stats && platformCount > 0 ? stats.sum / platformCount : null
+        const reviewCount = googleSummary?.reviewCount ?? platformCount
+        const avgRating = googleSummary?.rating ?? platformAvgRating
+        const rating = avgRating ?? 0
+        const lat = googleSummary?.latitude
+        const lng = googleSummary?.longitude
 
         return {
           id: row.profile_id,
           slug,
           name: row.business_name ?? "Provider",
-          rating: 0,
-          reviewCount: 0,
-          location: [row.city, row.address].filter(Boolean).join(", ") || "—",
+          rating,
+          reviewCount,
+          location: [row.city, row.address].filter(Boolean).join(", ") || ",",
           priceRange: formatDailyFeeRange(row.daily_fee_from, row.daily_fee_to, symbol),
           providerTypes: toProviderTypeIds(row.provider_types),
           programTypes: ageGroupsToProgramLabels(row.age_groups_served),
           shortDescription: (row.description ?? "").slice(0, 200),
           image,
-          latitude: 0,
-          longitude: 0,
+          latitude: typeof lat === "number" && Number.isFinite(lat) ? lat : 0,
+          longitude: typeof lng === "number" && Number.isFinite(lng) ? lng : 0,
           address: row.address ?? "",
           featured: true,
           earlyLearningExcellenceBadge: row.early_learning_excellence_badge ?? false,
           verifiedProviderBadge: row.verified_provider_badge ?? false,
           verifiedProviderBadgeColor: row.verified_provider_badge_color ?? "emerald",
-          savedByParentCount: 0,
+          savedByParentCount: savedByParentCountByProfile[row.profile_id] ?? 0,
         }
       })
     },
-    ["home-featured-providers-v2", String(limit)],
+    ["home-featured-providers-v5-google-photos", String(limit)],
     { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
   )()
 }
@@ -582,7 +695,7 @@ export type GetRecommendedProvidersForDashboardOptions = {
   visitorGeo: VisitorGeo | null
   /** When set, prefer providers serving these age tags; falls back to all ages if geo yields no rows. */
   ageTags?: string[]
-  /** Profile `city_name` — used for lenient matching when strict geo tiers return nothing (or when visitorGeo is null). */
+  /** Profile `city_name` , used for lenient matching when strict geo tiers return nothing (or when visitorGeo is null). */
   parentCityName?: string | null
 }
 
@@ -692,10 +805,12 @@ export async function getRecommendedProvidersForDashboard(
   const top = sorted.slice(0, limit)
   return top.map((row) => {
     const slug = row.provider_slug ?? row.profile_id
-    const location = [row.city, row.address].filter(Boolean).join(", ") || "—"
-    const image = row.primary_photo_storage_path
-      ? buildPhotoPublicUrl(row.primary_photo_storage_path, baseUrl)
-      : PLACEHOLDER_IMAGE
+    const location = [row.city, row.address].filter(Boolean).join(", ") || ","
+    const image = buildProviderCardImageUrl(
+      row.primary_photo_storage_path,
+      row.google_photo_reference,
+      baseUrl
+    )
     const ageGroups = (row.age_groups_served ?? []).map(formatAgeGroupLabel)
     return {
       id: row.profile_id,
@@ -717,15 +832,17 @@ export function activeProviderRowToCardData(
 ): ProviderCardDataFromDb {
   const slug = row.provider_slug ?? row.profile_id
   const name = row.business_name ?? "Provider"
-  const location = [row.city, row.address].filter(Boolean).join(", ") || "—"
+  const location = [row.city, row.address].filter(Boolean).join(", ") || ","
   const from = row.daily_fee_from
   const to = row.daily_fee_to
   const symbol =
     (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
   const priceRange = formatDailyFeeRange(from, to, symbol)
-  const image = row.primary_photo_storage_path
-    ? buildPhotoPublicUrl(row.primary_photo_storage_path, baseUrl)
-    : PLACEHOLDER_IMAGE
+  const image = buildProviderCardImageUrl(
+    row.primary_photo_storage_path,
+    row.google_photo_reference,
+    baseUrl
+  )
   const programTypes = ageGroupsToProgramLabels(row.age_groups_served)
 
   return {

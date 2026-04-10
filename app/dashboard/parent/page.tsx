@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
 import Image from "next/image"
-import { Heart, Mail, Star, MapPin, Baby, ArrowRight, Store } from "lucide-react"
+import { Heart, Mail, Star, MapPin, Baby, ArrowRight, Store, Tag } from "lucide-react"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import {
@@ -376,7 +376,7 @@ export default async function ParentDashboardPage() {
                     <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-medium text-secondary shadow-sm">
                       <span className="inline-flex items-center gap-1">
                         <Star className="h-3 w-3 fill-secondary text-secondary" />
-                        {provider.rating > 0 ? provider.rating.toFixed(1) : "—"}
+                        {provider.rating > 0 ? provider.rating.toFixed(1) : ","}
                       </span>
                       <span className="text-muted-foreground">({provider.reviewCount})</span>
                     </div>
@@ -543,7 +543,7 @@ export default async function ParentDashboardPage() {
                           </p>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell py-2 align-top text-xs text-muted-foreground">
-                          {getChildAgeGroupDisplay(parentProfile.childAgeGroup) ?? "—"}
+                          {getChildAgeGroupDisplay(parentProfile.childAgeGroup) ?? ","}
                         </TableCell>
                         <TableCell className="hidden md:table-cell py-2 align-top text-xs text-muted-foreground max-w-xs">
                           <span className="line-clamp-2">
@@ -658,7 +658,7 @@ export default async function ParentDashboardPage() {
           </Card>
         </section>
 
-        {/* Local Services & Deals teaser */}
+        {/* Local services & discounts teaser */}
         <section>
           <Card className="rounded-3xl border border-border/60 bg-gradient-to-r from-secondary/10 via-primary/5 to-secondary/10 shadow-sm">
             <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5 lg:p-6">
@@ -671,16 +671,26 @@ export default async function ParentDashboardPage() {
                     Discover local providers and exclusive deals
                   </h2>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    Swimming schools, baby classes, music, and more — plus discounts for Early Learning families.
+                    Swimming schools, baby classes, music, and more, plus partner discounts for Early Learning families.
                   </p>
                 </div>
               </div>
-              <Button asChild size="lg" className="rounded-full shrink-0">
-                <Link href="/dashboard/parent/local-services">
-                  View Local Services & Deals
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <Button asChild size="lg" variant="default" className="rounded-full">
+                  <Link href="/dashboard/parent/local-services">
+                    <Store className="mr-1.5 h-4 w-4" />
+                    Local Services
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="rounded-full border-secondary/40 bg-background/80">
+                  <Link href="/dashboard/parent/discounts">
+                    <Tag className="mr-1.5 h-4 w-4" />
+                    Discounts
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </section>

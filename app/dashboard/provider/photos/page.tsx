@@ -465,7 +465,7 @@ export default function PhotosPage() {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {loading ? "—" : photos.length}
+                {loading ? "," : photos.length}
               </p>
               <p className="text-sm text-muted-foreground">Total Photos</p>
             </div>
@@ -475,7 +475,7 @@ export default function PhotosPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {loading ? "—" : Math.max(0, MAX_PHOTOS_PER_PROVIDER - photos.length)}
+                {loading ? "," : Math.max(0, MAX_PHOTOS_PER_PROVIDER - photos.length)}
               </p>
               <p className="text-sm text-muted-foreground">Slots Available</p>
             </div>

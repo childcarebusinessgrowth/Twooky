@@ -16,7 +16,8 @@ import { Separator } from "@/components/ui/separator"
 import { BlogEditorLazy } from "@/components/blog-editor-lazy"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { createBlog, deleteBlog, publishBlog, unpublishBlog, updateBlog, uploadBlogImage, type BlogInput } from "./actions"
+import type { BlogInput } from "@/lib/blog-shared"
+import { createBlog, deleteBlog, publishBlog, unpublishBlog, updateBlog, uploadBlogImage } from "./actions"
 
 type BlogRecord = {
   id: string

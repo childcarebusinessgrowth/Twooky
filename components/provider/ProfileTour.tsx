@@ -71,7 +71,7 @@ const TOUR_STEPS: DriveStep[] = [
     popover: {
       title: "Photos",
       description:
-        "After submitting, go to Photos to add images. Photos are very important—families use them to visualize your space.",
+        "After submitting, go to Photos to add images. Photos are very important,families use them to visualize your space.",
       side: "bottom",
       align: "center",
     },

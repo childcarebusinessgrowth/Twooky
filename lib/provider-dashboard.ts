@@ -50,9 +50,9 @@ function resolveParentName(displayName: string | null | undefined, email: string
 }
 
 function formatChildAgeFromDob(childDob: string | null | undefined): string {
-  if (!childDob) return "—"
+  if (!childDob) return ","
   const dob = new Date(`${childDob}T00:00:00Z`)
-  if (Number.isNaN(dob.getTime())) return "—"
+  if (Number.isNaN(dob.getTime())) return ","
 
   const now = new Date()
   let months =
@@ -60,7 +60,7 @@ function formatChildAgeFromDob(childDob: string | null | undefined): string {
     (now.getUTCMonth() - dob.getUTCMonth())
 
   if (now.getUTCDate() < dob.getUTCDate()) months -= 1
-  if (months < 0) return "—"
+  if (months < 0) return ","
 
   if (months < 24) return `${months} mo`
   const years = Math.floor(months / 12)
@@ -71,7 +71,7 @@ function formatChildAgeFromDob(childDob: string | null | undefined): string {
 
 function formatChildAgeGroup(childAgeGroup: string | null | undefined): string {
   const trimmed = childAgeGroup?.trim()
-  return trimmed && trimmed.length > 0 ? trimmed : "—"
+  return trimmed && trimmed.length > 0 ? trimmed : ","
 }
 
 export async function getProviderOverviewData(

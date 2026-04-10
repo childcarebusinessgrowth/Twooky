@@ -43,7 +43,7 @@ type Step5ReviewSubmitProps = {
   curriculumOptions: { id: string; name: string }[]
 }
 
-function formatValue(value: string | undefined, fallback = "—") {
+function formatValue(value: string | undefined, fallback = ",") {
   return value?.trim() ? value : fallback
 }
 

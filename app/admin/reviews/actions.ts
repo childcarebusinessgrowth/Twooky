@@ -38,7 +38,7 @@ export async function acceptReviewReportAndDeleteReview(reviewId: string): Promi
   await supabase.from("provider_notifications").insert({
     provider_profile_id: review.provider_profile_id,
     type: "review_report_accepted",
-    title: "Report accepted — review removed",
+    title: "Report accepted , review removed",
     message:
       "We reviewed your report and removed the reported review from the directory." +
       (snippet ? ` Removed: "${snippet}${review.review_text.length > 80 ? "…" : ""}"` : ""),

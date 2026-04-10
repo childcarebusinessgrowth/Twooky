@@ -1652,6 +1652,96 @@ from auth.users u
 where u.id = p.id
   and (p.display_name is null or p.display_name = p.email);
 
+-- ============================================================================
+-- 9b. Sponsors & Advertisers (admin-managed discounts + local service deals)
+-- ============================================================================
+create table if not exists public.sponsor_discounts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text not null,
+  image_url text not null,
+  discount_code text,
+  external_link text,
+  category text not null,
+  offer_badge text,
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+alter table public.sponsor_discounts
+  add column if not exists offer_badge text;
+
+create index if not exists sponsor_discounts_active_sort_idx
+  on public.sponsor_discounts (is_active, sort_order, created_at desc);
+
+create table if not exists public.local_service_deals (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text not null,
+  image_url text not null,
+  location text not null,
+  age_target text not null,
+  provider_id uuid not null references public.provider_profiles(profile_id) on delete restrict,
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+create index if not exists local_service_deals_active_sort_idx
+  on public.local_service_deals (is_active, sort_order, created_at desc);
+
+create index if not exists local_service_deals_provider_idx
+  on public.local_service_deals (provider_id);
+
+create or replace function public.handle_sponsor_content_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = timezone('utc'::text, now());
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists sponsor_discounts_set_updated_at on public.sponsor_discounts;
+create trigger sponsor_discounts_set_updated_at
+before update on public.sponsor_discounts
+for each row execute function public.handle_sponsor_content_updated_at();
+
+drop trigger if exists local_service_deals_set_updated_at on public.local_service_deals;
+create trigger local_service_deals_set_updated_at
+before update on public.local_service_deals
+for each row execute function public.handle_sponsor_content_updated_at();
+
+alter table public.sponsor_discounts enable row level security;
+alter table public.local_service_deals enable row level security;
+
+drop policy if exists "Sponsor discounts are readable when active" on public.sponsor_discounts;
+create policy "Sponsor discounts are readable when active"
+  on public.sponsor_discounts
+  for select
+  using (is_active = true);
+
+drop policy if exists "Sponsor discounts are writable by admin only" on public.sponsor_discounts;
+create policy "Sponsor discounts are writable by admin only"
+  on public.sponsor_discounts
+  for all
+  using (public.is_current_user_admin())
+  with check (public.is_current_user_admin());
+
+drop policy if exists "Local service deals are readable when active" on public.local_service_deals;
+create policy "Local service deals are readable when active"
+  on public.local_service_deals
+  for select
+  using (is_active = true);
+
+drop policy if exists "Local service deals are writable by admin only" on public.local_service_deals;
+create policy "Local service deals are writable by admin only"
+  on public.local_service_deals
+  for all
+  using (public.is_current_user_admin())
+  with check (public.is_current_user_admin());
 
 -- ============================================================================
 -- 10. Admin role seeding notes

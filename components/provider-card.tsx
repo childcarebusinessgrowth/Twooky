@@ -63,7 +63,13 @@ interface ProviderCardProps {
   layout?: "grid" | "horizontal"
 }
 
+function isGooglePlacePhotoProxy(src: string): boolean {
+  return src.startsWith("/api/place-photo")
+}
+
 export function ProviderCard({ provider, featured = false, layout = "grid" }: ProviderCardProps) {
+  const useUnoptimizedImage = isGooglePlacePhotoProxy(provider.image)
+
   if (layout === "horizontal") {
     return (
       <Card className="group overflow-hidden rounded-2xl border-border/60 bg-card p-0 gap-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30">
@@ -82,6 +88,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                 src={provider.image}
                 alt={provider.name}
                 fill
+                unoptimized={useUnoptimizedImage}
                 className="object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
@@ -187,6 +194,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
             src={provider.image}
             alt={provider.name}
             fill
+            unoptimized={useUnoptimizedImage}
             className="object-cover transition-transform duration-300 hover:scale-105"
           />
         </div>

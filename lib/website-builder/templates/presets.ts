@@ -66,7 +66,7 @@ const THEMES: Record<TemplateKey, ThemePack> = {
     muted: "#52796f",
     accent: "#40916c",
     heroTitle: "Montessori-inspired early years",
-    heroSub: "Independence, concentration, and respect — in a calm, prepared environment.",
+    heroSub: "Independence, concentration, and respect , in a calm, prepared environment.",
     footerBlurb: "© Your nursery name · Montessori-inspired care",
     navBrandLabel: "Montessori nursery",
   },
@@ -395,7 +395,7 @@ function buildMontessoriPages(nid: () => string, t: ThemePack, f: (typeof FONT_S
       zIndex: 11,
       props: {
         text:
-          "We follow the child — observing interests and offering just-right challenges. Our guides prepare the environment so children can move freely, choose work, and build confidence through repetition and mastery.",
+          "We follow the child , observing interests and offering just-right challenges. Our guides prepare the environment so children can move freely, choose work, and build confidence through repetition and mastery.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -451,7 +451,7 @@ function buildMontessoriPages(nid: () => string, t: ThemePack, f: (typeof FONT_S
       zIndex: 15,
       props: {
         text:
-          "Ratios stay within licensing — and often below — so every child receives individual lessons and long stretches of focused work.",
+          "Ratios stay within licensing , and often below , so every child receives individual lessons and long stretches of focused work.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -477,7 +477,7 @@ function buildMontessoriPages(nid: () => string, t: ThemePack, f: (typeof FONT_S
       zIndex: 17,
       props: {
         text:
-          "We welcome you to observe a full work cycle before enrolling — see concentration, peer learning, and care in action.",
+          "We welcome you to observe a full work cycle before enrolling , see concentration, peer learning, and care in action.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -525,7 +525,7 @@ function buildMontessoriPages(nid: () => string, t: ThemePack, f: (typeof FONT_S
       zIndex: 11,
       props: {
         text:
-          "• Nido & toddlers — sensory exploration and language-rich routines\n• Primary — practical life, sensorial, language, and early math\n• Kindergarten — deeper literacy and leadership within the community\n• Extended day — consistency for working families",
+          "• Nido & toddlers , sensory exploration and language-rich routines\n• Primary , practical life, sensorial, language, and early math\n• Kindergarten , deeper literacy and leadership within the community\n• Extended day , consistency for working families",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -731,7 +731,7 @@ function buildMontessoriPages(nid: () => string, t: ThemePack, f: (typeof FONT_S
       zIndex: 11,
       props: {
         text:
-          "Prepared spaces for practical life, sensorial exploration, and joyful movement — indoors and out.",
+          "Prepared spaces for practical life, sensorial exploration, and joyful movement , indoors and out.",
         color: t.muted,
         fontSize: 16,
         fontFamily: f.body,
@@ -952,7 +952,7 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
       zIndex: 11,
       props: {
         text:
-          "We combine research-backed pedagogy with white-glove service. Every classroom is designed for beauty, order, and deep engagement — so children thrive and parents feel truly supported.",
+          "We combine research-backed pedagogy with white-glove service. Every classroom is designed for beauty, order, and deep engagement , so children thrive and parents feel truly supported.",
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
@@ -1246,7 +1246,7 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
       zIndex: 11,
       props: {
         text:
-          "Architect-designed studios, calm sleep suites, and gardens made for small explorers — every corner invites focus and wonder.",
+          "Architect-designed studios, calm sleep suites, and gardens made for small explorers , every corner invites focus and wonder.",
         color: t.muted,
         fontSize: 16,
         fontFamily: f.body,
@@ -1416,7 +1416,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       zIndex: 21,
       props: {
         text:
-          "We celebrate every family. Sliding-scale options, multilingual staff, and neighbourhood partnerships mean more children get a strong start — together.",
+          "We celebrate every family. Sliding-scale options, multilingual staff, and neighbourhood partnerships mean more children get a strong start , together.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -1475,7 +1475,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       zIndex: 11,
       props: {
         text:
-          "We started as a parent co-op and grew into a licensed centre — but we never lost the block-party spirit. Staff live nearby; grandparents volunteer; local businesses sponsor field trips.",
+          "We started as a parent co-op and grew into a licensed centre , but we never lost the block-party spirit. Staff live nearby; grandparents volunteer; local businesses sponsor field trips.",
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
@@ -1489,7 +1489,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       parentId: null,
       zIndex: 12,
       props: {
-        text: "“Every family deserves a soft landing — we share resources, celebrate milestones, and show up for each other.”",
+        text: "“Every family deserves a soft landing , we share resources, celebrate milestones, and show up for each other.”",
         color: t.accent,
         fontSize: 18,
         fontWeight: 700,
@@ -1567,7 +1567,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       zIndex: 11,
       props: {
         text:
-          "Flexible hours · After-school club · Summer pop-up camps · Family nights\nWe adapt as your needs change — because it takes a village.",
+          "Flexible hours · After-school club · Summer pop-up camps · Family nights\nWe adapt as your needs change , because it takes a village.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -1659,7 +1659,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       zIndex: 11,
       props: {
         text:
-          "We publish our fee grid at open houses and work with families on payment plans. Subsidies and community fund referrals welcome — ask us how to apply.",
+          "We publish our fee grid at open houses and work with families on payment plans. Subsidies and community fund referrals welcome , ask us how to apply.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -1754,7 +1754,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       zIndex: 11,
       props: {
         text:
-          "Potlucks, parades, planting days — our camera roll is full of real life, not stock perfection.",
+          "Potlucks, parades, planting days , our camera roll is full of real life, not stock perfection.",
         color: t.muted,
         fontSize: 16,
         fontFamily: f.body,
@@ -1786,7 +1786,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       parentId: null,
       zIndex: 13,
       props: {
-        text: "Share your own photos after enrollment — we love featuring families who opt in.",
+        text: "Share your own photos after enrollment , we love featuring families who opt in.",
         color: t.muted,
         fontSize: 14,
         fontFamily: f.body,
@@ -1832,7 +1832,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       parentId: null,
       zIndex: 11,
       props: {
-        text: "Pop in, call, or email — we love meeting new neighbours.",
+        text: "Pop in, call, or email , we love meeting new neighbours.",
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
@@ -1989,7 +1989,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 21,
       props: {
         text:
-          "Motor skills, teamwork, and resilience — woven into literacy and math. Coaches and teachers collaborate so every child finds their edge.",
+          "Motor skills, teamwork, and resilience , woven into literacy and math. Coaches and teachers collaborate so every child finds their edge.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -2039,7 +2039,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 11,
       props: {
         text:
-          "We teach effort, attitude, and respect — on the field and in the classroom. Kids learn to win humbly and bounce back fast.",
+          "We teach effort, attitude, and respect , on the field and in the classroom. Kids learn to win humbly and bounce back fast.",
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
@@ -2081,7 +2081,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 14,
       props: {
         text:
-          "Certified coaches and early educators co-plan weekly. Character lessons carry from the gym to small group reading — so skills stick where life happens.",
+          "Certified coaches and early educators co-plan weekly. Character lessons carry from the gym to small group reading , so skills stick where life happens.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -2096,7 +2096,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 15,
       props: {
         text:
-          "Injury prevention, hydration, and recovery are part of every block. Parents get weekly snapshots of growth — not just scores.",
+          "Injury prevention, hydration, and recovery are part of every block. Parents get weekly snapshots of growth , not just scores.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -2146,7 +2146,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 11,
       props: {
         text:
-          "• Mini movers (2–3) — fundamentals & fun\n• Skills academy (3–5) — agility, ball sports, balance\n• Game day club — scrimmages and sportsmanship\n• Study & sprint — homework + coached fitness",
+          "• Mini movers (2–3) , fundamentals & fun\n• Skills academy (3–5) , agility, ball sports, balance\n• Game day club , scrimmages and sportsmanship\n• Study & sprint , homework + coached fitness",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -2175,7 +2175,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 13,
       props: {
         text:
-          "Each age band follows a sequenced curriculum: locomotor patterns → cooperative games → sport-specific tactics. Report cards highlight grit, teamwork, and leadership — not just participation.",
+          "Each age band follows a sequenced curriculum: locomotor patterns → cooperative games → sport-specific tactics. Report cards highlight grit, teamwork, and leadership , not just participation.",
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
@@ -2332,7 +2332,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       zIndex: 11,
       props: {
         text:
-          "From sunrise drills to Friday scrimmages — we document growth, grit, and good sportsmanship.",
+          "From sunrise drills to Friday scrimmages , we document growth, grit, and good sportsmanship.",
         color: t.muted,
         fontSize: 16,
         fontFamily: f.body,
@@ -2364,7 +2364,7 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       parentId: null,
       zIndex: 13,
       props: {
-        text: "Share your own highlights — tag us when you post game day.",
+        text: "Share your own highlights , tag us when you post game day.",
         color: t.muted,
         fontSize: 14,
         fontFamily: f.body,

@@ -20,7 +20,7 @@ const missionFeatures = [
     icon: Users,
     title: "For Families",
     description:
-      "We combine detailed provider profiles, transparent reviews, and clear program information to give you a complete picture of each option—all in one place.",
+      "We combine detailed provider profiles, transparent reviews, and clear program information to give you a complete picture of each option,all in one place.",
   },
   {
     icon: Building2,
@@ -159,11 +159,11 @@ export default function AboutPage() {
               <p>
                 Finding the right childcare is one of the most important decisions a family can make.
                 Yet for too long, parents have had to juggle multiple websites, scattered reviews, and
-                incomplete information—all while balancing work, life, and the needs of their children.
+                incomplete information,all while balancing work, life, and the needs of their children.
               </p>
               <p>
                 Twooky was created to change that. We bring together detailed provider
-                profiles, verified reviews, clear program information, and easy comparison tools—all in
+                profiles, verified reviews, clear program information, and easy comparison tools,all in
                 one place. Our goal is simple: help you find the best fit for your family with less
                 stress and more confidence.
               </p>

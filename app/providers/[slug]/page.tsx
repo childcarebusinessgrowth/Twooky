@@ -130,7 +130,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       <div className="flex items-center gap-1">
                         <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
                         <span className="font-semibold text-foreground">
-                          {p.displayRating > 0 ? p.displayRating.toFixed(1) : "—"}
+                          {p.displayRating > 0 ? p.displayRating.toFixed(1) : ","}
                         </span>
                         {p.googleReviewsUrl ? (
                           <a
@@ -147,7 +147,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
-                        <span>{p.address || "—"}</span>
+                        <span>{p.address || ","}</span>
                       </div>
                     </div>
                     {p.providerTypes.length > 0 && (
@@ -197,7 +197,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 <TabsTrigger value="programs">Programs</TabsTrigger>
                 <TabsTrigger value="virtual-tour">Virtual Tour</TabsTrigger>
                 <TabsTrigger value="location">Location</TabsTrigger>
-                <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                <TabsTrigger value="reviews">Twooky Reviews</TabsTrigger>
                 <TabsTrigger value="photos">Photos</TabsTrigger>
                 {p.faqs.length > 0 && (
                   <TabsTrigger value="faqs">FAQs</TabsTrigger>
@@ -276,7 +276,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                             <Badge key={c} variant="outline">{c}</Badge>
                           ))
                         ) : (
-                          <p className="text-muted-foreground">—</p>
+                          <p className="text-muted-foreground">,</p>
                         )}
                       </div>
                     </CardContent>
@@ -329,7 +329,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Users className="h-4 w-4" />
-                                Ages {p.ageGroups[index % p.ageGroups.length] || "—"}
+                                Ages {p.ageGroups[index % p.ageGroups.length] || ","}
                               </span>
                             </div>
                           </div>

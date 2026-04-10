@@ -91,7 +91,7 @@ export function AdminListingPhotosSection({
                         </Badge>
                       )}
                       <span className="line-clamp-2">
-                        {photo.caption ?? "—"}
+                        {photo.caption ?? ","}
                       </span>
                     </div>
                   </div>

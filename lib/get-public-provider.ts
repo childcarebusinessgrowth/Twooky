@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
-import { fetchGooglePlaceReviewSummary } from "@/lib/google-place-reviews"
+import { fetchGooglePlaceDetailsSummary } from "@/lib/google-place-reviews"
 import { formatDailyFeeRange } from "@/lib/currency"
 import {
   getReviewsByProviderProfileId,
@@ -109,7 +109,7 @@ export async function getActivePublicProviderBySlug(
       .select("question, answer")
       .eq("provider_profile_id", profileId)
       .order("sort_order", { ascending: true }),
-    fetchGooglePlaceReviewSummary(profile.google_place_id, googleApiKey),
+    fetchGooglePlaceDetailsSummary(profile.google_place_id, googleApiKey),
   ])
 
   const photoRows = photosResult.data ?? []

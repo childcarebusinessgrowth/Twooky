@@ -21,6 +21,7 @@ function row(p: Partial<ActiveProviderRow> & { profile_id: string }): ActiveProv
     daily_fee_to: p.daily_fee_to ?? null,
     currencies: p.currencies ?? null,
     primary_photo_storage_path: p.primary_photo_storage_path ?? null,
+    google_photo_reference: p.google_photo_reference ?? null,
     review_count: p.review_count ?? 0,
     avg_rating: p.avg_rating ?? null,
     featured: p.featured ?? true,

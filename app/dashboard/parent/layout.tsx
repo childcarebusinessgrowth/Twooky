@@ -14,11 +14,13 @@ import {
   Menu,
   Search,
   Store,
+  Tag,
+  BookOpen,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +40,9 @@ const sidebarItems = [
   { label: "My Inquiries", href: "/dashboard/parent/inquiries", icon: MessageSquare },
   { label: "My Reviews", href: "/dashboard/parent/reviews", icon: Star },
   { label: "Compare Providers", href: "/dashboard/parent/compare", icon: Scale },
-  { label: "Local Services & Deals", href: "/dashboard/parent/local-services", icon: Store },
+  { label: "Local Services", href: "/dashboard/parent/local-services", icon: Store },
+  { label: "Discounts", href: "/dashboard/parent/discounts", icon: Tag },
+  { label: "Articles", href: "/dashboard/parent/blog", icon: BookOpen },
   { label: "Account Settings", href: "/dashboard/parent/settings", icon: Settings },
 ]
 
@@ -48,7 +52,10 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
   return (
     <nav className="flex flex-col gap-1 px-3">
       {sidebarItems.map((item) => {
-        const isActive = pathname === item.href
+        const isActive =
+          item.href === "/dashboard/parent"
+            ? pathname === "/dashboard/parent"
+            : pathname === item.href || pathname.startsWith(`${item.href}/`)
         return (
           <Link
             key={item.href}
@@ -97,7 +104,7 @@ export default function ParentDashboardLayout({
 
   return (
     <RequireAuth allowedRoles={["parent"]}>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen min-w-0 overflow-x-hidden bg-background">
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 z-40 hidden lg:flex h-screen w-68 flex-col border-r border-border/40 bg-card/95 backdrop-blur">
         {/* Logo */}
@@ -123,7 +130,6 @@ export default function ParentDashboardLayout({
         <div className="border-t border-border/40 p-4 bg-muted/40">
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
-              <AvatarImage src="/images/parents/sarah.jpg" />
               <AvatarFallback className="bg-primary/10 text-primary text-sm">
                 {identity.initials}
               </AvatarFallback>
@@ -137,9 +143,9 @@ export default function ParentDashboardLayout({
       </aside>
 
       {/* Main content area */}
-      <div className="lg:pl-64">
+      <div className="min-w-0 overflow-x-hidden bg-background lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/40 bg-card/95 px-4 lg:px-6 backdrop-blur">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/40 bg-background px-4 lg:px-6">
           {/* Mobile menu button */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -196,7 +202,6 @@ export default function ParentDashboardLayout({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 px-2 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/images/parents/sarah.jpg" />
                     <AvatarFallback className="bg-primary/10 text-primary text-sm">
                       {identity.initials}
                     </AvatarFallback>
@@ -226,8 +231,8 @@ export default function ParentDashboardLayout({
         </header>
 
         {/* Page content */}
-        <main className="px-4 py-5 lg:px-8 lg:py-8">
-          <div className="mx-auto max-w-6xl space-y-6 lg:space-y-8">
+        <main className="min-w-0 bg-background px-4 py-5 lg:px-8 lg:py-8">
+          <div className="mx-auto min-w-0 max-w-6xl space-y-6 lg:space-y-8">
             {children}
           </div>
         </main>

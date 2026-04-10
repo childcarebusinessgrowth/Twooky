@@ -251,7 +251,7 @@ export default function ParentSettingsPage() {
                 Child information
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                The age you gave when you signed up is shown below. You can edit it here—we use it to personalize recommendations and availability.
+                The age you gave when you signed up is shown below. You can edit it here,we use it to personalize recommendations and availability.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

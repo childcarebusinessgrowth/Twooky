@@ -18,8 +18,6 @@ const BLOG_IMAGES_BUCKET = "blog-images"
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"])
 
-export type { BlogInput, BlogStatus }
-
 async function assertSlugIsUnique(slug: string, currentId?: string) {
   const supabase = getSupabaseAdminClient()
   let query = supabase.from("blogs").select("id").eq("slug", slug).limit(1)

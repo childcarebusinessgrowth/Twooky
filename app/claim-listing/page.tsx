@@ -359,7 +359,7 @@ export default function ClaimListingPage() {
             inquiries. The platform makes it easy to showcase what makes our center special.&quot;
           </blockquote>
           <cite className="text-muted-foreground not-italic">
-            — Maria S., Director at Sunshine Learning Center
+            , Maria S., Director at Sunshine Learning Center
           </cite>
         </div>
       </section>

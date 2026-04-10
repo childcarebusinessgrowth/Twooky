@@ -50,8 +50,8 @@ export default async function AdminDashboardPage() {
           const stat = stats[i]
           const Icon = config.icon
           const title = stat?.title ?? config.title
-          const value = stat?.value ?? "—"
-          const change = stat?.change ?? "—"
+          const value = stat?.value ?? ","
+          const change = stat?.change ?? ","
           const description = stat?.description ?? ""
           const trend = stat?.trend ?? "neutral"
           return (
@@ -168,7 +168,7 @@ export default async function AdminDashboardPage() {
                     </div>
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {provider.name.split(" ").map((w) => w[0]).join("").slice(0, 2) || "—"}
+                        {provider.name.split(" ").map((w) => w[0]).join("").slice(0, 2) || ","}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -180,7 +180,7 @@ export default async function AdminDashboardPage() {
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
                       <span className="font-medium">
-                        {provider.rating != null ? provider.rating.toFixed(1) : "—"}
+                        {provider.rating != null ? provider.rating.toFixed(1) : ","}
                       </span>
                     </div>
                   </div>

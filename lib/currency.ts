@@ -8,8 +8,8 @@ export function formatFeeRange(
   symbol: string = "$"
 ): string {
   if (from == null && to == null) return "Contact for pricing"
-  const fromStr = from != null ? String(from) : "—"
-  const toStr = to != null ? String(to) : "—"
+  const fromStr = from != null ? String(from) : ","
+  const toStr = to != null ? String(to) : ","
   return `${symbol}${fromStr} – ${symbol}${toStr}`
 }
 

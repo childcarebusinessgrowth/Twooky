@@ -63,7 +63,7 @@ function ParentCard({ parent, onAction }: ParentCardProps) {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
-  const location = [parent.city_name, parent.country_name].filter(Boolean).join(", ") || "—"
+  const location = [parent.city_name, parent.country_name].filter(Boolean).join(", ") || ","
   const displayName = parent.display_name?.trim() || "No name set"
   const active = parent.is_active ?? true
 
