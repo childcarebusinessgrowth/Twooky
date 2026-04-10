@@ -21,6 +21,21 @@ export type GoogleLatLngBoundsInstance = {
   extend: (position: { lat: number; lng: number }) => void
 }
 
+/** Geocoder result shape used for fitting the map to a searched place. */
+export type GoogleGeocodeResult = {
+  geometry: {
+    viewport?: GoogleLatLngBoundsInstance
+    location?: { lat: () => number; lng: () => number }
+  }
+}
+
+export type GoogleGeocoderInstance = {
+  geocode: (
+    request: { address: string },
+    callback: (results: GoogleGeocodeResult[] | null, status: string) => void,
+  ) => void
+}
+
 export type GoogleMapsNamespace = {
   Map: new (
     element: HTMLElement,
@@ -29,6 +44,7 @@ export type GoogleMapsNamespace = {
   Marker: new (options: Record<string, unknown>) => GoogleMarkerInstance
   InfoWindow: new () => GoogleInfoWindowInstance
   LatLngBounds: new () => GoogleLatLngBoundsInstance
+  Geocoder: new () => GoogleGeocoderInstance
   Size: new (width: number, height: number) => unknown
   Point: new (x: number, y: number) => unknown
   event: {

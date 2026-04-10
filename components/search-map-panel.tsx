@@ -7,7 +7,9 @@ import { getCurrentPosition } from "@/lib/location-client"
 import {
   loadGoogleMapsApi,
   type GoogleInfoWindowInstance,
+  type GoogleLatLngBoundsInstance,
   type GoogleMapInstance,
+  type GoogleMapsNamespace,
   type GoogleMarkerInstance,
 } from "@/lib/google-maps-loader"
 import { createProviderPinDataUri } from "@/lib/map-pin-utils"
@@ -15,6 +17,40 @@ import { createProviderPinDataUri } from "@/lib/map-pin-utils"
 type SearchMapPanelProps = {
   providers: ProviderCardData[]
   className?: string
+  /** When set (e.g. from URL), geocode and frame the map on this place instead of fitting all pins worldwide. */
+  searchLocation?: string
+}
+
+async function geocodeSearchAddress(
+  maps: GoogleMapsNamespace,
+  address: string,
+): Promise<
+  | { kind: "viewport"; viewport: GoogleLatLngBoundsInstance }
+  | { kind: "center"; center: { lat: number; lng: number } }
+  | null
+> {
+  const geocoder = new maps.Geocoder()
+  return new Promise((resolve) => {
+    geocoder.geocode({ address }, (results, status) => {
+      if (status !== "OK" || !results?.length) {
+        resolve(null)
+        return
+      }
+      const geom = results[0].geometry
+      if (geom.viewport) {
+        resolve({ kind: "viewport", viewport: geom.viewport })
+        return
+      }
+      if (geom.location) {
+        resolve({
+          kind: "center",
+          center: { lat: geom.location.lat(), lng: geom.location.lng() },
+        })
+        return
+      }
+      resolve(null)
+    })
+  })
 }
 
 function isFiniteNumber(value: number | undefined): value is number {
@@ -59,7 +95,11 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;")
 }
 
-export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProps) {
+export function SearchMapPanel({
+  providers,
+  className = "",
+  searchLocation,
+}: SearchMapPanelProps) {
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<GoogleMapInstance | null>(null)
@@ -113,7 +153,19 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
         const maps = await loadGoogleMapsApi(mapsApiKey)
         if (isCancelled || !mapContainerRef.current) return
 
-        const center = userCenter ?? defaultCenter
+        const trimmedSearch = searchLocation?.trim() ?? ""
+        const geoResult =
+          trimmedSearch.length > 0
+            ? await geocodeSearchAddress(maps, trimmedSearch)
+            : null
+
+        const usedSearchArea = geoResult?.kind === "viewport" || geoResult?.kind === "center"
+
+        const center =
+          geoResult?.kind === "center"
+            ? geoResult.center
+            : userCenter ?? defaultCenter
+
         const map = new maps.Map(mapContainerRef.current, {
           center,
           zoom: 11,
@@ -123,6 +175,13 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
           clickableIcons: false,
         })
         mapRef.current = map
+
+        if (geoResult?.kind === "viewport") {
+          map.fitBounds(geoResult.viewport, 80)
+        } else if (geoResult?.kind === "center") {
+          map.setCenter(geoResult.center)
+          map.setZoom(12)
+        }
 
         const infoWindow = new maps.InfoWindow()
         infoWindowRef.current = infoWindow
@@ -162,17 +221,19 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
           })
         })
 
-        if (mapProviders.length > 1) {
-          map.fitBounds(bounds, 80)
-        } else if (mapProviders.length === 1) {
-          map.setCenter({
-            lat: mapProviders[0].latitude,
-            lng: mapProviders[0].longitude,
-          })
-          map.setZoom(13)
-        } else {
-          map.setCenter(center)
-          map.setZoom(10)
+        if (!usedSearchArea) {
+          if (mapProviders.length > 1) {
+            map.fitBounds(bounds, 80)
+          } else if (mapProviders.length === 1) {
+            map.setCenter({
+              lat: mapProviders[0].latitude,
+              lng: mapProviders[0].longitude,
+            })
+            map.setZoom(13)
+          } else {
+            map.setCenter(center)
+            map.setZoom(10)
+          }
         }
       } catch (error) {
         const message =
@@ -190,7 +251,7 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
     return () => {
       isCancelled = true
     }
-  }, [defaultCenter, mapProviders, mapsApiKey, userCenter])
+  }, [defaultCenter, mapProviders, mapsApiKey, searchLocation, userCenter])
 
   return (
     <section className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm ${className}`}>

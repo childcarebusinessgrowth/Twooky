@@ -18,8 +18,9 @@ const SearchMapPanel = dynamic(
 type SearchMapPanelLazyProps = {
   providers: ProviderCardData[]
   className?: string
+  searchLocation?: string
 }
 
-export function SearchMapPanelLazy({ providers, className }: SearchMapPanelLazyProps) {
-  return <SearchMapPanel providers={providers} className={className} />
+export function SearchMapPanelLazy({ providers, className, searchLocation }: SearchMapPanelLazyProps) {
+  return <SearchMapPanel providers={providers} className={className} searchLocation={searchLocation} />
 }

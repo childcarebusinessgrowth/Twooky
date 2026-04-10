@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
+import { resolveLocationTextFromSearchParams } from "@/lib/search-location-query"
 import { useRouter, useSearchParams } from "next/navigation"
 import { MapPin, SlidersHorizontal } from "lucide-react"
 import { SearchBarDynamic } from "@/components/search-bar-dynamic"
@@ -50,6 +51,11 @@ export function SearchResults({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+
+  const mapSearchLocation = useMemo(
+    () => (searchParams ? resolveLocationTextFromSearchParams(searchParams) : undefined),
+    [searchParams],
+  )
 
   const pushWithParams = useCallback(
     (sp: URLSearchParams) => {
@@ -418,7 +424,7 @@ export function SearchResults({
                 </p>
               </div>
 
-              <SearchMapPanelLazy providers={providers} />
+              <SearchMapPanelLazy providers={providers} searchLocation={mapSearchLocation} />
 
               <div className="space-y-5">
                 {visibleProviders.map((provider) => (

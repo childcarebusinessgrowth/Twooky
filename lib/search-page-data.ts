@@ -13,6 +13,7 @@ import {
 } from "@/lib/search-providers-db"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { CACHE_TAGS } from "@/lib/cache-tags"
+import { resolveLocationTextFromQuery } from "@/lib/search-location-query"
 import type { SearchFilterOptions } from "@/components/filter-sidebar"
 
 export type SearchPageQueryParams = {
@@ -85,27 +86,6 @@ function parseProgramTypes(
   if (!singleProgramSlug || !programTypesBySlug) return undefined
   const name = programTypesBySlug[singleProgramSlug]
   return name ? [name] : undefined
-}
-
-function normalizeCitySlug(value?: string): string | undefined {
-  if (!value) return undefined
-  const trimmed = value.trim()
-  if (!trimmed) return undefined
-  return trimmed.replace(/-/g, " ")
-}
-
-function resolveLocationText(params: {
-  location?: string
-  city?: string
-  q?: string
-}): string | undefined {
-  const normalizedLocation = params.location?.trim()
-  if (normalizedLocation) return normalizedLocation
-
-  const cityFromSlug = normalizeCitySlug(params.city)
-  if (cityFromSlug) return cityFromSlug
-
-  return undefined
 }
 
 async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
@@ -224,7 +204,7 @@ export async function getSearchPageData(options: {
     ageGroups,
   } = searchParams
 
-  const locationText = resolveLocationText({ location, city, q })
+  const locationText = resolveLocationTextFromQuery({ location, city })
   const resolvedProviderType = forcedProviderType ?? providerType ?? type
   const coords = resolveLocationToCoords(locationText)
   const parsedAgeTags = parseAgeTags(ageGroups) ?? []
