@@ -198,7 +198,7 @@ export async function getActivePublicProviderBySlug(
   if (ageRangeByTag.has("school_age")) {
     ageRangeByTag.set("schoolage", ageRangeByTag.get("school_age") as string)
   }
-  const ageRanges = (profile.age_groups_served ?? []).map((tag) => ageRangeByTag.get(tag) ?? tag)
+  const ageRanges = (profile.age_groups_served ?? []).map((tag: string) => ageRangeByTag.get(tag) ?? tag)
   const availabilityStatus = normalizeAvailabilityStatus(profile.availability_status)
   const availableSpotsCount = profile.available_spots_count ?? null
   const availabilityLabel =
