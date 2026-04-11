@@ -1,5 +1,6 @@
 import { cache } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
   Star,
@@ -16,7 +17,7 @@ import {
   Check,
   Tags,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -38,6 +39,8 @@ import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excell
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { AuthProviderClient } from "@/components/auth-provider-client"
 import { ProviderProgramOwnerStrip } from "@/components/provider-program-owner-strip"
+import { programLabelToProgramPageSlug } from "@/lib/program-types"
+import { cn } from "@/lib/utils"
 
 interface ProviderPageProps {
   params: Promise<{ slug: string }>
@@ -327,28 +330,46 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                   </Card>
                 ) : (
                   <div className="grid gap-4">
-                    {p.programTypes.map((program, index) => (
-                      <Card key={program}>
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <h3 className="font-semibold text-foreground mb-2">{program}</h3>
-                              <p className="text-muted-foreground text-sm mb-3">
-                                A comprehensive {program.toLowerCase()} program designed for early childhood development
-                                with age-appropriate activities and experienced educators.
-                              </p>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-4 w-4" />
-                                  Ages {p.ageGroups[index % p.ageGroups.length] || ","}
+                    {p.programTypes.map((program, index) => {
+                      const programSlug = programLabelToProgramPageSlug(program)
+                      return (
+                        <Link
+                          key={program}
+                          href={`/programs/${programSlug}`}
+                          className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <Card className="transition-colors hover:border-primary/40 hover:bg-muted/20">
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <h3 className="font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                                    {program}
+                                  </h3>
+                                  <p className="text-muted-foreground text-sm mb-3">
+                                    A comprehensive {program.toLowerCase()} program designed for early childhood development
+                                    with age-appropriate activities and experienced educators.
+                                  </p>
+                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-4 w-4" />
+                                      Ages {p.ageGroups[index % p.ageGroups.length] || ","}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span
+                                  className={cn(
+                                    buttonVariants({ variant: "outline", size: "sm" }),
+                                    "pointer-events-none shrink-0"
+                                  )}
+                                >
+                                  Learn More
                                 </span>
                               </div>
-                            </div>
-                            <Button variant="outline" size="sm">Learn More</Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      )
+                    })}
                   </div>
                 )}
               </TabsContent>

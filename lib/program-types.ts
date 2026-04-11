@@ -119,11 +119,23 @@ function buildAgeGroupLabelFromDb(
   return labels.length > 0 ? labels.join(", ") : null
 }
 
-function slugFromName(name: string): string {
+export function slugFromName(name: string): string {
   return name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
+}
+
+/** Maps labels from ageGroupsToProgramLabels (and close variants) to program_types.slug for /programs/[slug]. */
+export function programLabelToProgramPageSlug(label: string): string {
+  const trimmed = label.trim()
+  const overrides: Record<string, string> = {
+    "Pre-K": "preschool",
+    "School Age": "after-school",
+    Infants: "infant-care",
+    Toddlers: "toddler-care",
+  }
+  return overrides[trimmed] ?? slugFromName(trimmed)
 }
 
 export async function getActiveProgramTypes(): Promise<ProgramTypeRow[]> {
