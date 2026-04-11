@@ -606,22 +606,6 @@ export type RecommendedProviderForDashboard = {
 }
 
 /**
- * Map age group name from DB to age_groups_served format used by provider_profiles.
- */
-function ageGroupNameToTag(name: string): string {
-  const lower = name.trim().toLowerCase()
-  const map: Record<string, string> = {
-    infant: "infant",
-    toddler: "toddler",
-    preschool: "preschool",
-    "pre-k": "prek",
-    "school age": "school_age",
-    schoolage: "school_age",
-  }
-  return map[lower] ?? lower.replace(/\s+/g, "_")
-}
-
-/**
  * Fetch featured providers for a program type, filtered by age groups served.
  * Used on program detail pages for the "Featured Providers" section.
  */
@@ -645,9 +629,8 @@ export async function getFeaturedProvidersForProgram(
 
   if (ageGroupIds.length > 0 && ageGroupsById.size > 0) {
     ageTags = ageGroupIds
-      .map((id) => ageGroupsById.get(id)?.name)
-      .filter((n): n is string => !!n)
-      .map(ageGroupNameToTag)
+      .map((id) => ageGroupsById.get(id)?.tag)
+      .filter((tag): tag is string => !!tag)
       .filter(Boolean)
   }
 

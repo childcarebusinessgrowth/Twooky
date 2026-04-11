@@ -33,13 +33,13 @@ import { AdminListingPhotosSection } from "./AdminListingPhotosSection"
 import { ListingDetailActions } from "./ListingDetailActions"
 import {
   getProviderTypeLabel,
-  getAgeGroupLabel,
   getAmenityLabel,
   getCurriculumLabel,
 } from "@/lib/listing-labels"
 import { formatDailyFeeRange } from "@/lib/currency"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 type PageProps = {
   params: Promise<{ profileId: string }>
@@ -125,12 +125,21 @@ function BadgeList({
 
 export default async function AdminListingDetailPage({ params }: PageProps) {
   const { profileId } = await params
-  const data = await getAdminListingDetail(profileId)
+  const [data, ageGroupsResult] = await Promise.all([
+    getAdminListingDetail(profileId),
+    getSupabaseAdminClient()
+      .from("age_groups")
+      .select("tag, age_range")
+      .eq("is_active", true),
+  ])
   if (!data) notFound()
 
   const { profile, photos, faqs, documents } = data
   const name = profile.business_name || profile.provider_slug || profileId
   const websiteHref = normalizeProviderWebsiteUrl(profile.website)
+  const ageGroupLabelByTag = new Map(
+    (ageGroupsResult.data ?? []).map((row) => [row.tag, row.age_range] as const)
+  )
 
   const hasVirtualTour =
     (profile.virtual_tour_urls?.length ?? 0) > 0 || !!profile.virtual_tour_url
@@ -271,7 +280,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
             <div className="mt-1.5">
               <BadgeList
                 ids={profile.age_groups_served ?? []}
-                getLabel={getAgeGroupLabel}
+                getLabel={(tag) => ageGroupLabelByTag.get(tag) ?? tag}
               />
               {!profile.age_groups_served?.length && (
                 <span className="text-muted-foreground">,</span>

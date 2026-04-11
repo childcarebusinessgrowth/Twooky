@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { randomUUID } from "crypto"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 import {
   normalizeBlogSlug,
   sanitizeBlogTags,
@@ -69,7 +69,7 @@ function toInsertPayload(input: BlogInput) {
 }
 
 export async function createBlog(input: BlogInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("blogs.manage")
   validateBlogInput(input)
   const payload = toInsertPayload(input)
   await assertSlugIsUnique(payload.slug)
@@ -85,7 +85,7 @@ export async function createBlog(input: BlogInput) {
 }
 
 export async function updateBlog(id: string, input: BlogInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("blogs.manage")
   if (!id) {
     throw new Error("Blog id is required.")
   }
@@ -125,7 +125,7 @@ export async function updateBlog(id: string, input: BlogInput) {
 }
 
 export async function deleteBlog(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("blogs.manage")
   if (!id) {
     throw new Error("Blog id is required.")
   }
@@ -151,7 +151,7 @@ export async function deleteBlog(id: string) {
 }
 
 export async function publishBlog(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("blogs.manage")
   if (!id) {
     throw new Error("Blog id is required.")
   }
@@ -185,7 +185,7 @@ export async function publishBlog(id: string) {
 }
 
 export async function unpublishBlog(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("blogs.manage")
   if (!id) {
     throw new Error("Blog id is required.")
   }
@@ -249,7 +249,7 @@ function sanitizeFilename(name: string): string {
 }
 
 export async function uploadBlogImage(file: File) {
-  await assertServerRole("admin")
+  await assertAdminPermission("blogs.manage")
   if (!file) {
     throw new Error("No file provided.")
   }

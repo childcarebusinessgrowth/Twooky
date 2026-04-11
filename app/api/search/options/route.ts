@@ -3,18 +3,8 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 type Option = { value: string; label: string }
 
-function ageGroupNameToTag(name: string): string | null {
-  const lower = name.trim().toLowerCase()
-  const map: Record<string, string> = {
-    infant: "infant",
-    toddler: "toddler",
-    preschool: "preschool",
-    "pre-k": "prek",
-    prek: "prek",
-    "school age": "schoolage",
-    schoolage: "schoolage",
-  }
-  return map[lower] ?? null
+function normalizeAgeTag(tag: string): string {
+  return tag === "school_age" ? "schoolage" : tag
 }
 
 export async function GET() {
@@ -25,10 +15,10 @@ export async function GET() {
       await Promise.all([
         supabase
           .from("age_groups")
-          .select("id, name, age_range")
+          .select("id, tag, age_range")
           .eq("is_active", true)
           .order("sort_order", { ascending: true })
-          .order("name", { ascending: true }),
+          .order("age_range", { ascending: true }),
         supabase
           .from("program_types")
           .select("id, name")
@@ -46,12 +36,9 @@ export async function GET() {
 
     const ageGroupOptions: Option[] = (ageGroups ?? [])
       .map((row) => {
-        const tag = ageGroupNameToTag(row.name)
-        if (!tag) return null
-        const label = row.age_range ? `${row.name} (${row.age_range})` : row.name
-        return { value: tag, label }
+        const tag = normalizeAgeTag(row.tag)
+        return { value: tag, label: row.age_range }
       })
-      .filter((x): x is Option => !!x)
 
     const programTypeOptions: Option[] = (programTypes ?? []).map((row) => ({
       value: row.name,

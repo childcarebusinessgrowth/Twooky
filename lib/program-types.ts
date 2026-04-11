@@ -44,8 +44,8 @@ export interface ProgramTypeRow {
 
 export interface AgeGroupRow {
   id: string
-  name: string
-  age_range: string | null
+  tag: string
+  age_range: string
   sort_order: number
 }
 
@@ -115,7 +115,7 @@ function buildAgeGroupLabelFromDb(
     .map((id) => ageGroupsById.get(id))
     .filter((ag): ag is AgeGroupRow => !!ag)
     .sort((a, b) => a.sort_order - b.sort_order)
-  const labels = groups.map((ag) => ag.age_range?.trim() || ag.name)
+  const labels = groups.map((ag) => ag.age_range)
   return labels.length > 0 ? labels.join(", ") : null
 }
 
@@ -147,7 +147,7 @@ export async function getAgeGroupsById(): Promise<Map<string, AgeGroupRow>> {
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("age_groups")
-    .select("id, name, age_range, sort_order")
+    .select("id, tag, age_range, sort_order")
     .eq("is_active", true)
 
   if (error) {

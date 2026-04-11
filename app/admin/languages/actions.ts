@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 type LanguageInput = {
   name: string
@@ -14,13 +14,14 @@ type LanguageInput = {
 const ADMIN_LANGUAGES_PATH = "/admin/languages"
 
 export async function createLanguage(input: LanguageInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase.from("languages").insert({
+  const values = {
     name: input.name.trim(),
-    sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
-  })
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
+  const { error } = await supabase.from("languages").insert(values)
 
   if (error) {
     throw new Error(error.message)
@@ -32,15 +33,16 @@ export async function createLanguage(input: LanguageInput) {
 }
 
 export async function updateLanguage(id: string, input: LanguageInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const values = {
+    name: input.name.trim(),
+    is_active: input.isActive ?? true,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
   const { error } = await supabase
     .from("languages")
-    .update({
-      name: input.name.trim(),
-      sort_order: input.sortOrder ?? 0,
-      is_active: input.isActive ?? true,
-    })
+    .update(values)
     .eq("id", id)
 
   if (error) {
@@ -53,7 +55,7 @@ export async function updateLanguage(id: string, input: LanguageInput) {
 }
 
 export async function deleteLanguage(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("languages").delete().eq("id", id)
 

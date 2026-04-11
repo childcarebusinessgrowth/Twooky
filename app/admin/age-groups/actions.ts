@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 type AgeGroupInput = {
-  name: string
-  ageRange?: string | null
+  ageRange: string
   sortOrder?: number
   isActive?: boolean
 }
@@ -15,14 +14,20 @@ type AgeGroupInput = {
 const ADMIN_AGE_GROUPS_PATH = "/admin/age-groups"
 
 export async function createAgeGroup(input: AgeGroupInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase.from("age_groups").insert({
-    name: input.name.trim(),
-    age_range: input.ageRange?.trim() || null,
-    sort_order: input.sortOrder ?? 0,
+  const normalizedAgeRange = input.ageRange.trim()
+  if (!normalizedAgeRange) {
+    throw new Error("Age range is required.")
+  }
+  const derivedTag = normalizedAgeRange.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
+  const values = {
+    tag: derivedTag || `age_group_${Date.now()}`,
+    age_range: normalizedAgeRange,
     is_active: input.isActive ?? true,
-  })
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
+  const { error } = await supabase.from("age_groups").insert(values)
 
   if (error) {
     throw new Error(error.message)
@@ -34,16 +39,20 @@ export async function createAgeGroup(input: AgeGroupInput) {
 }
 
 export async function updateAgeGroup(id: string, input: AgeGroupInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const normalizedAgeRange = input.ageRange.trim()
+  if (!normalizedAgeRange) {
+    throw new Error("Age range is required.")
+  }
+  const values = {
+    age_range: normalizedAgeRange,
+    is_active: input.isActive ?? true,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
   const { error } = await supabase
     .from("age_groups")
-    .update({
-      name: input.name.trim(),
-      age_range: input.ageRange?.trim() || null,
-      sort_order: input.sortOrder ?? 0,
-      is_active: input.isActive ?? true,
-    })
+    .update(values)
     .eq("id", id)
 
   if (error) {
@@ -56,7 +65,7 @@ export async function updateAgeGroup(id: string, input: AgeGroupInput) {
 }
 
 export async function deleteAgeGroup(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("age_groups").delete().eq("id", id)
 

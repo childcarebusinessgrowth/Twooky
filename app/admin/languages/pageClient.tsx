@@ -37,14 +37,12 @@ export function AdminLanguagesPageClient({ initialLanguages }: Props) {
       createItem={async (input) =>
         createLanguage({
           name: input.name,
-          sortOrder: input.sortOrder,
           isActive: input.isActive,
         })
       }
       updateItem={async (id, input) =>
         updateLanguage(id, {
           name: input.name,
-          sortOrder: input.sortOrder,
           isActive: input.isActive,
         })
       }

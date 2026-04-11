@@ -19,6 +19,19 @@ begin
 end
 $$;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type t
+    join pg_namespace n on n.oid = t.typnamespace
+    where t.typname = 'admin_team_role' and n.nspname = 'public'
+  ) then
+    create type public.admin_team_role as enum ('base_user', 'account_manager', 'top_admin');
+  end if;
+end
+$$;
+
 
 -- ============================================================================
 -- 2. Profiles table
@@ -157,8 +170,8 @@ create policy "Cities are readable by everyone"
 -- ============================================================================
 create table if not exists public.age_groups (
   id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  age_range text,
+  tag text not null unique,
+  age_range text not null,
   sort_order integer not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc'::text, now()),
@@ -201,7 +214,7 @@ create table if not exists public.provider_features (
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
-create index if not exists age_groups_active_idx on public.age_groups (is_active, sort_order, name);
+create index if not exists age_groups_active_idx on public.age_groups (is_active, sort_order, age_range);
 create index if not exists program_types_active_idx on public.program_types (is_active, sort_order, name);
 create index if not exists languages_active_idx on public.languages (is_active, sort_order, name);
 create index if not exists curriculum_philosophies_active_idx on public.curriculum_philosophies (is_active, sort_order, name);
@@ -270,6 +283,73 @@ as $$
   select public.current_user_has_role('admin'::public.app_role);
 $$;
 
+create table if not exists public.admin_team_members (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  team_role public.admin_team_role not null default 'base_user',
+  is_active boolean not null default true,
+  created_by uuid references public.profiles(id) on delete set null,
+  last_password_generated_at timestamptz,
+  last_password_generated_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+create index if not exists admin_team_members_team_role_idx
+  on public.admin_team_members (team_role, is_active);
+
+create or replace function public.ensure_admin_team_profile_is_admin()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1
+    from public.profiles p
+    where p.id = new.profile_id
+      and p.role = 'admin'::public.app_role
+  ) then
+    raise exception 'Admin team member must reference a profile with role=admin.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists admin_team_members_set_updated_at on public.admin_team_members;
+create trigger admin_team_members_set_updated_at
+before update on public.admin_team_members
+for each row execute function public.handle_profiles_updated_at();
+
+drop trigger if exists admin_team_members_validate_admin_profile on public.admin_team_members;
+create trigger admin_team_members_validate_admin_profile
+before insert or update on public.admin_team_members
+for each row execute function public.ensure_admin_team_profile_is_admin();
+
+alter table public.admin_team_members enable row level security;
+
+drop policy if exists "Admin team members are readable by admins" on public.admin_team_members;
+create policy "Admin team members are readable by admins"
+  on public.admin_team_members
+  for select
+  using (public.is_current_user_admin());
+
+drop policy if exists "Admin team members are writable by top-level admins" on public.admin_team_members;
+create policy "Admin team members are writable by top-level admins"
+  on public.admin_team_members
+  for all
+  using (public.is_current_user_admin())
+  with check (public.is_current_user_admin());
+
+insert into public.admin_team_members (profile_id, team_role, is_active)
+select p.id, 'top_admin'::public.admin_team_role, true
+from public.profiles p
+where p.role = 'admin'::public.app_role
+  and not exists (
+    select 1
+    from public.admin_team_members atm
+    where atm.profile_id = p.id
+  );
+
 drop policy if exists "Age groups are readable by everyone" on public.age_groups;
 create policy "Age groups are readable by everyone"
   on public.age_groups
@@ -335,19 +415,19 @@ create policy "Provider features are writable by admin only"
   using (public.is_current_user_admin())
   with check (public.is_current_user_admin());
 
-insert into public.age_groups (name, age_range, sort_order, is_active)
-select values_table.name, values_table.age_range, values_table.sort_order, true
+insert into public.age_groups (tag, age_range, sort_order, is_active)
+select values_table.tag, values_table.age_range, values_table.sort_order, true
 from (
   values
-    ('Infant', '0-12 months', 10),
-    ('Toddler', '1-2 years', 20),
-    ('Preschool', '3-4 years', 30),
-    ('Pre-K', '4-5 years', 40),
-    ('School Age', '5+', 50)
-) as values_table(name, age_range, sort_order)
+    ('infant', '0-12 months', 10),
+    ('toddler', '1-2 years', 20),
+    ('preschool', '3-4 years', 30),
+    ('prek', '4-5 years', 40),
+    ('school_age', '5+', 50)
+) as values_table(tag, age_range, sort_order)
 where not exists (
   select 1 from public.age_groups existing
-  where lower(existing.name) = lower(values_table.name)
+  where lower(existing.tag) = lower(values_table.tag)
 );
 
 insert into public.program_types (name, sort_order, is_active)

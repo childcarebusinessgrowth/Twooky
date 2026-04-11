@@ -56,14 +56,14 @@ export default function ParentSettingsPage() {
     const [profileRes, parentRes, ageGroupsRes] = await Promise.all([
       supabase.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle(),
       supabase.from("parent_profiles").select("child_age_group, phone, preferred_start_date").eq("profile_id", user.id).maybeSingle(),
-      supabase.from("age_groups").select("name, age_range").eq("is_active", true).order("sort_order", { ascending: true }),
+      supabase.from("age_groups").select("tag, age_range").eq("is_active", true).order("sort_order", { ascending: true }),
     ])
     if (ageGroupsRes.data) {
-      const rows = ageGroupsRes.data as { name: string; age_range?: string | null }[]
+      const rows = ageGroupsRes.data as { tag: string; age_range: string }[]
       setAgeGroupOptions(
         rows.map((r) => ({
-          value: r.name,
-          label: r.age_range ? `${r.name} (${r.age_range})` : r.name,
+          value: r.tag,
+          label: r.age_range,
         })),
       )
     }
@@ -100,15 +100,21 @@ export default function ParentSettingsPage() {
   const childAgeSelectValue = useMemo(() => {
     const saved = parentProfile.childAgeGroup.trim()
     if (!saved) return undefined
-    const match = ageGroupOptions.find((o) => o.value.toLowerCase() === saved.toLowerCase())
-    if (match) return match.value
-    const signupSlugToName: Record<string, string> = {
-      prek: "Pre-K",
-      school: "School Age",
+    const byValue = ageGroupOptions.find((o) => o.value.toLowerCase() === saved.toLowerCase())
+    if (byValue) return byValue.value
+    const legacyToTag: Record<string, string> = {
+      "school age": "school_age",
+      schoolage: "school_age",
+      school: "school_age",
+      "pre-k": "prek",
     }
-    const canonical = signupSlugToName[saved.toLowerCase()] ?? saved
-    const canonicalMatch = ageGroupOptions.find((o) => o.value === canonical)
-    return canonicalMatch ? canonicalMatch.value : saved
+    const mappedTag = legacyToTag[saved.toLowerCase()]
+    if (mappedTag) {
+      const mapped = ageGroupOptions.find((o) => o.value === mappedTag)
+      if (mapped) return mapped.value
+    }
+    const byLabel = ageGroupOptions.find((o) => o.label.toLowerCase() === saved.toLowerCase())
+    return byLabel ? byLabel.value : saved
   }, [ageGroupOptions, parentProfile.childAgeGroup])
 
   const handleSave = async (event: React.FormEvent) => {

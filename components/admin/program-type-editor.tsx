@@ -11,13 +11,12 @@ import { Textarea } from "@/components/ui/textarea"
 
 export type AgeGroupOption = {
   id: string
-  name: string
-  age_range: string | null
+  tag: string
+  age_range: string
 }
 
 export type ProgramTypeFormData = {
   name: string
-  sortOrder: number
   isActive: boolean
   shortDescription: string
   aboutText: string
@@ -28,7 +27,6 @@ export type ProgramTypeFormData = {
 
 const EMPTY_FORM: ProgramTypeFormData = {
   name: "",
-  sortOrder: 0,
   isActive: true,
   shortDescription: "",
   aboutText: "",
@@ -56,7 +54,6 @@ export function ProgramTypeEditor({
 }: ProgramTypeEditorProps) {
   const form: ProgramTypeFormData = {
     name: initialData?.name ?? EMPTY_FORM.name,
-    sortOrder: initialData?.sortOrder ?? EMPTY_FORM.sortOrder,
     isActive: initialData?.isActive ?? EMPTY_FORM.isActive,
     shortDescription: initialData?.shortDescription ?? EMPTY_FORM.shortDescription,
     aboutText: initialData?.aboutText ?? EMPTY_FORM.aboutText,
@@ -69,7 +66,6 @@ export function ProgramTypeEditor({
   }
 
   const [name, setName] = useState(form.name)
-  const [sortOrder, setSortOrder] = useState(String(form.sortOrder))
   const [isActive, setIsActive] = useState(form.isActive)
   const [shortDescription, setShortDescription] = useState(form.shortDescription)
   const [aboutText, setAboutText] = useState(form.aboutText)
@@ -131,7 +127,6 @@ export function ProgramTypeEditor({
 
     const data: ProgramTypeFormData = {
       name: trimmedName,
-      sortOrder: Number(sortOrder) || 0,
       isActive,
       shortDescription: shortDescription.trim() || "",
       aboutText: aboutText.trim() || "",
@@ -167,24 +162,13 @@ export function ProgramTypeEditor({
         />
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-2 flex-1">
-          <Label htmlFor="program-type-sort">Sort order</Label>
-          <Input
-            id="program-type-sort"
-            type="number"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 pt-6">
-          <Switch
-            id="program-type-active"
-            checked={isActive}
-            onCheckedChange={setIsActive}
-          />
-          <Label htmlFor="program-type-active">Active</Label>
-        </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          id="program-type-active"
+          checked={isActive}
+          onCheckedChange={setIsActive}
+        />
+        <Label htmlFor="program-type-active">Active</Label>
       </div>
 
       <div className="space-y-2">
@@ -214,8 +198,7 @@ export function ProgramTypeEditor({
                 htmlFor={`age-${ag.id}`}
                 className="text-sm font-normal cursor-pointer"
               >
-                {ag.name}
-                {ag.age_range ? ` (${ag.age_range})` : ""}
+                {ag.age_range}
               </Label>
             </div>
           ))}

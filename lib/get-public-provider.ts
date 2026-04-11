@@ -96,7 +96,7 @@ export async function getActivePublicProviderBySlug(
   const googleApiKey =
     process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
-  const [photosResult, reviews, faqsResult, googleReviewSummary] = await Promise.all([
+  const [photosResult, reviews, faqsResult, googleReviewSummary, ageGroupsResult] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
@@ -111,6 +111,10 @@ export async function getActivePublicProviderBySlug(
       .eq("provider_profile_id", profileId)
       .order("sort_order", { ascending: true }),
     fetchGooglePlaceDetailsSummary(profile.google_place_id, googleApiKey),
+    supabase
+      .from("age_groups")
+      .select("tag, age_range")
+      .eq("is_active", true),
   ])
 
   const photoRows = photosResult.data ?? []
@@ -188,6 +192,13 @@ export async function getActivePublicProviderBySlug(
     question: row.question,
     answer: row.answer,
   }))
+  const ageRangeByTag = new Map<string, string>(
+    (ageGroupsResult.data ?? []).map((row) => [row.tag, row.age_range] as const)
+  )
+  if (ageRangeByTag.has("school_age")) {
+    ageRangeByTag.set("schoolage", ageRangeByTag.get("school_age") as string)
+  }
+  const ageRanges = (profile.age_groups_served ?? []).map((tag) => ageRangeByTag.get(tag) ?? tag)
   const availabilityStatus = normalizeAvailabilityStatus(profile.availability_status)
   const availableSpotsCount = profile.available_spots_count ?? null
   const availabilityLabel =
@@ -211,7 +222,7 @@ export async function getActivePublicProviderBySlug(
     providerTypes: profile.provider_types ?? [],
     programTypes: ageGroupsToProgramLabels(profile.age_groups_served ?? null),
     description: profile.description ?? "",
-    ageGroups: profile.age_groups_served ?? [],
+    ageGroups: ageRanges,
     hours,
     languages,
     curriculumTypes: Array.isArray(profile.curriculum_type) ? profile.curriculum_type : profile.curriculum_type ? [profile.curriculum_type] : [],

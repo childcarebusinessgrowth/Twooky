@@ -65,7 +65,6 @@ type CountryFormState = {
   id?: string
   code: string
   name: string
-  sortOrder: string
   isActive: boolean
 }
 
@@ -76,7 +75,6 @@ type CityFormState = {
   slug: string
   searchCountryCode: string
   searchCitySlug: string
-  sortOrder: string
   isPopular: boolean
   isActive: boolean
 }
@@ -84,7 +82,6 @@ type CityFormState = {
 const emptyCountryForm: CountryFormState = {
   code: "",
   name: "",
-  sortOrder: "0",
   isActive: true,
 }
 
@@ -94,7 +91,6 @@ const emptyCityForm: CityFormState = {
   slug: "",
   searchCountryCode: "",
   searchCitySlug: "",
-  sortOrder: "0",
   isPopular: true,
   isActive: true,
 }
@@ -138,7 +134,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
       id: country.id,
       code: country.code,
       name: country.name,
-      sortOrder: String(country.sort_order ?? 0),
       isActive: country.is_active,
     })
     setError(null)
@@ -151,15 +146,12 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
       return
     }
 
-    const sortOrder = Number(countryForm.sortOrder) || 0
-
     startTransition(async () => {
       try {
         if (editingCountry) {
           await updateCountry(editingCountry.id, {
             code: countryForm.code,
             name: countryForm.name,
-            sortOrder,
             isActive: countryForm.isActive,
           })
           toast({ title: "Country updated", variant: "success" })
@@ -167,7 +159,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
           await createCountry({
             code: countryForm.code,
             name: countryForm.name,
-            sortOrder,
             isActive: countryForm.isActive,
           })
           toast({ title: "Country added", variant: "success" })
@@ -232,7 +223,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
       slug: city.slug,
       searchCountryCode: city.search_country_code,
       searchCitySlug: city.search_city_slug,
-      sortOrder: String(city.sort_order ?? 0),
       isPopular: city.is_popular,
       isActive: city.is_active,
     })
@@ -246,7 +236,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
       return
     }
 
-    const sortOrder = Number(cityForm.sortOrder) || 0
     const searchCountryCode = cityForm.searchCountryCode || countries.find((c) => c.id === cityForm.countryId)?.code || ""
     const searchCitySlug = cityForm.searchCitySlug || cityForm.slug
 
@@ -263,7 +252,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
           slug: cityForm.slug,
           searchCountryCode,
           searchCitySlug,
-          sortOrder,
           isPopular: cityForm.isPopular,
           isActive: cityForm.isActive,
         }
@@ -329,7 +317,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Code</TableHead>
-                    <TableHead className="hidden md:table-cell">Sort</TableHead>
                     <TableHead className="hidden md:table-cell">Active</TableHead>
                     <TableHead className="w-24 text-right">Actions</TableHead>
                   </TableRow>
@@ -339,7 +326,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                     <TableRow key={country.id}>
                       <TableCell>{country.name}</TableCell>
                       <TableCell className="font-mono text-xs">{country.code}</TableCell>
-                      <TableCell className="hidden md:table-cell">{country.sort_order}</TableCell>
                       <TableCell className="hidden md:table-cell">
                         {country.is_active ? (
                           <span className="text-xs rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">
@@ -375,7 +361,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                   ))}
                   {countries.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground text-sm">
+                      <TableCell colSpan={4} className="text-center text-muted-foreground text-sm">
                         No countries configured yet. Add your first country to get started.
                       </TableCell>
                     </TableRow>
@@ -427,7 +413,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                     <TableHead className="hidden lg:table-cell">Search URL</TableHead>
                     <TableHead className="hidden md:table-cell">Popular</TableHead>
                     <TableHead className="hidden md:table-cell">Active</TableHead>
-                    <TableHead className="hidden md:table-cell">Sort</TableHead>
                     <TableHead className="w-24 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -464,7 +449,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{city.sort_order}</TableCell>
                         <TableCell className="text-right space-x-1">
                           <Button
                             variant="outline"
@@ -490,7 +474,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                   })}
                   {filteredCities.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground text-sm">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground text-sm">
                         No cities found for the current filters.
                       </TableCell>
                     </TableRow>
@@ -543,17 +527,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                 placeholder="usa"
               />
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="country-sort">Sort order</Label>
-                <Input
-                  id="country-sort"
-                  type="number"
-                  value={countryForm.sortOrder}
-                  onChange={(e) => setCountryForm((prev) => ({ ...prev, sortOrder: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1 flex items-center gap-2 pt-6">
+            <div className="space-y-1 flex items-center gap-2">
                 <Switch
                   id="country-active"
                   checked={countryForm.isActive}
@@ -565,7 +539,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                   }
                 />
                 <Label htmlFor="country-active">Active</Label>
-              </div>
             </div>
           </div>
           <DialogFooter>
@@ -640,17 +613,7 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                 placeholder="new-york"
               />
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="city-sort">Sort order</Label>
-                <Input
-                  id="city-sort"
-                  type="number"
-                  value={cityForm.sortOrder}
-                  onChange={(e) => setCityForm((prev) => ({ ...prev, sortOrder: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1 flex flex-col gap-2 pt-4">
+            <div className="space-y-1 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <Switch
                     id="city-popular"
@@ -678,7 +641,6 @@ export function AdminLocationsClient({ initialCountries, initialCities }: AdminL
                   <Label htmlFor="city-active">Active</Label>
                 </div>
               </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCityDialogOpen(false)} disabled={isPending}>

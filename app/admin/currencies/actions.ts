@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 type CurrencyInput = {
   code: string
@@ -16,15 +16,16 @@ type CurrencyInput = {
 const ADMIN_CURRENCIES_PATH = "/admin/currencies"
 
 export async function createCurrency(input: CurrencyInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase.from("currencies").insert({
+  const values = {
     code: input.code.trim().toUpperCase(),
     name: input.name.trim(),
     symbol: input.symbol.trim(),
-    sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
-  })
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
+  const { error } = await supabase.from("currencies").insert(values)
 
   if (error) {
     throw new Error(error.message)
@@ -36,17 +37,18 @@ export async function createCurrency(input: CurrencyInput) {
 }
 
 export async function updateCurrency(id: string, input: CurrencyInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const values = {
+    code: input.code.trim().toUpperCase(),
+    name: input.name.trim(),
+    symbol: input.symbol.trim(),
+    is_active: input.isActive ?? true,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
   const { error } = await supabase
     .from("currencies")
-    .update({
-      code: input.code.trim().toUpperCase(),
-      name: input.name.trim(),
-      symbol: input.symbol.trim(),
-      sort_order: input.sortOrder ?? 0,
-      is_active: input.isActive ?? true,
-    })
+    .update(values)
     .eq("id", id)
 
   if (error) {
@@ -59,7 +61,7 @@ export async function updateCurrency(id: string, input: CurrencyInput) {
 }
 
 export async function deleteCurrency(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("currencies").delete().eq("id", id)
 

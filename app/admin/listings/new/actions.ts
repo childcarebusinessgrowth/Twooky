@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
 import { resolveGooglePlaceIdFromText } from "@/lib/google-place-id"
@@ -21,6 +21,7 @@ export type AdminProviderCityOption = { id: string; country_id: string; name: st
 export type AdminProviderLanguageOption = { id: string; name: string }
 export type AdminProviderCurriculumOption = { id: string; name: string }
 export type AdminProviderCurrencyOption = { id: string; code: string; name: string; symbol: string }
+export type AdminProviderAgeGroupOption = { id: string; tag: string; age_range: string }
 
 export type CreateAdminProviderResult =
   | { ok: true; profileId: string; slug: string }
@@ -116,8 +117,9 @@ export async function getAdminProviderCreateOptions(): Promise<{
   languages: AdminProviderLanguageOption[]
   curriculum: AdminProviderCurriculumOption[]
   currencies: AdminProviderCurrencyOption[]
+  ageGroups: AdminProviderAgeGroupOption[]
 }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
 
   const [
@@ -126,6 +128,7 @@ export async function getAdminProviderCreateOptions(): Promise<{
     { data: languages },
     { data: curriculum },
     { data: currencies, error: currenciesError },
+    { data: ageGroups },
   ] = await Promise.all([
     supabase
       .from("countries")
@@ -157,6 +160,12 @@ export async function getAdminProviderCreateOptions(): Promise<{
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("code", { ascending: true }),
+    supabase
+      .from("age_groups")
+      .select("id, tag, age_range")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("age_range", { ascending: true }),
   ])
 
   if (currenciesError) {
@@ -174,11 +183,16 @@ export async function getAdminProviderCreateOptions(): Promise<{
       name: row.name,
       symbol: row.symbol,
     })),
+    ageGroups: (ageGroups ?? []).map((row) => ({
+      id: row.id,
+      tag: row.tag,
+      age_range: row.age_range,
+    })),
   }
 }
 
 export async function createAdminProvider(formData: FormData): Promise<CreateAdminProviderResult> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
 
   const businessName = asTrimmedText(formData.get("businessName"))
@@ -487,7 +501,7 @@ export async function updateAdminProvider(
   profileId: string,
   formData: FormData
 ): Promise<UpdateAdminProviderResult> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
 
   const businessName = asTrimmedText(formData.get("businessName"))

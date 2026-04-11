@@ -77,7 +77,6 @@ export function AdminProgramTypesPageClient({
         if (details) {
           setEditFormData({
             name: details.name,
-            sortOrder: details.sort_order,
             isActive: details.is_active,
             shortDescription: details.short_description ?? "",
             aboutText: details.about_text ?? "",
@@ -95,7 +94,6 @@ export function AdminProgramTypesPageClient({
       if (editingId) {
         await updateProgramType(editingId, {
           name: data.name,
-          sortOrder: data.sortOrder,
           isActive: data.isActive,
           shortDescription: data.shortDescription || null,
           aboutText: data.aboutText || null,
@@ -110,7 +108,6 @@ export function AdminProgramTypesPageClient({
       } else {
         await createProgramType({
           name: data.name,
-          sortOrder: data.sortOrder,
           isActive: data.isActive,
           shortDescription: data.shortDescription || null,
           aboutText: data.aboutText || null,
@@ -200,7 +197,6 @@ export function AdminProgramTypesPageClient({
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead className="hidden md:table-cell">Age</TableHead>
-                <TableHead className="hidden md:table-cell">Sort</TableHead>
                 <TableHead className="hidden md:table-cell">Active</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
@@ -210,9 +206,7 @@ export function AdminProgramTypesPageClient({
                 const ageLabels =
                   (item.age_group_ids ?? [])
                     .map(
-                      (id) =>
-                        initialAgeGroups.find((ag) => ag.id === id)?.age_range ||
-                        initialAgeGroups.find((ag) => ag.id === id)?.name
+                      (id) => initialAgeGroups.find((ag) => ag.id === id)?.age_range
                     )
                     .filter(Boolean) ?? []
                 return (
@@ -221,7 +215,6 @@ export function AdminProgramTypesPageClient({
                     <TableCell className="hidden md:table-cell">
                       {ageLabels.length > 0 ? ageLabels.join(", ") : ","}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{item.sort_order}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {item.is_active ? (
                       <span className="text-xs rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">
@@ -258,7 +251,7 @@ export function AdminProgramTypesPageClient({
               })}
               {initialProgramTypes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground text-sm">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground text-sm">
                     No program types configured yet. Add your first program type to get started.
                   </TableCell>
                 </TableRow>

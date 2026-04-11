@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole, getCurrentUserRole } from "@/lib/authzServer"
+import { assertAdminPermission, getCurrentAdminAccess } from "@/lib/authzServer"
 
 const CLAIM_DOCUMENTS_BUCKET = "claim-documents"
 const SIGNED_URL_EXPIRY_SECONDS = 3600
@@ -40,7 +40,7 @@ export async function getAdminClaims(): Promise<{
   pendingCount: number
   processedCount: number
 }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("badges.verify")
   const supabase = getSupabaseAdminClient()
 
   const { data: claims, error } = await supabase
@@ -137,7 +137,7 @@ export async function getAdminClaims(): Promise<{
 }
 
 export async function getPendingClaimsCount(): Promise<number> {
-  await assertServerRole("admin")
+  await assertAdminPermission("badges.verify")
   const supabase = getSupabaseAdminClient()
   const { count, error } = await supabase
     .from("provider_listing_claims")
@@ -150,7 +150,8 @@ export async function getPendingClaimsCount(): Promise<number> {
 export type ReviewClaimResult = { success: true } | { success: false; error: string }
 
 export async function approveClaim(claimId: string, notes?: string): Promise<ReviewClaimResult> {
-  const { user } = await getCurrentUserRole("admin")
+  await assertAdminPermission("badges.verify")
+  const { user } = await getCurrentAdminAccess()
   if (!user) return { success: false, error: "Unauthorized" }
   const supabase = getSupabaseAdminClient()
 
@@ -172,7 +173,8 @@ export async function approveClaim(claimId: string, notes?: string): Promise<Rev
 }
 
 export async function rejectClaim(claimId: string, notes?: string): Promise<ReviewClaimResult> {
-  const { user } = await getCurrentUserRole("admin")
+  await assertAdminPermission("badges.verify")
+  const { user } = await getCurrentAdminAccess()
   if (!user) return { success: false, error: "Unauthorized" }
   const supabase = getSupabaseAdminClient()
 
@@ -196,7 +198,7 @@ export async function rejectClaim(claimId: string, notes?: string): Promise<Revi
 export type DeleteClaimResult = { success: true } | { success: false; error: string }
 
 export async function deleteClaim(claimId: string): Promise<DeleteClaimResult> {
-  await assertServerRole("admin")
+  await assertAdminPermission("badges.verify")
   const supabase = getSupabaseAdminClient()
 
   const { data: claim, error: fetchError } = await supabase

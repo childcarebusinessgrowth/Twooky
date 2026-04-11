@@ -45,7 +45,6 @@ type FormState = {
   code: string
   name: string
   symbol: string
-  sortOrder: string
   isActive: boolean
 }
 
@@ -53,7 +52,6 @@ const EMPTY_FORM: FormState = {
   code: "",
   name: "",
   symbol: "",
-  sortOrder: "0",
   isActive: true,
 }
 
@@ -83,7 +81,6 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
       code: item.code,
       name: item.name,
       symbol: item.symbol,
-      sortOrder: String(item.sort_order ?? 0),
       isActive: item.is_active,
     })
     setError(null)
@@ -129,7 +126,6 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
       code,
       name,
       symbol,
-      sortOrder: Number(form.sortOrder) || 0,
       isActive: form.isActive,
     }
 
@@ -201,7 +197,6 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Symbol</TableHead>
-                <TableHead className="hidden md:table-cell">Sort</TableHead>
                 <TableHead className="hidden md:table-cell">Active</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
@@ -212,7 +207,6 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
                   <TableCell className="font-mono">{item.code}</TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell className="font-medium">{item.symbol}</TableCell>
-                  <TableCell className="hidden md:table-cell">{item.sort_order}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {item.is_active ? (
                       <span className="text-xs rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">
@@ -248,7 +242,7 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground text-sm">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground text-sm">
                     No currencies configured yet. Add your first currency to get started.
                   </TableCell>
                 </TableRow>
@@ -296,17 +290,7 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
                 maxLength={5}
               />
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="currency-sort">Sort order</Label>
-                <Input
-                  id="currency-sort"
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(e) => setForm((prev) => ({ ...prev, sortOrder: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1 flex items-center gap-2 pt-6">
+            <div className="space-y-1 flex items-center gap-2">
                 <Switch
                   id="currency-active"
                   checked={form.isActive}
@@ -315,7 +299,6 @@ export function AdminCurrenciesPageClient({ initialCurrencies }: Props) {
                   }
                 />
                 <Label htmlFor="currency-active">Active</Label>
-              </div>
             </div>
           </div>
           <DialogFooter>

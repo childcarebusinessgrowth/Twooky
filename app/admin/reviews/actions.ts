@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 const PROVIDER_REVIEWS_PATH = "/dashboard/provider/reviews"
@@ -13,7 +13,7 @@ const ADMIN_REVIEWS_PATH = "/admin/reviews"
  * and notifies the provider.
  */
 export async function acceptReviewReportAndDeleteReview(reviewId: string): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("reviews.approve")
   const supabase = getSupabaseAdminClient()
 
   const { data: review, error: fetchError } = await supabase
@@ -60,7 +60,7 @@ export async function acceptReviewReportAndDeleteReview(reviewId: string): Promi
  * Dismiss a report without removing the review.
  */
 export async function dismissReviewReport(reportId: string): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("reviews.approve")
   const supabase = getSupabaseAdminClient()
 
   const { error } = await supabase.from("review_reports").delete().eq("id", reportId)

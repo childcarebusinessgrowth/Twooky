@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic"
 
 export type AgeGroupOption = {
   id: string
-  name: string
-  age_range: string | null
+  tag: string
+  age_range: string
 }
 
 export type LocalServiceDealRow = {
@@ -28,7 +28,7 @@ export default async function AdminLocalServicesPage() {
 
   const [{ data: deals, error: dealsError }, { data: ageGroups, error: ageError }] = await Promise.all([
     supabase.from("local_service_deals").select("*").order("created_at", { ascending: false }),
-    supabase.from("age_groups").select("id, name, age_range").eq("is_active", true).order("sort_order", { ascending: true }),
+    supabase.from("age_groups").select("id, tag, age_range").eq("is_active", true).order("sort_order", { ascending: true }),
   ])
 
   if (dealsError) {
@@ -60,7 +60,7 @@ export default async function AdminLocalServicesPage() {
     }
   }
 
-  const ageGroupOptions = ((ageGroups ?? []) as AgeGroupOption[]).filter((r) => r.name)
+  const ageGroupOptions = ((ageGroups ?? []) as AgeGroupOption[]).filter((r) => r.age_range)
 
   return (
     <AdminLocalServicesClient

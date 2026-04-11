@@ -4,7 +4,7 @@ import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
@@ -104,7 +104,7 @@ export type AdminListingCountry = { id: string; name: string }
 export async function getAdminListings(
   options: GetAdminListingsOptions = {}
 ): Promise<{ listings: AdminListingRow[]; total: number }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
   const page = Math.max(1, options.page ?? 1)
   const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE
@@ -340,7 +340,7 @@ export type AdminListingDetail = {
 export async function getAdminListingDetail(
   profileId: string
 ): Promise<AdminListingDetail | null> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
 
@@ -440,7 +440,7 @@ export async function updateListingStatus(
   profileId: string,
   status: ListingStatus
 ): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
   const { data: before } = await supabase
     .from("provider_profiles")
@@ -486,7 +486,7 @@ export async function updateListingFeatured(
   profileId: string,
   featured: boolean
 ): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("provider_profiles")
@@ -512,7 +512,7 @@ export async function updateListingEarlyLearningExcellenceBadge(
   profileId: string,
   earlyLearningExcellenceBadge: boolean
 ): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("badges.verify")
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("provider_profiles")
@@ -537,7 +537,7 @@ export async function updateListingVerifiedProviderBadge(
   profileId: string,
   verifiedProviderBadge: boolean
 ): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("badges.verify")
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("provider_profiles")
@@ -562,7 +562,7 @@ export async function updateListingVerifiedProviderBadgeColor(
   profileId: string,
   badgeColor: string
 ): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("badges.verify")
   const supabase = getSupabaseAdminClient()
   const normalizedColor = normalizeVerifiedBadgeColor(badgeColor)
   const { data, error } = await supabase
@@ -588,7 +588,7 @@ export async function deleteListingPhoto(
   profileId: string,
   photoId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
 
   const { data: photoRow, error: selectError } = await supabase
@@ -652,7 +652,7 @@ export async function deleteListingPhoto(
 }
 
 export async function deleteListing(profileId: string): Promise<{ error?: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
   try {
     await deleteProviderPhotoStorage(profileId)
@@ -687,7 +687,7 @@ export async function addListingPhotos(
   profileId: string,
   formData: FormData
 ): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
 
   const photos = formData
@@ -785,7 +785,7 @@ export async function addListingPhotos(
 
 /** Returns countries from the database (directory's countries table) for the location filter. */
 export async function getAdminListingCountries(): Promise<AdminListingCountry[]> {
-  await assertServerRole("admin")
+  await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from("countries")

@@ -60,7 +60,9 @@ function parseCsv(value?: string): string[] {
 }
 
 function parseAgeTags(value?: string): AgeTag[] {
-  return parseCsv(value).filter((item): item is AgeTag => AGE_TAGS.has(item as AgeTag))
+  return parseCsv(value)
+    .map((item) => (item === "school_age" ? "schoolage" : item))
+    .filter((item): item is AgeTag => AGE_TAGS.has(item as AgeTag))
 }
 
 function parseAvailability(value?: string): Provider["availability"][] {
@@ -102,10 +104,10 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
     ] = await Promise.all([
       supabase
         .from("age_groups")
-        .select("id, name, age_range")
+        .select("id, tag, age_range")
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
-        .order("name", { ascending: true }),
+        .order("age_range", { ascending: true }),
       supabase
         .from("program_types")
         .select("id, name, slug")
@@ -149,8 +151,10 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
 
     return {
       ageGroups: (ageGroups ?? []).map((row) => {
-        const label = row.age_range ? `${row.name} (${row.age_range})` : row.name
-        return { value: label, label }
+        return {
+          value: row.tag === "school_age" ? "schoolage" : row.tag,
+          label: row.age_range,
+        }
       }),
       programTypes: (programTypes ?? []).map((row) => ({ value: row.name, label: row.name })),
       languages: (languages ?? []).map((row) => ({ value: row.name, label: row.name })),

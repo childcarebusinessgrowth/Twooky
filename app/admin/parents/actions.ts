@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 const ADMIN_PARENTS_PATH = "/admin/parents"
 
@@ -10,7 +10,7 @@ export type ParentActionResult = { ok: true } | { ok: false; error: string }
 
 export async function activateParent(profileId: string): Promise<ParentActionResult> {
   try {
-    await assertServerRole("admin")
+    await assertAdminPermission("parents.manage")
   } catch {
     return { ok: false, error: "Unauthorized" }
   }
@@ -31,7 +31,7 @@ export async function activateParent(profileId: string): Promise<ParentActionRes
 
 export async function deactivateParent(profileId: string): Promise<ParentActionResult> {
   try {
-    await assertServerRole("admin")
+    await assertAdminPermission("parents.manage")
   } catch {
     return { ok: false, error: "Unauthorized" }
   }
@@ -52,7 +52,7 @@ export async function deactivateParent(profileId: string): Promise<ParentActionR
 
 export async function deleteParent(profileId: string): Promise<ParentActionResult> {
   try {
-    await assertServerRole("admin")
+    await assertAdminPermission("parents.manage")
   } catch {
     return { ok: false, error: "Unauthorized" }
   }

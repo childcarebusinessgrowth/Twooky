@@ -28,7 +28,8 @@ export type ParentLocalServiceDeal = {
 
 export type ParentAgeGroupOption = {
   id: string
-  name: string
+  tag: string
+  ageRange: string
   sortOrder: number
 }
 
@@ -38,14 +39,25 @@ type Props = {
   loadError: string | null
 }
 
-function ageTargetIncludesName(ageTarget: string, name: string): boolean {
-  const needle = name.trim().toLowerCase()
-  if (!needle) return true
+function ageTargetMatchesSelection(ageTarget: string, ageGroup: ParentAgeGroupOption): boolean {
+  const accepted = new Set<string>([
+    ageGroup.ageRange.trim().toLowerCase(),
+    ageGroup.tag.trim().toLowerCase(),
+  ])
+  const legacyLabelsByTag: Record<string, string> = {
+    infant: "infant",
+    toddler: "toddler",
+    preschool: "preschool",
+    prek: "pre-k",
+    school_age: "school age",
+  }
+  const legacy = legacyLabelsByTag[ageGroup.tag]
+  if (legacy) accepted.add(legacy)
   const tokens = ageTarget
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
-  return tokens.some((t) => t === needle)
+  return tokens.some((t) => accepted.has(t))
 }
 
 export function ParentLocalServicesClient({ deals, ageGroups, loadError }: Props) {
@@ -64,10 +76,13 @@ export function ParentLocalServicesClient({ deals, ageGroups, loadError }: Props
   const filtered = useMemo(() => {
     return deals.filter((d) => {
       if (location !== "all" && d.location.trim() !== location) return false
-      if (childAge !== "all" && !ageTargetIncludesName(d.ageTarget, childAge)) return false
+      if (childAge !== "all") {
+        const selected = ageGroups.find((group) => group.id === childAge)
+        if (!selected || !ageTargetMatchesSelection(d.ageTarget, selected)) return false
+      }
       return true
     })
-  }, [deals, location, childAge])
+  }, [deals, location, childAge, ageGroups])
 
   return (
     <div className="space-y-6 lg:space-y-8">
@@ -112,8 +127,8 @@ export function ParentLocalServicesClient({ deals, ageGroups, loadError }: Props
             <SelectContent>
               <SelectItem value="all">All ages</SelectItem>
               {ageGroups.map((g) => (
-                <SelectItem key={g.id} value={g.name}>
-                  {g.name}
+                <SelectItem key={g.id} value={g.id}>
+                  {g.ageRange}
                 </SelectItem>
               ))}
             </SelectContent>

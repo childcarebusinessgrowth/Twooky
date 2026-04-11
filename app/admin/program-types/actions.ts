@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { revalidateDirectoryMetadataCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 type FaqInput = {
   question: string
@@ -34,7 +34,7 @@ function slugFromName(name: string): string {
 }
 
 export async function getProgramTypeWithDetails(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
 
   const { data: programType, error: ptError } = await supabase
@@ -60,22 +60,23 @@ export async function getProgramTypeWithDetails(id: string) {
 }
 
 export async function createProgramType(input: ProgramTypeInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const slug = slugFromName(input.name.trim())
+  const values = {
+    name: input.name.trim(),
+    is_active: input.isActive ?? true,
+    about_text: input.aboutText?.trim() || null,
+    short_description: input.shortDescription?.trim() || null,
+    age_group_ids: input.ageGroupIds?.length ? input.ageGroupIds : [],
+    key_benefits: input.keyBenefits?.filter(Boolean) ?? [],
+    slug: slug || null,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
 
   const { data: inserted, error } = await supabase
     .from("program_types")
-    .insert({
-      name: input.name.trim(),
-      sort_order: input.sortOrder ?? 0,
-      is_active: input.isActive ?? true,
-      about_text: input.aboutText?.trim() || null,
-      short_description: input.shortDescription?.trim() || null,
-      age_group_ids: input.ageGroupIds?.length ? input.ageGroupIds : [],
-      key_benefits: input.keyBenefits?.filter(Boolean) ?? [],
-      slug: slug || null,
-    })
+    .insert(values)
     .select("id")
     .single()
 
@@ -103,22 +104,23 @@ export async function createProgramType(input: ProgramTypeInput) {
 }
 
 export async function updateProgramType(id: string, input: ProgramTypeInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const slug = slugFromName(input.name.trim())
+  const values = {
+    name: input.name.trim(),
+    is_active: input.isActive ?? true,
+    about_text: input.aboutText?.trim() || null,
+    short_description: input.shortDescription?.trim() || null,
+    age_group_ids: input.ageGroupIds?.length ? input.ageGroupIds : [],
+    key_benefits: input.keyBenefits?.filter(Boolean) ?? [],
+    slug: slug || null,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
 
   const { error } = await supabase
     .from("program_types")
-    .update({
-      name: input.name.trim(),
-      sort_order: input.sortOrder ?? 0,
-      is_active: input.isActive ?? true,
-      about_text: input.aboutText?.trim() || null,
-      short_description: input.shortDescription?.trim() || null,
-      age_group_ids: input.ageGroupIds?.length ? input.ageGroupIds : [],
-      key_benefits: input.keyBenefits?.filter(Boolean) ?? [],
-      slug: slug || null,
-    })
+    .update(values)
     .eq("id", id)
 
   if (error) {
@@ -147,7 +149,7 @@ export async function updateProgramType(id: string, input: ProgramTypeInput) {
 }
 
 export async function deleteProgramType(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("program_types").delete().eq("id", id)
 

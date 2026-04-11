@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { randomUUID } from "crypto"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 const DISCOUNTS_PATH = "/admin/sponsors/discounts"
 const LOCAL_SERVICES_PATH = "/admin/sponsors/local-services"
@@ -45,7 +45,7 @@ function sanitizeFilename(name: string): string {
 }
 
 export async function uploadSponsorImage(file: File) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   if (!file) {
     throw new Error("No file provided.")
   }
@@ -102,7 +102,7 @@ function validateDiscountInput(input: SponsorDiscountInput) {
 }
 
 export async function createSponsorDiscount(input: SponsorDiscountInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   validateDiscountInput(input)
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("sponsor_discounts").insert({
@@ -121,7 +121,7 @@ export async function createSponsorDiscount(input: SponsorDiscountInput) {
 }
 
 export async function updateSponsorDiscount(id: string, input: SponsorDiscountInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   if (!id) throw new Error("Id is required.")
   validateDiscountInput(input)
   const supabase = getSupabaseAdminClient()
@@ -143,7 +143,7 @@ export async function updateSponsorDiscount(id: string, input: SponsorDiscountIn
 }
 
 export async function deleteSponsorDiscount(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   if (!id) throw new Error("Id is required.")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("sponsor_discounts").delete().eq("id", id)
@@ -186,7 +186,7 @@ function validateLocalDealInput(input: LocalServiceDealInput) {
 }
 
 export async function createLocalServiceDeal(input: LocalServiceDealInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   validateLocalDealInput(input)
   const supabase = getSupabaseAdminClient()
   const { data: prov, error: pErr } = await supabase
@@ -212,7 +212,7 @@ export async function createLocalServiceDeal(input: LocalServiceDealInput) {
 }
 
 export async function updateLocalServiceDeal(id: string, input: LocalServiceDealInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   if (!id) throw new Error("Id is required.")
   validateLocalDealInput(input)
   const supabase = getSupabaseAdminClient()
@@ -241,7 +241,7 @@ export async function updateLocalServiceDeal(id: string, input: LocalServiceDeal
 }
 
 export async function deleteLocalServiceDeal(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   if (!id) throw new Error("Id is required.")
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from("local_service_deals").delete().eq("id", id)
@@ -256,7 +256,7 @@ export type ProviderSearchRow = {
 }
 
 export async function searchProviders(query: string): Promise<ProviderSearchRow[]> {
-  await assertServerRole("admin")
+  await assertAdminPermission("sponsors.manage")
   const q = query.trim()
   const supabase = getSupabaseAdminClient()
   let request = supabase

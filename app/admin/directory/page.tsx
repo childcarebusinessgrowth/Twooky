@@ -24,8 +24,8 @@ type CityRow = {
 
 type AgeGroupRow = {
   id: string
-  name: string
-  age_range: string | null
+  tag: string
+  age_range: string
   sort_order: number
   is_active: boolean
 }
@@ -88,44 +88,36 @@ async function loadDirectoryData() {
     supabase
       .from("countries")
       .select("id, code, name, sort_order, is_active")
-      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("cities")
       .select(
         "id, country_id, name, slug, search_country_code, search_city_slug, is_popular, sort_order, is_active",
       )
-      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("age_groups")
-      .select("id, name, age_range, sort_order, is_active")
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
+      .select("id, tag, age_range, sort_order, is_active")
+      .order("age_range", { ascending: true }),
     supabase
       .from("program_types")
       .select("id, name, sort_order, is_active, about_text, key_benefits, short_description, age_group_ids, slug")
-      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("languages")
       .select("id, name, sort_order, is_active")
-      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("curriculum_philosophies")
       .select("id, name, sort_order, is_active")
-      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("provider_features")
       .select("id, name, sort_order, is_active")
-      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("currencies")
       .select("id, code, name, symbol, sort_order, is_active")
-      .order("sort_order", { ascending: true })
       .order("code", { ascending: true }),
   ])
 

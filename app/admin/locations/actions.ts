@@ -6,7 +6,7 @@ import {
   revalidateFooterCitiesCache,
 } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { assertServerRole } from "@/lib/authzServer"
+import { assertAdminPermission } from "@/lib/authzServer"
 
 type CountryInput = {
   id?: string
@@ -39,15 +39,16 @@ function toTitleCase(s: string): string {
 }
 
 export async function createCountry(input: CountryInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
-
-  const { error } = await supabase.from("countries").insert({
+  const values = {
     code: input.code.trim().toLowerCase(),
     name: toTitleCase(input.name),
-    sort_order: input.sortOrder ?? 0,
     is_active: input.isActive ?? true,
-  })
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
+
+  const { error } = await supabase.from("countries").insert(values)
 
   if (error) {
     throw new Error(error.message)
@@ -60,17 +61,18 @@ export async function createCountry(input: CountryInput) {
 }
 
 export async function updateCountry(id: string, input: CountryInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const values = {
+    code: input.code.trim().toLowerCase(),
+    name: toTitleCase(input.name),
+    is_active: input.isActive ?? true,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
 
   const { error } = await supabase
     .from("countries")
-    .update({
-      code: input.code.trim().toLowerCase(),
-      name: toTitleCase(input.name),
-      sort_order: input.sortOrder ?? 0,
-      is_active: input.isActive ?? true,
-    })
+    .update(values)
     .eq("id", id)
 
   if (error) {
@@ -84,7 +86,7 @@ export async function updateCountry(id: string, input: CountryInput) {
 }
 
 export async function deleteCountry(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
 
   const { error } = await supabase.from("countries").delete().eq("id", id)
@@ -100,19 +102,20 @@ export async function deleteCountry(id: string) {
 }
 
 export async function createCity(input: CityInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
-
-  const { error } = await supabase.from("cities").insert({
+  const values = {
     country_id: input.countryId,
     name: input.name.trim(),
     slug: input.slug.trim().toLowerCase(),
     search_country_code: input.searchCountryCode.trim().toLowerCase(),
     search_city_slug: input.searchCitySlug.trim().toLowerCase(),
-    sort_order: input.sortOrder ?? 0,
     is_popular: input.isPopular ?? true,
     is_active: input.isActive ?? true,
-  })
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
+
+  const { error } = await supabase.from("cities").insert(values)
 
   if (error) {
     throw new Error(error.message)
@@ -125,21 +128,22 @@ export async function createCity(input: CityInput) {
 }
 
 export async function updateCity(id: string, input: CityInput) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const values = {
+    country_id: input.countryId,
+    name: input.name.trim(),
+    slug: input.slug.trim().toLowerCase(),
+    search_country_code: input.searchCountryCode.trim().toLowerCase(),
+    search_city_slug: input.searchCitySlug.trim().toLowerCase(),
+    is_popular: input.isPopular ?? true,
+    is_active: input.isActive ?? true,
+    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+  }
 
   const { error } = await supabase
     .from("cities")
-    .update({
-      country_id: input.countryId,
-      name: input.name.trim(),
-      slug: input.slug.trim().toLowerCase(),
-      search_country_code: input.searchCountryCode.trim().toLowerCase(),
-      search_city_slug: input.searchCitySlug.trim().toLowerCase(),
-      sort_order: input.sortOrder ?? 0,
-      is_popular: input.isPopular ?? true,
-      is_active: input.isActive ?? true,
-    })
+    .update(values)
     .eq("id", id)
 
   if (error) {
@@ -153,7 +157,7 @@ export async function updateCity(id: string, input: CityInput) {
 }
 
 export async function deleteCity(id: string) {
-  await assertServerRole("admin")
+  await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
 
   const { error } = await supabase.from("cities").delete().eq("id", id)

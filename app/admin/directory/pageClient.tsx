@@ -55,8 +55,8 @@ type CityRow = {
 
 type AgeGroupRow = {
   id: string
-  name: string
-  age_range: string | null
+  tag: string
+  age_range: string
   sort_order: number
   is_active: boolean
 }

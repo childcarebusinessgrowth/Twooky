@@ -45,7 +45,22 @@ import {
 
 function parseAgeTargetToIds(ageTarget: string, groups: AgeGroupOption[]): string[] {
   if (!ageTarget.trim() || groups.length === 0) return []
-  const byLowerName = new Map(groups.map((g) => [g.name.trim().toLowerCase(), g.id]))
+  const legacyLabelByTag: Record<string, string> = {
+    infant: "infant",
+    toddler: "toddler",
+    preschool: "preschool",
+    prek: "pre-k",
+    school_age: "school age",
+  }
+  const byLowerLabel = new Map<string, string>()
+  for (const group of groups) {
+    byLowerLabel.set(group.age_range.trim().toLowerCase(), group.id)
+    byLowerLabel.set(group.tag.trim().toLowerCase(), group.id)
+    const legacyLabel = legacyLabelByTag[group.tag]
+    if (legacyLabel) {
+      byLowerLabel.set(legacyLabel, group.id)
+    }
+  }
   const segments = ageTarget
     .split(",")
     .map((s) => s.trim())
@@ -53,7 +68,7 @@ function parseAgeTargetToIds(ageTarget: string, groups: AgeGroupOption[]): strin
   const ids: string[] = []
   const seen = new Set<string>()
   for (const seg of segments) {
-    const id = byLowerName.get(seg.toLowerCase())
+    const id = byLowerLabel.get(seg.toLowerCase())
     if (id && !seen.has(id)) {
       seen.add(id)
       ids.push(id)
@@ -63,7 +78,7 @@ function parseAgeTargetToIds(ageTarget: string, groups: AgeGroupOption[]): strin
 }
 
 function buildAgeTargetFromSelection(selectedIds: Set<string>, groups: AgeGroupOption[]): string {
-  return groups.filter((g) => selectedIds.has(g.id)).map((g) => g.name).join(", ")
+  return groups.filter((g) => selectedIds.has(g.id)).map((g) => g.age_range).join(", ")
 }
 
 type FormState = {
@@ -142,12 +157,13 @@ export function AdminLocalServicesClient({ initialRows, providerMap, ageGroups }
     return () => window.clearTimeout(handle)
   }, [providerQuery])
 
-  useEffect(() => {
-    if (providerOpen) {
+  const handleProviderOpenChange = (open: boolean) => {
+    setProviderOpen(open)
+    if (open) {
       setProviderQuery("")
       void searchProviders("").then(setProviderResults).catch(() => setProviderResults([]))
     }
-  }, [providerOpen])
+  }
 
   const openCreate = () => {
     setEditingId(null)
@@ -431,7 +447,7 @@ export function AdminLocalServicesClient({ initialRows, providerMap, ageGroups }
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Provider</Label>
-              <Popover open={providerOpen} onOpenChange={setProviderOpen}>
+              <Popover open={providerOpen} onOpenChange={handleProviderOpenChange}>
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
@@ -577,10 +593,7 @@ export function AdminLocalServicesClient({ initialRows, providerMap, ageGroups }
                                 className="mt-0.5"
                               />
                               <label htmlFor={`ls-age-${g.id}`} className="min-w-0 flex-1 cursor-pointer">
-                                <span className="block text-sm font-medium leading-tight text-foreground">{g.name}</span>
-                                {g.age_range ? (
-                                  <span className="mt-0.5 block text-xs text-muted-foreground">{g.age_range}</span>
-                                ) : null}
+                                <span className="block text-sm font-medium leading-tight text-foreground">{g.age_range}</span>
                               </label>
                             </div>
                           )

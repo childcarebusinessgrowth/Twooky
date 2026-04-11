@@ -37,14 +37,12 @@ export function AdminFeaturesPageClient({ initialFeatures }: Props) {
       createItem={async (input) =>
         createFeature({
           name: input.name,
-          sortOrder: input.sortOrder,
           isActive: input.isActive,
         })
       }
       updateItem={async (id, input) =>
         updateFeature(id, {
           name: input.name,
-          sortOrder: input.sortOrder,
           isActive: input.isActive,
         })
       }

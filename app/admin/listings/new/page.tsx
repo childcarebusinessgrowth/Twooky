@@ -5,7 +5,7 @@ import { AdminCreateProviderForm } from "./AdminCreateProviderForm"
 
 export default async function AdminCreateProviderPage() {
   await guardRoleOrRedirect("admin")
-  const { countries, cities, languages, curriculum, currencies } = await getAdminProviderCreateOptions()
+  const { countries, cities, languages, curriculum, currencies, ageGroups } = await getAdminProviderCreateOptions()
 
   return (
     <div className="space-y-6">
@@ -23,6 +23,7 @@ export default async function AdminCreateProviderPage() {
             languages={languages}
             curriculum={curriculum}
             currencies={currencies}
+            ageGroups={ageGroups}
           />
         </CardContent>
       </Card>

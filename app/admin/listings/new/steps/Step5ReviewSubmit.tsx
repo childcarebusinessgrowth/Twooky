@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
 import { Badge } from "@/components/ui/badge"
 import { PROVIDER_TYPES } from "@/lib/provider-types"
-import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
+import { AMENITIES } from "@/lib/listing-options"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import type { FaqItem, PhotoItem } from "../types"
+import type { AdminProviderAgeGroupOption } from "../actions"
 
 type Step5ReviewSubmitProps = {
   businessName: string
@@ -41,6 +42,7 @@ type Step5ReviewSubmitProps = {
   faqs: FaqItem[]
   photoItems: PhotoItem[]
   curriculumOptions: { id: string; name: string }[]
+  ageGroups: AdminProviderAgeGroupOption[]
 }
 
 function formatValue(value: string | undefined, fallback = ",") {
@@ -79,12 +81,13 @@ export function Step5ReviewSubmit({
   faqs,
   photoItems,
   curriculumOptions,
+  ageGroups,
 }: Step5ReviewSubmitProps) {
   const providerTypeLabels = providerTypes
     .map((id) => PROVIDER_TYPES.find((t) => t.id === id)?.label)
     .filter(Boolean)
   const ageGroupLabels = ageGroupsServed
-    .map((id) => AGE_GROUPS.find((g) => g.id === id)?.label)
+    .map((tag) => ageGroups.find((g) => g.tag === tag)?.age_range)
     .filter(Boolean)
   const amenityLabels = amenities
     .map((id) => AMENITIES.find((a) => a.id === id)?.label)
@@ -151,7 +154,7 @@ export function Step5ReviewSubmit({
           )}
           {ageGroupLabels.length > 0 && (
             <div>
-              <span className="text-muted-foreground">Age groups: </span>
+              <span className="text-muted-foreground">Age ranges: </span>
               {ageGroupLabels.join(", ")}
             </div>
           )}

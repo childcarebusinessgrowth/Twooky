@@ -38,7 +38,6 @@ export type CatalogItem = {
 
 type MutationInput = {
   name: string
-  sortOrder: number
   isActive: boolean
   secondaryValue?: string | null
 }
@@ -67,14 +66,12 @@ type CatalogManagerProps = {
 
 type FormState = {
   name: string
-  sortOrder: string
   isActive: boolean
   secondaryValue: string
 }
 
 const EMPTY_FORM: FormState = {
   name: "",
-  sortOrder: "0",
   isActive: true,
   secondaryValue: "",
 }
@@ -120,7 +117,6 @@ export function CatalogManager({
     setEditingItem(item)
     setForm({
       name: item.name,
-      sortOrder: String(item.sort_order ?? 0),
       isActive: item.is_active,
       secondaryValue: item.secondary_value ?? "",
     })
@@ -154,7 +150,6 @@ export function CatalogManager({
 
     const payload: MutationInput = {
       name: trimmedName,
-      sortOrder: Number(form.sortOrder) || 0,
       isActive: form.isActive,
       secondaryValue: hasSecondaryField ? form.secondaryValue.trim() || null : null,
     }
@@ -224,7 +219,6 @@ export function CatalogManager({
               <TableRow>
                 <TableHead>Name</TableHead>
                 {hasSecondaryField && <TableHead>{displaySecondaryHeader}</TableHead>}
-                <TableHead className="hidden md:table-cell">Sort</TableHead>
                 <TableHead className="hidden md:table-cell">Active</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
@@ -234,7 +228,6 @@ export function CatalogManager({
                 <TableRow key={item.id}>
                   <TableCell>{item.name}</TableCell>
                   {hasSecondaryField && <TableCell>{item.secondary_value ?? ","}</TableCell>}
-                  <TableCell className="hidden md:table-cell">{item.sort_order}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {item.is_active ? (
                       <span className="text-xs rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">
@@ -270,7 +263,7 @@ export function CatalogManager({
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={hasSecondaryField ? 5 : 4} className="text-center text-muted-foreground text-sm">
+                  <TableCell colSpan={hasSecondaryField ? 4 : 3} className="text-center text-muted-foreground text-sm">
                     {emptyStateMessage}
                   </TableCell>
                 </TableRow>
@@ -311,17 +304,7 @@ export function CatalogManager({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="catalog-sort">Sort order</Label>
-                <Input
-                  id="catalog-sort"
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(event) => setForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-1 flex items-center gap-2 pt-6">
+            <div className="space-y-1 flex items-center gap-2">
                 <Switch
                   id="catalog-active"
                   checked={form.isActive}
@@ -333,7 +316,6 @@ export function CatalogManager({
                   }}
                 />
                 <Label htmlFor="catalog-active">Active</Label>
-              </div>
             </div>
           </div>
           <DialogFooter>

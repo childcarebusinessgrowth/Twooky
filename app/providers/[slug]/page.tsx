@@ -226,7 +226,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                           <Users className="h-5 w-5 text-primary" />
                         </div>
-                        <h3 className="font-semibold">Age Groups</h3>
+                        <h3 className="font-semibold">Age Ranges</h3>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {p.ageGroups.map((age) => (

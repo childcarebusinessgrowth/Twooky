@@ -37,14 +37,12 @@ export function AdminCurriculumPageClient({ initialCurriculum }: Props) {
       createItem={async (input) =>
         createCurriculum({
           name: input.name,
-          sortOrder: input.sortOrder,
           isActive: input.isActive,
         })
       }
       updateItem={async (id, input) =>
         updateCurriculum(id, {
           name: input.name,
-          sortOrder: input.sortOrder,
           isActive: input.isActive,
         })
       }

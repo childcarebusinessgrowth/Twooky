@@ -5,8 +5,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
 import { PROVIDER_TYPES } from "@/lib/provider-types"
-import { AGE_GROUPS, AMENITIES } from "@/lib/listing-options"
-import type { AdminProviderCurriculumOption, AdminProviderLanguageOption } from "../actions"
+import { AMENITIES } from "@/lib/listing-options"
+import type {
+  AdminProviderAgeGroupOption,
+  AdminProviderCurriculumOption,
+  AdminProviderLanguageOption,
+} from "../actions"
 
 type Step3ProgramDetailsProps = {
   providerTypes: string[]
@@ -19,6 +23,7 @@ type Step3ProgramDetailsProps = {
   setSelectedLanguages: (v: string[]) => void
   amenities: string[]
   setAmenities: (v: string[]) => void
+  ageGroups: AdminProviderAgeGroupOption[]
   curriculum: AdminProviderCurriculumOption[]
   languages: AdminProviderLanguageOption[]
 }
@@ -34,6 +39,7 @@ export function Step3ProgramDetails({
   setSelectedLanguages,
   amenities,
   setAmenities,
+  ageGroups,
   curriculum,
   languages,
 }: Step3ProgramDetailsProps) {
@@ -77,21 +83,21 @@ export function Step3ProgramDetails({
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-3">
-            {AGE_GROUPS.map((group) => (
+            {ageGroups.map((group) => (
               <label key={group.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
                 <Checkbox
-                  checked={ageGroupsServed.includes(group.id)}
+                  checked={ageGroupsServed.includes(group.tag)}
                   onCheckedChange={(checked) =>
                     setAgeGroupsServed(
                       checked
-                        ? ageGroupsServed.includes(group.id)
+                        ? ageGroupsServed.includes(group.tag)
                           ? ageGroupsServed
-                          : [...ageGroupsServed, group.id]
-                        : ageGroupsServed.filter((id) => id !== group.id),
+                          : [...ageGroupsServed, group.tag]
+                        : ageGroupsServed.filter((id) => id !== group.tag),
                     )
                   }
                 />
-                <span className="text-sm font-medium">{group.label}</span>
+                <span className="text-sm font-medium">{group.age_range}</span>
               </label>
             ))}
           </div>

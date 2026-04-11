@@ -21,6 +21,7 @@ import {
   Star,
   Flag,
   Handshake,
+  Shield,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -63,8 +64,8 @@ type SidebarGroupItem = {
   children: { label: string; href: string }[]
 }
 
-function getSidebarItems(pendingClaimsCount: number): (SidebarLinkItem | SidebarGroupItem)[] {
-  return [
+function getSidebarItems(pendingClaimsCount: number, canManageTeam: boolean): (SidebarLinkItem | SidebarGroupItem)[] {
+  const items: (SidebarLinkItem | SidebarGroupItem)[] = [
     { kind: "link", label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { kind: "link", label: "Listings", href: "/admin/listings", icon: Building2 },
     { kind: "link", label: "Parents", href: "/admin/parents", icon: UsersRound },
@@ -90,11 +91,23 @@ function getSidebarItems(pendingClaimsCount: number): (SidebarLinkItem | Sidebar
     { kind: "link", label: "Directory", href: "/admin/directory", icon: FolderTree },
     { kind: "link", label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   ]
+  if (canManageTeam) {
+    items.push({ kind: "link", label: "Team", href: "/admin/team", icon: Shield })
+  }
+  return items
 }
 
-function SidebarNav({ onItemClick, pendingClaimsCount }: { onItemClick?: () => void; pendingClaimsCount: number }) {
+function SidebarNav({
+  onItemClick,
+  pendingClaimsCount,
+  canManageTeam,
+}: {
+  onItemClick?: () => void
+  pendingClaimsCount: number
+  canManageTeam: boolean
+}) {
   const pathname = usePathname()
-  const sidebarItems = getSidebarItems(pendingClaimsCount)
+  const sidebarItems = getSidebarItems(pendingClaimsCount, canManageTeam)
 
   return (
     <nav className="flex flex-col gap-1 px-3">
@@ -206,9 +219,11 @@ function AdminSidebarGroup({
 export function AdminLayoutClient({
   children,
   pendingClaimsCount = 0,
+  canManageTeam = false,
 }: {
   children: React.ReactNode
   pendingClaimsCount?: number
+  canManageTeam?: boolean
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([])
@@ -350,7 +365,7 @@ export function AdminLayoutClient({
           </div>
 
           <div className="flex-1 overflow-y-auto py-4">
-            <SidebarNav pendingClaimsCount={pendingClaimsCount} />
+            <SidebarNav pendingClaimsCount={pendingClaimsCount} canManageTeam={canManageTeam} />
           </div>
 
           <div className="border-t border-border p-4">
@@ -387,7 +402,11 @@ export function AdminLayoutClient({
                   />
                 </div>
                 <div className="py-4">
-                  <SidebarNav onItemClick={() => setMobileMenuOpen(false)} pendingClaimsCount={pendingClaimsCount} />
+                  <SidebarNav
+                    onItemClick={() => setMobileMenuOpen(false)}
+                    pendingClaimsCount={pendingClaimsCount}
+                    canManageTeam={canManageTeam}
+                  />
                 </div>
               </SheetContent>
             </Sheet>

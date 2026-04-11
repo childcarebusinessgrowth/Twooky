@@ -2,7 +2,15 @@ import "server-only"
 
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
-import { getProfileRoleForUser, type AppRole } from "@/lib/authz"
+import {
+  getAdminPermissionsForRole,
+  getProfileRoleForUser,
+  hasAdminPermission,
+  resolveAdminTeamRoleForUser,
+  type AdminPermission,
+  type AdminTeamRole,
+  type AppRole,
+} from "@/lib/authz"
 
 export async function getCurrentUserRole(requiredRole?: AppRole) {
   const supabase = await createSupabaseServerClient()
@@ -27,6 +35,38 @@ export async function getCurrentUserRole(requiredRole?: AppRole) {
   return { user, role }
 }
 
+export async function getCurrentAdminAccess() {
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return {
+      user: null,
+      role: null as AppRole | null,
+      teamRole: null as AdminTeamRole | null,
+      permissions: new Set<AdminPermission>(),
+    }
+  }
+
+  const role = await getProfileRoleForUser(supabase, user)
+  if (role !== "admin") {
+    return {
+      user,
+      role,
+      teamRole: null as AdminTeamRole | null,
+      permissions: new Set<AdminPermission>(),
+    }
+  }
+
+  const teamRole = await resolveAdminTeamRoleForUser(supabase, user, role)
+  const permissions = teamRole ? getAdminPermissionsForRole(teamRole) : new Set<AdminPermission>()
+
+  return { user, role, teamRole, permissions }
+}
+
 export async function assertServerRole(requiredRole: AppRole) {
   const { user, role } = await getCurrentUserRole(requiredRole)
   if (!user) {
@@ -34,6 +74,16 @@ export async function assertServerRole(requiredRole: AppRole) {
   }
 
   if (role !== requiredRole) {
+    throw new Error("Forbidden")
+  }
+}
+
+export async function assertAdminPermission(permission: AdminPermission) {
+  const { user, role, teamRole } = await getCurrentAdminAccess()
+  if (!user) {
+    throw new Error("Unauthorized")
+  }
+  if (role !== "admin" || !teamRole || !hasAdminPermission(teamRole, permission)) {
     throw new Error("Forbidden")
   }
 }
@@ -47,5 +97,15 @@ export async function guardRoleOrRedirect(requiredRole: AppRole, loginPath = "/l
 
   if (role !== requiredRole) {
     redirect("/")
+  }
+}
+
+export async function guardAdminPermissionOrRedirect(permission: AdminPermission, loginPath = "/login") {
+  const { user, role, teamRole } = await getCurrentAdminAccess()
+  if (!user) {
+    redirect(loginPath)
+  }
+  if (role !== "admin" || !teamRole || !hasAdminPermission(teamRole, permission)) {
+    redirect("/admin")
   }
 }

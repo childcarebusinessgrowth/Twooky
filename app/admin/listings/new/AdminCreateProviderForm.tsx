@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import type {
+  AdminProviderAgeGroupOption,
   AdminProviderCityOption,
   AdminProviderCountryOption,
   AdminProviderCurriculumOption,
@@ -30,12 +31,14 @@ export function AdminCreateProviderForm({
   languages,
   curriculum,
   currencies,
+  ageGroups,
 }: {
   countries: AdminProviderCountryOption[]
   cities: AdminProviderCityOption[]
   languages: AdminProviderLanguageOption[]
   curriculum: AdminProviderCurriculumOption[]
   currencies: AdminProviderCurrencyOption[]
+  ageGroups: AdminProviderAgeGroupOption[]
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -272,6 +275,7 @@ export function AdminCreateProviderForm({
             setAmenities={setAmenities}
             curriculum={curriculum}
             languages={languages}
+            ageGroups={ageGroups}
           />
         )}
         {currentStep === 4 && (
@@ -352,6 +356,7 @@ export function AdminCreateProviderForm({
             faqs={faqs}
             photoItems={photoItems}
             curriculumOptions={curriculum}
+            ageGroups={ageGroups}
           />
         )}
       </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
-import { getDefaultRouteForRole, resolveRoleForUser } from "@/lib/authz"
+import { getAdminPermissionsForRole, getDefaultRouteForRole, resolveAdminTeamRoleForUser, resolveRoleForUser } from "@/lib/authz"
 
 export async function GET() {
   try {
@@ -36,9 +36,18 @@ export async function GET() {
       )
     }
 
+    const adminTeamRole =
+      role === "admin"
+        ? await resolveAdminTeamRoleForUser(supabase, user, role)
+        : null
+
+    const adminPermissions = adminTeamRole ? Array.from(getAdminPermissionsForRole(adminTeamRole)) : []
+
     return NextResponse.json({
       role,
       source: roleResolution.source,
+      adminTeamRole,
+      adminPermissions,
       redirectPath: getDefaultRouteForRole(role),
     })
   } catch {

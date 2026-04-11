@@ -49,7 +49,7 @@ export default async function ParentLocalServicesPage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("age_groups")
-      .select("id, name, sort_order")
+      .select("id, tag, age_range, sort_order")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
   ])
@@ -72,7 +72,8 @@ export default async function ParentLocalServicesPage() {
 
   const ageGroups: ParentAgeGroupOption[] = (agesRes.data ?? []).map((g) => ({
     id: g.id,
-    name: g.name,
+    tag: g.tag,
+    ageRange: g.age_range,
     sortOrder: g.sort_order,
   }))
 
