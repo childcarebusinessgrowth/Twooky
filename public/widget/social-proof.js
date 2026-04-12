@@ -1,6 +1,6 @@
 (function () {
-  var SHOW_MS = 3000
-  var HIDE_MS = 2200
+  var SHOW_MS = 9000
+  var HIDE_MS = 6600
 
   function resolveScriptElement() {
     if (document.currentScript) return document.currentScript
@@ -23,6 +23,7 @@
   var scriptUrl = new URL(scriptEl.src, window.location.href)
   var apiBase = scriptUrl.origin
   var apiUrl = apiBase + "/api/social-proof?provider=" + encodeURIComponent(provider)
+  var logoUrl = apiBase + "/images/twooky-logo.png"
 
   var stylesId = "twooki-spw-styles"
   var containerId = "twooki-spw-container"
@@ -32,7 +33,7 @@
     var styleEl = document.createElement("style")
     styleEl.id = stylesId
     styleEl.textContent =
-      ".twooki-spw{position:fixed;left:20px;bottom:20px;z-index:2147483000;width:min(520px,calc(100vw - 32px));background:#fff;color:#1f2937;border:1px solid rgba(15,23,42,.12);border-radius:18px;box-shadow:0 18px 45px rgba(2,6,23,.24);padding:12px;transform:translateY(120%);opacity:0;transition:transform .28s ease,opacity .28s ease;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer}.twooki-spw.twooki-spw-show{transform:translateY(0);opacity:1}.twooki-spw-card{position:relative;display:flex;gap:12px;align-items:flex-start}.twooki-spw-close{position:absolute;top:-6px;right:-4px;width:28px;height:28px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:18px;line-height:1;cursor:pointer}.twooki-spw-close:hover{color:#111827}.twooki-spw-avatar{flex:none;width:106px;height:106px;border-radius:13px;object-fit:cover;background:#e5e7eb}.twooki-spw-content{min-width:0;flex:1;padding-right:18px}.twooki-spw-stars{display:flex;gap:2px;color:#f97316;font-size:30px;line-height:1;margin-bottom:6px}.twooki-spw-text{color:#111827;line-height:1.35;font-size:17px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.twooki-spw-author{margin-top:7px;font-size:14px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.twooki-spw-footer{margin-top:10px;display:flex;justify-content:flex-end}.twooki-spw-verified{font-size:12px;color:#5b21b6;background:#ede9fe;border:1px solid #ddd6fe;border-radius:999px;padding:4px 10px;font-weight:700}.twooki-spw-modal-backdrop{position:fixed;inset:0;z-index:2147483001;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:20px}.twooki-spw-modal-backdrop.twooki-spw-modal-show{display:flex}.twooki-spw-modal{position:relative;width:min(680px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:16px;border:1px solid rgba(15,23,42,.12);box-shadow:0 24px 70px rgba(2,6,23,.45)}.twooki-spw-modal-head{padding:18px 18px 0}.twooki-spw-modal-close{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:20px;line-height:1;cursor:pointer}.twooki-spw-modal-body{padding:18px;display:grid;grid-template-columns:140px 1fr;gap:16px}.twooki-spw-modal-media{width:140px;height:140px;border-radius:12px;object-fit:cover;background:#e5e7eb}.twooki-spw-modal-video{width:100%;border-radius:12px;background:#000}.twooki-spw-modal-stars{display:flex;gap:2px;color:#f97316;font-size:30px;line-height:1;margin:4px 0 8px}.twooki-spw-modal-text{font-size:16px;line-height:1.55;color:#111827}.twooki-spw-modal-author{margin-top:8px;font-size:14px;color:#6b7280}.twooki-spw-modal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}.twooki-spw-modal-verified{font-size:12px;color:#1d4ed8;background:#dbeafe;border:1px solid #bfdbfe;border-radius:999px;padding:4px 10px;font-weight:700}.twooki-spw-modal-cta{border:0;background:#111827;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}.twooki-spw-modal-cta:hover{background:#1f2937}@media (max-width:640px){.twooki-spw-avatar{width:84px;height:84px}.twooki-spw-content{padding-right:10px}.twooki-spw-stars{font-size:25px}.twooki-spw-text{font-size:15px}.twooki-spw-modal-body{grid-template-columns:1fr}.twooki-spw-modal-media{width:100%;height:210px}}"
+      ".twooki-spw{position:fixed;left:20px;bottom:20px;z-index:2147483000;width:min(520px,calc(100vw - 32px));background:#fff;color:#1f2937;border:1px solid rgba(15,23,42,.12);border-radius:18px;box-shadow:0 18px 45px rgba(2,6,23,.24);padding:12px;transform:translateY(120%);opacity:0;transition:transform .28s ease,opacity .28s ease;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer}.twooki-spw.twooki-spw-show{transform:translateY(0);opacity:1}.twooki-spw-card{position:relative;display:flex;gap:12px;align-items:flex-start}.twooki-spw-close{position:absolute;top:-6px;right:-4px;width:28px;height:28px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:18px;line-height:1;cursor:pointer}.twooki-spw-close:hover{color:#111827}.twooki-spw-avatar-wrap{width:106px;height:106px;flex:none;border-radius:13px;overflow:hidden;background:#e5e7eb}.twooki-spw-avatar,.twooki-spw-avatar-video{width:100%;height:100%;display:block;object-fit:cover}.twooki-spw-avatar-video{background:#000}.twooki-spw-content{min-width:0;flex:1;padding-right:18px}.twooki-spw-stars{display:flex;gap:2px;color:#f97316;font-size:30px;line-height:1;margin-bottom:6px}.twooki-spw-text{color:#111827;line-height:1.35;font-size:17px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.twooki-spw-author{margin-top:7px;font-size:14px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.twooki-spw-footer{margin-top:10px;display:flex;justify-content:flex-end}.twooki-spw-verified{font-size:12px;color:#5b21b6;background:#ede9fe;border:1px solid #ddd6fe;border-radius:999px;padding:4px 10px;font-weight:700}.twooki-spw-modal-backdrop{position:fixed;inset:0;z-index:2147483001;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:20px}.twooki-spw-modal-backdrop.twooki-spw-modal-show{display:flex}.twooki-spw-modal{position:relative;width:min(510px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:14px;border:1px solid rgba(15,23,42,.12);box-shadow:0 24px 70px rgba(2,6,23,.45)}.twooki-spw-modal-close{position:absolute;top:12px;right:14px;border:0;background:transparent;color:#fff;font-size:36px;line-height:1;cursor:pointer;z-index:3}.twooki-spw-modal-head{height:84px;background:linear-gradient(135deg,#a855f7,#8b5cf6)}.twooki-spw-modal-body{padding:0 24px 22px}.twooki-spw-modal-avatar-wrap{margin-top:-42px}.twooki-spw-modal-avatar,.twooki-spw-modal-avatar-video{width:84px;height:84px;border-radius:999px;object-fit:cover;border:4px solid #fff;background:#e5e7eb;box-shadow:0 8px 22px rgba(2,6,23,.25);display:block}.twooki-spw-modal-avatar-video{background:#000}.twooki-spw-modal-title{font-size:18px;line-height:1.3;color:#111827;font-weight:700;margin-top:10px}.twooki-spw-modal-author{font-size:14px;color:#64748b;margin-top:3px}.twooki-spw-modal-stars{display:flex;gap:2px;color:#f97316;font-size:34px;line-height:1;margin:10px 0 8px}.twooki-spw-modal-feature-media{margin:14px 0 12px}.twooki-spw-modal-feature-video,.twooki-spw-modal-feature-image{width:100%;max-height:320px;border-radius:10px;display:block}.twooki-spw-modal-feature-video{background:#000}.twooki-spw-modal-feature-image{object-fit:cover;background:#e5e7eb}.twooki-spw-modal-text{font-size:16px;line-height:1.56;color:#374151}.twooki-spw-modal-row{margin-top:16px;display:flex;justify-content:flex-start}.twooki-spw-modal-verified{border:0;background:#111827;color:#fff;padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}.twooki-spw-modal-verified:hover{background:#1f2937}@media (max-width:640px){.twooki-spw-avatar-wrap{width:84px;height:84px}.twooki-spw-content{padding-right:10px}.twooki-spw-stars{font-size:25px}.twooki-spw-text{font-size:15px}.twooki-spw-modal-body{padding:0 16px 18px}}"
     document.head.appendChild(styleEl)
   }
 
@@ -87,12 +88,12 @@
     card.innerHTML =
       '<div class="twooki-spw-card">' +
       '<button type="button" class="twooki-spw-close" aria-label="Close">×</button>' +
-      '<img class="twooki-spw-avatar" alt="Social proof" loading="lazy" />' +
+      '<div class="twooki-spw-avatar-wrap"></div>' +
       '<div class="twooki-spw-content">' +
       '<div class="twooki-spw-stars"></div>' +
       '<div class="twooki-spw-text"></div>' +
       '<div class="twooki-spw-author"></div>' +
-      '<div class="twooki-spw-footer"><span class="twooki-spw-verified">Verified by Twooki</span></div>' +
+      '<div class="twooki-spw-footer"><span class="twooki-spw-verified">Verified by Twooky</span></div>' +
       "</div></div>"
 
     var modalBackdrop = document.createElement("div")
@@ -134,7 +135,7 @@
         var modalBackdrop = ui.modalBackdrop
         var modalHead = modalBackdrop.querySelector(".twooki-spw-modal-head")
         var modalBody = modalBackdrop.querySelector(".twooki-spw-modal-body")
-        var cardImage = card.querySelector(".twooki-spw-avatar")
+        var cardAvatarWrap = card.querySelector(".twooki-spw-avatar-wrap")
         var cardStars = card.querySelector(".twooki-spw-stars")
         var cardText = card.querySelector(".twooki-spw-text")
         var cardAuthor = card.querySelector(".twooki-spw-author")
@@ -160,7 +161,19 @@
         }
 
         function renderCard(item) {
-          cardImage.src = buildAvatar(item)
+          if (item.type === "video" && item.videoUrl) {
+            cardAvatarWrap.innerHTML =
+              '<video class="twooki-spw-avatar-video" src="' +
+              escapeHtml(item.videoUrl) +
+              '" muted autoplay loop playsinline preload="metadata"' +
+              (item.imageUrl ? ' poster="' + escapeHtml(item.imageUrl) + '"' : "") +
+              "></video>"
+          } else {
+            cardAvatarWrap.innerHTML =
+              '<img class="twooki-spw-avatar" src="' +
+              escapeHtml(buildAvatar(item)) +
+              '" alt="Social proof" loading="lazy" />'
+          }
           cardStars.innerHTML = renderStars(item.rating)
           cardText.innerHTML = "&ldquo;" + escapeHtml(item.content || "") + "&rdquo;"
           cardAuthor.textContent = item.authorName || ""
@@ -185,41 +198,45 @@
           modalHead.innerHTML = ""
           modalBody.innerHTML = ""
 
-          var head = document.createElement("div")
-          head.style.height = "12px"
-          modalHead.appendChild(head)
+          var providerName = payload.providerName || "Twooky Customer"
 
-          var mediaHtml = ""
+          var avatarMediaHtml =
+            '<img class="twooki-spw-modal-avatar" src="' +
+            escapeHtml(logoUrl) +
+            '" alt="Twooky logo" loading="lazy" />'
+          var featureMediaHtml = ""
           if (item.type === "video" && item.videoUrl) {
-            mediaHtml =
-              '<video class="twooki-spw-modal-video" src="' +
+            featureMediaHtml =
+              '<div class="twooki-spw-modal-feature-media"><video class="twooki-spw-modal-feature-video" src="' +
               escapeHtml(item.videoUrl) +
               '" controls playsinline preload="metadata"' +
               (item.imageUrl ? ' poster="' + escapeHtml(item.imageUrl) + '"' : "") +
-              "></video>"
-          } else {
-            mediaHtml =
-              '<img class="twooki-spw-modal-media" src="' +
+              "></video></div>"
+          } else if (item.type === "image") {
+            featureMediaHtml =
+              '<div class="twooki-spw-modal-feature-media"><img class="twooki-spw-modal-feature-image" src="' +
               escapeHtml(buildAvatar(item)) +
-              '" alt="Social proof media" loading="lazy" />'
+              '" alt="Social proof image" loading="lazy" /></div>'
           }
 
           modalBody.innerHTML =
-            '<div>' +
-            mediaHtml +
+            '<div class="twooki-spw-modal-avatar-wrap">' +
+            avatarMediaHtml +
             "</div>" +
-            '<div class="twooki-spw-modal-copy">' +
+            '<div class="twooki-spw-modal-profile">' +
+            '<div class="twooki-spw-modal-title">' +
+            escapeHtml(item.authorName || providerName) +
+            "</div></div>" +
             renderModalStars(item.rating) +
+            featureMediaHtml +
             '<div class="twooki-spw-modal-text">&ldquo;' +
             escapeHtml(item.content || "") +
             "&rdquo;</div>" +
-            (item.authorName ? '<div class="twooki-spw-modal-author">' + escapeHtml(item.authorName) + "</div>" : "") +
-            '<div class="twooki-spw-modal-row"><span class="twooki-spw-modal-verified">Verified by Twooki</span><button type="button" class="twooki-spw-modal-cta">View on Twooky</button></div>' +
-            "</div>"
+            '<div class="twooki-spw-modal-row"><button type="button" class="twooki-spw-modal-verified">Verified by Twooky</button></div>'
 
-          var modalCta = modalBody.querySelector(".twooki-spw-modal-cta")
-          if (modalCta) {
-            modalCta.addEventListener("click", function () {
+          var modalVerified = modalBody.querySelector(".twooki-spw-modal-verified")
+          if (modalVerified) {
+            modalVerified.addEventListener("click", function () {
               openProfileNewTab()
             })
           }

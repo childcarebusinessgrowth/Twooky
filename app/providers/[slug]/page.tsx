@@ -39,7 +39,6 @@ import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excell
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { AuthProviderClient } from "@/components/auth-provider-client"
 import { ProviderProgramOwnerStrip } from "@/components/provider-program-owner-strip"
-import { ProviderSocialProofPopup } from "@/components/provider-social-proof-popup"
 import { programLabelToProgramPageSlug } from "@/lib/program-types"
 import { cn } from "@/lib/utils"
 
@@ -90,7 +89,6 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
     <AuthProviderClient>
       <div className="min-h-screen bg-background">
         <ProviderProfileViewTracker slug={p.slug} />
-        <ProviderSocialProofPopup providerSlug={p.slug} />
       {/* Hero Image */}
       <section className="relative h-64 md:h-80 lg:h-96 bg-muted overflow-hidden">
         <Image

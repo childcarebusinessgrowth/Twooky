@@ -339,7 +339,7 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Social Proof</h1>
           </div>
           <p className="max-w-3xl text-muted-foreground">
-            Create and manage testimonials shown on provider websites and Twooki provider profiles. Only admin users can publish this content.
+            Create and manage testimonials shown on provider websites and Twooky provider profiles. Only admin users can publish this content.
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2">
