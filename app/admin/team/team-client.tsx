@@ -114,12 +114,13 @@ export function AdminTeamClient({ initialMembers }: { initialMembers: TeamMember
         return
       }
       if (result.teamMember) {
+        const teamMember = result.teamMember
         setMembers((prev) => {
-          const exists = prev.some((member) => member.profileId === result.teamMember?.profileId)
+          const exists = prev.some((member) => member.profileId === teamMember.profileId)
           if (exists) {
-            return prev.map((member) => (member.profileId === result.teamMember?.profileId ? result.teamMember : member))
+            return prev.map((member) => (member.profileId === teamMember.profileId ? teamMember : member))
           }
-          return [...prev, result.teamMember]
+          return [...prev, teamMember]
         })
       }
 

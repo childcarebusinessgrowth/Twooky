@@ -10,39 +10,81 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { ProviderCard } from "@/components/provider-card"
+import { SearchResults } from "@/components/search-results"
 import { StatsSection } from "@/components/stats-section"
 import { SearchBarDynamic } from "@/components/search-bar-dynamic"
 import { providers, cityStats, cities } from "@/lib/mock-data"
 import {
   buildLocationHref,
+  buildLocationProviderTypeHref,
   getActiveCitiesByCountryCode,
   getActiveLocationRouteParams,
   getCityByCountryAndSlug,
   resolveLegacyCitySlugToCanonical,
 } from "@/lib/locations"
+import { getProviderTypeById, PROVIDER_TYPES, type ProviderTypeId } from "@/lib/provider-types"
+import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
 
 interface LocationPageProps {
   params: Promise<{ segments: string[] }>
+  searchParams?: Promise<SearchPageQueryParams>
 }
 
-function parseSegments(segments: string[]): { country: string; city: string } | { legacyCity: string } | null {
+type ParsedSegments =
+  | { kind: "legacy"; legacyCity: string }
+  | { kind: "city"; country: string; city: string }
+  | { kind: "providerType"; country: string; city: string; providerType: ProviderTypeId }
+
+const PROVIDER_TYPE_IDS = new Set<ProviderTypeId>(PROVIDER_TYPES.map((type) => type.id))
+
+function parseSegments(segments: string[]): ParsedSegments | null {
   if (segments.length === 1) {
-    return { legacyCity: segments[0]?.toLowerCase() ?? "" }
+    return { kind: "legacy", legacyCity: segments[0]?.toLowerCase() ?? "" }
   }
   if (segments.length === 2) {
     return {
+      kind: "city",
       country: segments[0]?.toLowerCase() ?? "",
       city: segments[1]?.toLowerCase() ?? "",
+    }
+  }
+  if (segments.length === 3) {
+    const providerType = (segments[2]?.toLowerCase() ?? "") as ProviderTypeId
+    if (!PROVIDER_TYPE_IDS.has(providerType)) {
+      return null
+    }
+    return {
+      kind: "providerType",
+      country: segments[0]?.toLowerCase() ?? "",
+      city: segments[1]?.toLowerCase() ?? "",
+      providerType,
     }
   }
   return null
 }
 
+function getProviderTypeSeoLabel(typeId: ProviderTypeId): string {
+  const map: Record<ProviderTypeId, string> = {
+    nursery: "Nurseries",
+    preschool: "Preschools",
+    afterschool_program: "Afterschool Programs",
+    sports_academy: "Sports Academies",
+    holiday_camp: "Holiday Camps",
+    tutoring: "Tutoring Services",
+    therapy_service: "Therapy Services",
+  }
+  return map[typeId]
+}
+
 export async function generateStaticParams() {
   const routes = await getActiveLocationRouteParams()
-  return routes.map((route) => ({
-    segments: [route.country, route.city],
-  }))
+  return routes.flatMap((route) => {
+    const cityRoute = { segments: [route.country, route.city] }
+    const typeRoutes = PROVIDER_TYPES.map((type) => ({
+      segments: [route.country, route.city, type.id],
+    }))
+    return [cityRoute, ...typeRoutes]
+  })
 }
 
 export async function generateMetadata({ params }: LocationPageProps) {
@@ -52,7 +94,7 @@ export async function generateMetadata({ params }: LocationPageProps) {
     return { title: "Location Not Found" }
   }
 
-  if ("legacyCity" in parsed) {
+  if (parsed.kind === "legacy") {
     const canonical = await resolveLegacyCitySlugToCanonical(parsed.legacyCity)
     return {
       title: "Location moved",
@@ -77,8 +119,25 @@ export async function generateMetadata({ params }: LocationPageProps) {
   const cityName = fallbackCity?.name ?? dbCity.name
   const cityState = fallbackCity?.state ?? ""
   const providerCount = fallbackCity?.providerCount ?? 0
-  const canonicalPath = buildLocationHref(parsed.country, parsed.city)
 
+  if (parsed.kind === "providerType") {
+    const providerType = getProviderTypeById(parsed.providerType)
+    if (!providerType) {
+      return { title: "Location Not Found" }
+    }
+    const providerTypeLabel = getProviderTypeSeoLabel(parsed.providerType)
+    const countryCode = parsed.country.toUpperCase()
+    const canonicalPath = buildLocationProviderTypeHref(parsed.country, parsed.city, parsed.providerType)
+    return {
+      title: `Best ${providerTypeLabel} in ${cityName}, ${countryCode} | Twooky`,
+      description: `Explore top-rated ${providerTypeLabel.toLowerCase()} in ${cityName}, ${countryCode}. Compare verified providers, read parent reviews, and find the right fit for your family.`,
+      alternates: {
+        canonical: canonicalPath,
+      },
+    }
+  }
+
+  const canonicalPath = buildLocationHref(parsed.country, parsed.city)
   return {
     title: `Best Daycare in ${cityName}${cityState ? `, ${cityState}` : ""} | Twooky`,
     description: `Find top-rated daycare centers, preschools, and childcare providers in ${cityName}${
@@ -127,14 +186,14 @@ const nearbySearches = [
   "Special needs programs",
 ]
 
-export default async function LocationPage({ params }: LocationPageProps) {
+export default async function LocationPage({ params, searchParams }: LocationPageProps) {
   const { segments } = await params
   const parsed = parseSegments(segments)
   if (!parsed) {
     notFound()
   }
 
-  if ("legacyCity" in parsed) {
+  if (parsed.kind === "legacy") {
     const canonical = await resolveLegacyCitySlugToCanonical(parsed.legacyCity)
     if (!canonical) {
       notFound()
@@ -144,8 +203,53 @@ export default async function LocationPage({ params }: LocationPageProps) {
 
   const countrySegment = segments[0] ?? ""
   const citySegment = segments[1] ?? ""
-  if (countrySegment !== parsed.country || citySegment !== parsed.city) {
-    permanentRedirect(buildLocationHref(parsed.country, parsed.city))
+
+  if (parsed.kind === "city" || parsed.kind === "providerType") {
+    if (countrySegment !== parsed.country || citySegment !== parsed.city) {
+      permanentRedirect(buildLocationHref(parsed.country, parsed.city))
+    }
+  }
+
+  if (parsed.kind === "providerType") {
+    const providerTypeSegment = segments[2] ?? ""
+    if (providerTypeSegment !== parsed.providerType) {
+      permanentRedirect(buildLocationProviderTypeHref(parsed.country, parsed.city, parsed.providerType))
+    }
+
+    const dbCity = await getCityByCountryAndSlug(parsed.country, parsed.city)
+    if (!dbCity) {
+      notFound()
+    }
+    const providerType = getProviderTypeById(parsed.providerType)
+    if (!providerType) {
+      notFound()
+    }
+
+    const cityName = dbCity.name
+    const countryCode = parsed.country.toUpperCase()
+    const providerTypeLabel = getProviderTypeSeoLabel(parsed.providerType)
+    const headerTitle = `Best ${providerTypeLabel} in ${cityName}, ${countryCode}`
+    const resolvedSearchParams = searchParams ? (await searchParams) ?? {} : {}
+    const { providers, filterOptions } = await getSearchPageData({
+      searchParams: resolvedSearchParams,
+      forcedProviderType: parsed.providerType,
+      forcedCountryCode: parsed.country,
+      forcedCityName: cityName,
+      forcedLocationText: cityName,
+    })
+
+    return (
+      <SearchResults
+        providers={providers}
+        filterOptions={filterOptions}
+        basePath={buildLocationProviderTypeHref(parsed.country, parsed.city, parsed.providerType)}
+        defaultProviderType={parsed.providerType}
+        headerTitle={headerTitle}
+        listTitle={`${providerType.label} Providers`}
+        emptyStateTitle={`No ${providerType.label.toLowerCase()} providers found in ${cityName}`}
+        emptyStateDescription="Try adjusting filters or explore nearby provider types in this location."
+      />
+    )
   }
 
   const dbCity = await getCityByCountryAndSlug(parsed.country, parsed.city)
@@ -191,6 +295,35 @@ export default async function LocationPage({ params }: LocationPageProps) {
       <section className="py-8">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <StatsSection stats={stats} cityName={displayName} />
+        </div>
+      </section>
+
+      <section className="py-8">
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <div className="mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Browse by Provider Type in {displayName}</h2>
+            <p className="text-muted-foreground mt-2">
+              Explore provider categories in this city and view SEO-optimized listings by location and type.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {PROVIDER_TYPES.map((type) => (
+              <Link
+                key={type.id}
+                href={buildLocationProviderTypeHref(parsed.country, parsed.city, type.id)}
+                className="group"
+              >
+                <Card className="h-full border-border/60 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
+                  <CardContent className="p-5">
+                    <p className="font-semibold text-foreground">{getProviderTypeSeoLabel(type.id)}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {type.description ?? `See ${type.label.toLowerCase()} options in ${displayName}`}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 

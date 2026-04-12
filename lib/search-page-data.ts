@@ -186,8 +186,11 @@ const loadSearchFilterOptionsCached = unstable_cache(
 export async function getSearchPageData(options: {
   searchParams: SearchPageQueryParams
   forcedProviderType?: string
+  forcedCountryCode?: string
+  forcedCityName?: string
+  forcedLocationText?: string
 }): Promise<{ providers: ProviderCardDataFromDb[]; filterOptions: SearchFilterOptions }> {
-  const { searchParams, forcedProviderType } = options
+  const { searchParams, forcedProviderType, forcedCountryCode, forcedCityName, forcedLocationText } = options
   const {
     location,
     q,
@@ -208,7 +211,7 @@ export async function getSearchPageData(options: {
     ageGroups,
   } = searchParams
 
-  const locationText = resolveLocationTextFromQuery({ location, city })
+  const locationText = forcedLocationText ?? resolveLocationTextFromQuery({ location, city })
   const resolvedProviderType = forcedProviderType ?? providerType ?? type
   const coords = resolveLocationToCoords(locationText)
   const parsedAgeTags = parseAgeTags(ageGroups) ?? []
@@ -249,7 +252,22 @@ export async function getSearchPageData(options: {
       parsedFeatures.includes("special-needs"),
   }
 
-  const filteredRows = filterActiveProviders(activeRows, criteria)
+  const countryCodeFilter = forcedCountryCode?.trim().toUpperCase()
+  const cityFilter = forcedCityName?.trim().toLowerCase()
+
+  const forcedRows = activeRows.filter((row) => {
+    if (countryCodeFilter) {
+      const rowCode = row.country_code?.trim().toUpperCase()
+      if (rowCode !== countryCodeFilter) return false
+    }
+    if (cityFilter) {
+      const rowCity = row.city?.trim().toLowerCase()
+      if (!rowCity || rowCity !== cityFilter) return false
+    }
+    return true
+  })
+
+  const filteredRows = filterActiveProviders(forcedRows, criteria)
   const rankedRows = [...filteredRows].sort((a, b) => {
     const featuredDiff = Number(b.featured) - Number(a.featured)
     if (featuredDiff !== 0) return featuredDiff

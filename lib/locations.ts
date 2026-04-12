@@ -52,6 +52,14 @@ export function buildLocationHref(countryCode: string, citySlug: string): string
   return `/locations/${normalizeCountryCodeForPath(countryCode)}/${citySlug.trim().toLowerCase()}`
 }
 
+export function buildLocationProviderTypeHref(
+  countryCode: string,
+  citySlug: string,
+  providerType: string,
+): string {
+  return `${buildLocationHref(countryCode, citySlug)}/${providerType.trim().toLowerCase()}`
+}
+
 function mapCityLookupRow(row: CityLookupRow): CityRow {
   const relationCode =
     typeof row.countries?.code === "string" && row.countries.code.trim()
@@ -243,7 +251,7 @@ export async function getCityByCountryAndSlug(
   citySlug: string,
 ): Promise<CityRow | null> {
   const supabase = getSupabaseAdminClient()
-  const normalizedCountry = countryCode.trim().toUpperCase()
+  const normalizedCountry = countryCode.trim().toLowerCase()
 
   const { data, error } = await supabase
     .from("cities")
@@ -252,9 +260,8 @@ export async function getCityByCountryAndSlug(
     )
     .eq("slug", citySlug)
     .eq("is_active", true)
-    .eq("countries.code", normalizedCountry)
     .eq("countries.is_active", true)
-    .maybeSingle<CityLookupRow>()
+    .returns<CityLookupRow[]>()
 
   if (error) {
     console.error(
@@ -266,7 +273,15 @@ export async function getCityByCountryAndSlug(
     return null
   }
 
-  return data ? mapCityLookupRow(data) : null
+  const rows = (data ?? []) as CityLookupRow[]
+  const matched = rows.find((row) => {
+    const countryFromRelation =
+      typeof row.countries?.code === "string" ? normalizeCountryCodeForPath(row.countries.code) : ""
+    const countryFromSearch = normalizeCountryCodeForPath(row.search_country_code)
+    return countryFromRelation === normalizedCountry || countryFromSearch === normalizedCountry
+  })
+
+  return matched ? mapCityLookupRow(matched) : null
 }
 
 export async function resolveLegacyCitySlugToCanonical(
@@ -349,12 +364,11 @@ export async function getActiveCitiesByCountryCode(
   countryCode: string,
 ): Promise<Array<{ name: string; slug: string; country: string }>> {
   const supabase = getSupabaseAdminClient()
-  const normalizedCountry = countryCode.trim().toUpperCase()
+  const normalizedCountry = countryCode.trim().toLowerCase()
   const { data, error } = await supabase
     .from("cities")
-    .select("name, slug, countries!inner(code, is_active)")
+    .select("name, slug, search_country_code, countries!inner(code, is_active)")
     .eq("is_active", true)
-    .eq("countries.code", normalizedCountry)
     .eq("countries.is_active", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
@@ -364,15 +378,27 @@ export async function getActiveCitiesByCountryCode(
     return []
   }
 
-  const rows = (data ?? []) as Array<{ name: string; slug: string; countries?: { code?: string | null } | null }>
-  return rows.map((row) => ({
-    name: row.name,
-    slug: row.slug,
-    country:
-      (typeof row.countries?.code === "string" && row.countries.code.trim()
-        ? normalizeCountryCodeForPath(row.countries.code)
-        : normalizeCountryCodeForPath(countryCode)),
-  }))
+  const rows = (data ?? []) as Array<{
+    name: string
+    slug: string
+    search_country_code: string
+    countries?: { code?: string | null } | null
+  }>
+  return rows
+    .filter((row) => {
+      const countryFromRelation =
+        typeof row.countries?.code === "string" ? normalizeCountryCodeForPath(row.countries.code) : ""
+      const countryFromSearch = normalizeCountryCodeForPath(row.search_country_code)
+      return countryFromRelation === normalizedCountry || countryFromSearch === normalizedCountry
+    })
+    .map((row) => ({
+      name: row.name,
+      slug: row.slug,
+      country:
+        (typeof row.countries?.code === "string" && row.countries.code.trim()
+          ? normalizeCountryCodeForPath(row.countries.code)
+          : normalizeCountryCodeForPath(row.search_country_code)),
+    }))
 }
 
 export type FooterCityLink = {
