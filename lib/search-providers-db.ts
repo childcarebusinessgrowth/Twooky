@@ -48,6 +48,27 @@ function isMissingColumnError(message: string | undefined): boolean {
   return m.includes("does not exist") && m.includes("column")
 }
 
+function withGoogleCacheFallbackFields<
+  T extends { google_place_id?: string | null; profile_id: string }
+>(row: T): T & {
+  google_fallback_storage_path: string | null
+  google_photo_reference_cached: string | null
+  google_rating_cached: number | null
+  google_review_count_cached: number | null
+  google_reviews_url_cached: string | null
+  google_reviews_cached_at: string | null
+} {
+  return {
+    ...row,
+    google_fallback_storage_path: null,
+    google_photo_reference_cached: null,
+    google_rating_cached: null,
+    google_review_count_cached: null,
+    google_reviews_url_cached: null,
+    google_reviews_cached_at: null,
+  }
+}
+
 export type ActiveProviderRow = {
   profile_id: string
   provider_slug: string | null
@@ -130,7 +151,7 @@ export async function getActiveProvidersFromDb(
       .select(PROVIDER_PROFILE_SELECT_LEGACY)
       .eq("listing_status", "active")
       .not("provider_slug", "is", null)
-    profiles = retry.data
+    profiles = retry.data?.map((row) => withGoogleCacheFallbackFields(row)) ?? null
     profilesError = retry.error
   }
 
@@ -434,7 +455,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           .eq("featured", true)
           .not("provider_slug", "is", null)
           .limit(limit)
-        profileRows = retry.data
+        profileRows = retry.data?.map((row) => withGoogleCacheFallbackFields(row)) ?? null
         profileRowsError = retry.error
       }
 

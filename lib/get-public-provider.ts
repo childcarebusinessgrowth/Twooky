@@ -114,6 +114,15 @@ export async function getActivePublicProviderBySlug(
       .eq("listing_status", "active")
       .maybeSingle()
     profile = retry.data
+      ? {
+          ...retry.data,
+          google_photo_reference_cached: null,
+          google_rating_cached: null,
+          google_review_count_cached: null,
+          google_reviews_url_cached: null,
+          google_reviews_cached_at: null,
+        }
+      : null
     profileError = retry.error
   }
 
