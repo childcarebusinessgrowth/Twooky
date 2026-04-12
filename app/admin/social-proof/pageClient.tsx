@@ -301,11 +301,11 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
     })
   }
 
-  const copyEmbedSnippet = async (providerSlug: string | null) => {
-    if (!providerSlug) {
+  const copyEmbedSnippet = async (providerSlug: string | null, providerProfileId: string) => {
+    if (!providerSlug && !providerProfileId) {
       toast({
-        title: "Provider slug required",
-        description: "This provider does not have a public slug yet.",
+        title: "Provider reference required",
+        description: "This provider is missing both slug and profile id.",
         variant: "destructive",
       })
       return
@@ -315,7 +315,8 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
       typeof window !== "undefined" && window.location.origin
         ? window.location.origin
         : "https://twooki.com"
-    const snippet = `<script src="${origin}/widget/social-proof.js" data-provider="${providerSlug}"></script>`
+    const identifier = providerProfileId || providerSlug
+    const snippet = `<script src="${origin}/widget/social-proof.js" data-provider-id="${identifier}"></script>`
 
     try {
       await navigator.clipboard.writeText(snippet)
@@ -416,7 +417,7 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
                       variant="outline"
                       size="sm"
                       className="gap-1"
-                      onClick={() => copyEmbedSnippet(providerSlug)}
+                      onClick={() => copyEmbedSnippet(providerSlug, row.provider_profile_id)}
                     >
                       <Copy className="h-3.5 w-3.5" />
                       Embed

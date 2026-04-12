@@ -1,8 +1,20 @@
 (function () {
-  var scriptEl = document.currentScript
+  function resolveScriptElement() {
+    if (document.currentScript) return document.currentScript
+    var scripts = document.getElementsByTagName("script")
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      var src = scripts[i].getAttribute("src") || ""
+      if (src.indexOf("/widget/social-proof.js") !== -1 || src.indexOf("/widget/social_proof.js") !== -1) {
+        return scripts[i]
+      }
+    }
+    return null
+  }
+
+  var scriptEl = resolveScriptElement()
   if (!scriptEl) return
 
-  var provider = (scriptEl.getAttribute("data-provider") || "").trim()
+  var provider = (scriptEl.getAttribute("data-provider-id") || scriptEl.getAttribute("data-provider") || "").trim()
   if (!provider) return
 
   var scriptUrl = new URL(scriptEl.src, window.location.href)
@@ -16,7 +28,7 @@
     var styleEl = document.createElement("style")
     styleEl.id = stylesId
     styleEl.textContent =
-      ".twooki-spw{position:fixed;left:16px;bottom:16px;z-index:2147483000;max-width:320px;width:calc(100vw - 32px);background:#111827;color:#fff;border-radius:14px;box-shadow:0 16px 38px rgba(0,0,0,.28);padding:12px;transform:translateY(120%);opacity:0;transition:transform .35s ease,opacity .35s ease;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer}.twooki-spw.twooki-spw-show{transform:translateY(0);opacity:1}.twooki-spw-top{display:flex;gap:10px;align-items:flex-start}.twooki-spw-avatar{flex:none;width:40px;height:40px;border-radius:10px;object-fit:cover;background:#374151}.twooki-spw-stars{display:flex;gap:2px;color:#fbbf24;margin-bottom:4px;font-size:13px;line-height:1}.twooki-spw-text{font-size:13px;line-height:1.4;color:#f9fafb}.twooki-spw-author{margin-top:6px;font-size:12px;color:#d1d5db}.twooki-spw-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:#9ca3af}.twooki-spw-pill{display:inline-flex;align-items:center;border:1px solid rgba(156,163,175,.35);border-radius:999px;padding:2px 8px;background:rgba(255,255,255,.06)}"
+      ".twooki-spw{position:fixed;left:24px;bottom:24px;z-index:2147483000;width:min(460px,calc(100vw - 32px));background:#fff;color:#1f2937;border:1px solid rgba(15,23,42,.12);border-radius:16px;box-shadow:0 14px 40px rgba(2,6,23,.28);padding:14px;transform:translateY(120%);opacity:0;transition:transform .35s ease,opacity .35s ease;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;cursor:pointer}.twooki-spw.twooki-spw-show{transform:translateY(0);opacity:1}.twooki-spw-body{display:flex;gap:12px;align-items:flex-start}.twooki-spw-avatar{flex:none;width:98px;height:98px;border-radius:12px;object-fit:cover;background:#e5e7eb}.twooki-spw-content{min-width:0;flex:1}.twooki-spw-stars{display:flex;gap:2px;color:#f97316;font-size:22px;line-height:1;margin-bottom:8px}.twooki-spw-text{font-size:32px;color:#111827;line-height:1.35;font-size:17px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.twooki-spw-author{margin-top:8px;font-size:14px;color:#6b7280}.twooki-spw-footer{margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}.twooki-spw-verified{font-size:12px;color:#4b5563;font-weight:600}.twooki-spw-badge{font-size:11px;color:#4b5563;background:#f3f4f6;border-radius:999px;padding:3px 9px}"
     document.head.appendChild(styleEl)
   }
 
@@ -37,6 +49,7 @@
   function createOrGetContainer() {
     var existing = document.getElementById(containerId)
     if (existing) return existing
+    if (!document.body) return null
     var el = document.createElement("div")
     el.id = containerId
     el.className = "twooki-spw"
@@ -56,27 +69,49 @@
 
       var items = payload.items
       var profileHref = apiBase + payload.profileUrl
-      var container = createOrGetContainer()
+      var container = null
+      var eventsBound = false
       var index = 0
       var hideTimeout = null
       var cycleTimeout = null
 
+      function openProfile() {
+        window.open(profileHref, "_blank", "noopener,noreferrer")
+      }
+
+      function bindEvents() {
+        if (!container || eventsBound) return
+        eventsBound = true
+        container.addEventListener("click", openProfile)
+        container.addEventListener("keydown", function (event) {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            openProfile()
+          }
+        })
+      }
+
       function showItem(item) {
+        if (!container) {
+          container = createOrGetContainer()
+          if (!container) return
+          bindEvents()
+        }
         container.innerHTML =
-          '<div class="twooki-spw-top">' +
+          '<div class="twooki-spw-body">' +
           '<img class="twooki-spw-avatar" src="' +
           buildAvatar(item) +
           '" alt="Social proof" loading="lazy" />' +
-          '<div style="min-width:0;flex:1;">' +
+          '<div class="twooki-spw-content">' +
           renderStars(item.rating) +
-          '<div class="twooki-spw-text">"' +
+          '<div class="twooki-spw-text">&ldquo;' +
           String(item.content || "").replace(/</g, "&lt;").replace(/>/g, "&gt;") +
-          '"</div>' +
-          (item.authorName ? '<div class="twooki-spw-author">- ' + item.authorName + "</div>" : "") +
-          "</div></div>" +
-          '<div class="twooki-spw-footer"><span class="twooki-spw-pill">Verified by Twooki</span><span>' +
-          (item.type === "video" ? "Video testimonial" : "Recent parent feedback") +
-          "</span></div>"
+          "&rdquo;</div>" +
+          (item.authorName ? '<div class="twooki-spw-author">' + item.authorName + "</div>" : "") +
+          '<div class="twooki-spw-footer"><span class="twooki-spw-verified">Verified by Twooki</span><span class="twooki-spw-badge">' +
+          (item.type === "video" ? "Video" : "Testimonial") +
+          "</span></div>" +
+          "</div></div>"
 
         container.classList.add("twooki-spw-show")
 
@@ -91,18 +126,6 @@
           showItem(items[index])
         }, 7600)
       }
-
-      function openProfile() {
-        window.open(profileHref, "_blank", "noopener,noreferrer")
-      }
-
-      container.addEventListener("click", openProfile)
-      container.addEventListener("keydown", function (event) {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault()
-          openProfile()
-        }
-      })
 
       setTimeout(function () {
         showItem(items[index])

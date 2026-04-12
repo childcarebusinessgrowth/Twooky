@@ -68,7 +68,6 @@ export async function GET(request: Request) {
       const { data, error } = await supabase
         .from("provider_profiles")
         .select("profile_id, provider_slug, business_name")
-        .eq("is_active", true)
         .eq("profile_id", provider)
         .limit(1)
       if (error) {
@@ -80,8 +79,7 @@ export async function GET(request: Request) {
       const { data: bySlug, error: bySlugError } = await supabase
         .from("provider_profiles")
         .select("profile_id, provider_slug, business_name")
-        .eq("is_active", true)
-        .or(`provider_slug.eq.${provider},provider_slug.eq.${normalizedProvider}`)
+        .eq("provider_slug", provider)
         .limit(1)
       if (bySlugError) {
         console.error("[api/social-proof] provider lookup by slug", bySlugError)
@@ -90,10 +88,22 @@ export async function GET(request: Request) {
       providerRow = bySlug?.[0]
 
       if (!providerRow) {
+        const { data: byNormalizedSlug, error: byNormalizedSlugError } = await supabase
+          .from("provider_profiles")
+          .select("profile_id, provider_slug, business_name")
+          .eq("provider_slug", normalizedProvider)
+          .limit(1)
+        if (byNormalizedSlugError) {
+          console.error("[api/social-proof] provider lookup by normalized slug", byNormalizedSlugError)
+          return jsonWithCors({ error: "Failed to load provider." }, { status: 500 })
+        }
+        providerRow = byNormalizedSlug?.[0]
+      }
+
+      if (!providerRow) {
         const { data: byName, error: byNameError } = await supabase
           .from("provider_profiles")
           .select("profile_id, provider_slug, business_name")
-          .eq("is_active", true)
           .ilike("business_name", provider)
           .limit(1)
         if (byNameError) {
