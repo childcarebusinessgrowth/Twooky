@@ -360,5 +360,16 @@ export const FEATURE_CATEGORIES: FeatureCategory[] = [
 
 export const PLAN_IDS: PlanId[] = ["sprout", "grow", "thrive", "kinderpathPro"]
 
+/** Annual billing: pay for 11 months, 12th month free (matches package spreadsheet). */
+export const ANNUAL_PAID_MONTHS = 11
+
+export function annualUsdTotal(monthlyUsd: number): number {
+  return monthlyUsd * ANNUAL_PAID_MONTHS
+}
+
+export function annualSavingsUsd(monthlyUsd: number): number {
+  return monthlyUsd
+}
+
 export const PRICING_FOOTNOTE =
   "KinderPath Pro exclusive, prime platform placements & push notifications included as part of your done-for-you package."

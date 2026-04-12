@@ -1,11 +1,15 @@
+"use client"
+
 import Link from "next/link"
-import { Fragment } from "react"
+import { Fragment, useState } from "react"
 import { BadgeCheck, Check, Minus, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import {
+  annualSavingsUsd,
+  annualUsdTotal,
   FEATURE_CATEGORIES,
   PLAN_IDS,
   PRICING_FOOTNOTE,
@@ -13,7 +17,10 @@ import {
   type FeatureRow,
   type PlanId,
   type PlanTheme,
+  type PricingPlan,
 } from "@/lib/pricing-data"
+
+type BillingPeriod = "monthly" | "annual"
 
 const THEME: Record<
   PlanTheme,
@@ -41,8 +48,78 @@ const THEME: Record<
   },
 }
 
-function PriceBlock({ planId, featured }: { planId: PlanId; featured?: boolean }) {
-  const plan = PRICING_PLANS.find((p) => p.id === planId)!
+function BillingToggle({
+  value,
+  onChange,
+}: {
+  value: BillingPeriod
+  onChange: (next: BillingPeriod) => void
+}) {
+  return (
+    <div
+      className="mx-auto mt-8 flex max-w-md flex-col items-center gap-3 sm:max-w-none"
+      role="radiogroup"
+      aria-label="Billing period"
+    >
+      <div className="relative flex w-full max-w-78 rounded-full border border-border/80 bg-muted/40 p-1 shadow-inner backdrop-blur-sm dark:bg-muted/25 sm:max-w-84">
+        <div
+          className={cn(
+            "pointer-events-none absolute top-1 bottom-1 rounded-full bg-card shadow-md ring-1 ring-border/50 transition-[left,right] duration-300 ease-out dark:bg-card/95",
+            value === "monthly" ? "left-1 right-[calc(50%+2px)]" : "left-[calc(50%+2px)] right-1"
+          )}
+          aria-hidden
+        />
+        <button
+          type="button"
+          role="radio"
+          aria-checked={value === "monthly"}
+          className={cn(
+            "relative z-10 flex-1 rounded-full px-3 py-2.5 text-sm font-semibold transition-colors",
+            value === "monthly" ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"
+          )}
+          onClick={() => onChange("monthly")}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={value === "annual"}
+          className={cn(
+            "relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2.5 text-sm font-semibold transition-colors sm:gap-2",
+            value === "annual" ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"
+          )}
+          onClick={() => onChange("annual")}
+        >
+          <span>Annual</span>
+          <span
+            className={cn(
+              "whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide sm:px-2 sm:text-[10px]",
+              value === "annual"
+                ? "bg-emerald-600/15 text-emerald-800 dark:text-emerald-300"
+                : "bg-background/80 text-muted-foreground ring-1 ring-border/40"
+            )}
+          >
+            1 mo free
+          </span>
+        </button>
+      </div>
+      <p className="text-balance text-center text-xs text-muted-foreground sm:text-sm">
+        Annual plans bill once per year and include one month free compared to monthly billing.
+      </p>
+    </div>
+  )
+}
+
+function PriceBlock({
+  plan,
+  featured,
+  billing,
+}: {
+  plan: PricingPlan
+  featured?: boolean
+  billing: BillingPeriod
+}) {
   const theme = THEME[plan.theme]
 
   if (plan.monthlyUsd === null) {
@@ -64,27 +141,61 @@ function PriceBlock({ planId, featured }: { planId: PlanId; featured?: boolean }
 
   if (plan.monthlyUsd === undefined) {
     return (
-      <div className="space-y-1">
-        <p
-          className={cn(
-            "font-bold tracking-tight",
-            featured ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl",
-            theme.accentText
-          )}
-        >
-          Custom
-        </p>
-        <p className={cn("text-muted-foreground", featured ? "text-base" : "text-sm")}>
-          Tailored to your service
+      <div className="space-y-2">
+        <div className="space-y-1">
+          <p
+            className={cn(
+              "font-bold tracking-tight",
+              featured ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl",
+              theme.accentText
+            )}
+          >
+            Custom
+          </p>
+          <p className={cn("text-muted-foreground", featured ? "text-base" : "text-sm")}>
+            Tailored to your service
+          </p>
+        </div>
+        <p className="text-sm italic leading-snug text-muted-foreground">
+          Talk to us about your package
         </p>
       </div>
     )
   }
 
   const monthly = plan.monthlyUsd
+  const annualTotal = annualUsdTotal(monthly)
+  const save = annualSavingsUsd(monthly)
+
+  if (billing === "monthly") {
+    return (
+      <div className="space-y-2">
+        <p
+          className={cn(
+            "font-bold tracking-tight",
+            featured ? "text-4xl md:text-[2.75rem]" : "text-3xl",
+            theme.accentText
+          )}
+        >
+          ${monthly}
+          <span
+            className={cn(
+              "font-semibold text-muted-foreground",
+              featured ? "text-xl md:text-2xl" : "text-lg"
+            )}
+          >
+            /mo
+          </span>
+        </p>
+        <p className="text-sm italic leading-snug text-muted-foreground">
+          Pay annually — 1 month free (save ${save})
+        </p>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <p
         className={cn(
           "font-bold tracking-tight",
@@ -92,16 +203,68 @@ function PriceBlock({ planId, featured }: { planId: PlanId; featured?: boolean }
           theme.accentText
         )}
       >
-        ${monthly}
+        ${annualTotal}
         <span
           className={cn(
             "font-semibold text-muted-foreground",
             featured ? "text-xl md:text-2xl" : "text-lg"
           )}
         >
-          /mo
+          /yr
         </span>
       </p>
+      <p className="text-sm leading-snug text-muted-foreground">
+        <span className="font-medium text-foreground/90">1 month free</span>
+        {" · "}
+        save ${save} vs monthly · billed once per year
+      </p>
+    </div>
+  )
+}
+
+function ComparePriceCell({ plan, billing }: { plan: PricingPlan; billing: BillingPeriod }) {
+  if (plan.monthlyUsd === null) {
+    return (
+      <div className="flex flex-col items-center gap-0.5 text-center">
+        <span className="font-semibold text-foreground">Free</span>
+        <span className="text-xs text-muted-foreground">Forever</span>
+      </div>
+    )
+  }
+  if (plan.monthlyUsd === undefined) {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center">
+        <span className="font-semibold text-foreground">Custom</span>
+        <span className="max-w-40 text-[11px] italic leading-tight text-muted-foreground">
+          Talk to us about your package
+        </span>
+      </div>
+    )
+  }
+  const m = plan.monthlyUsd
+  const save = annualSavingsUsd(m)
+  if (billing === "monthly") {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center">
+        <span className="font-semibold text-foreground">
+          ${m}
+          <span className="text-muted-foreground">/mo</span>
+        </span>
+        <span className="max-w-36 text-[11px] italic leading-tight text-muted-foreground">
+          Pay annually — 1 month free (save ${save})
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <span className="font-semibold text-foreground">
+        ${annualUsdTotal(m)}
+        <span className="text-muted-foreground">/yr</span>
+      </span>
+      <span className="max-w-36 text-[11px] leading-tight text-muted-foreground">
+        1 month free · save ${save}
+      </span>
     </div>
   )
 }
@@ -134,6 +297,8 @@ function FeatureCell({
 }
 
 export function PricingPageClient() {
+  const [billing, setBilling] = useState<BillingPeriod>("monthly")
+
   return (
     <div className="min-h-screen bg-background">
       <section className="relative isolate overflow-x-clip overflow-y-visible pb-12 pt-8 md:pb-16 md:pt-12 lg:pt-16">
@@ -157,6 +322,7 @@ export function PricingPageClient() {
             <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
               From a free directory presence to full marketing support, choose the package that fits your goals.
             </p>
+            <BillingToggle value={billing} onChange={setBilling} />
           </div>
 
           <div className="mx-auto w-full overflow-visible px-1 py-4 md:px-2 md:py-6">
@@ -242,7 +408,7 @@ export function PricingPageClient() {
                           theme.softBg
                         )}
                       >
-                        <PriceBlock planId={plan.id} featured={isPopular} />
+                        <PriceBlock plan={plan} featured={isPopular} billing={billing} />
                       </div>
                       <ul className="space-y-3 text-sm leading-snug text-muted-foreground">
                         {plan.highlights.map((h) => (
@@ -318,6 +484,19 @@ export function PricingPageClient() {
                 </tr>
               </thead>
               <tbody>
+                <tr className="border-b border-border/80 bg-muted/30">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-2 bg-muted/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm"
+                  >
+                    {billing === "monthly" ? "Price (monthly)" : "Price (annual)"}
+                  </th>
+                  {PRICING_PLANS.map((p) => (
+                    <td key={p.id} className="px-3 py-3 align-top">
+                      <ComparePriceCell plan={p} billing={billing} />
+                    </td>
+                  ))}
+                </tr>
                 {FEATURE_CATEGORIES.map((cat) => (
                   <Fragment key={cat.title}>
                     <tr className="bg-primary/5">
