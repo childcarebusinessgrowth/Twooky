@@ -20,40 +20,92 @@ type SocialProofApiResponse = {
 }
 
 const MAX_ITEMS = 10
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+}
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+function jsonWithCors(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init)
+  for (const [key, value] of Object.entries(CORS_HEADERS)) {
+    response.headers.set(key, value)
+  }
+  return response
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  })
 }
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
     const provider = (url.searchParams.get("provider") ?? "").trim()
+    const normalizedProvider = provider.toLowerCase().replace(/[\s_]+/g, "-")
 
     if (!provider) {
-      return NextResponse.json({ error: "Missing provider query parameter." }, { status: 400 })
+      return jsonWithCors({ error: "Missing provider query parameter." }, { status: 400 })
     }
 
     const supabase = getSupabaseAdminClient()
-    let providerRequest = supabase
-      .from("provider_profiles")
-      .select("profile_id, provider_slug, business_name")
-      .eq("is_active", true)
+    let providerRow:
+      | {
+          profile_id: string
+          provider_slug: string | null
+          business_name: string | null
+        }
+      | undefined
 
     if (isUuid(provider)) {
-      providerRequest = providerRequest.eq("profile_id", provider)
+      const { data, error } = await supabase
+        .from("provider_profiles")
+        .select("profile_id, provider_slug, business_name")
+        .eq("is_active", true)
+        .eq("profile_id", provider)
+        .limit(1)
+      if (error) {
+        console.error("[api/social-proof] provider lookup by id", error)
+        return jsonWithCors({ error: "Failed to load provider." }, { status: 500 })
+      }
+      providerRow = data?.[0]
     } else {
-      providerRequest = providerRequest.eq("provider_slug", provider)
-    }
+      const { data: bySlug, error: bySlugError } = await supabase
+        .from("provider_profiles")
+        .select("profile_id, provider_slug, business_name")
+        .eq("is_active", true)
+        .or(`provider_slug.eq.${provider},provider_slug.eq.${normalizedProvider}`)
+        .limit(1)
+      if (bySlugError) {
+        console.error("[api/social-proof] provider lookup by slug", bySlugError)
+        return jsonWithCors({ error: "Failed to load provider." }, { status: 500 })
+      }
+      providerRow = bySlug?.[0]
 
-    const { data: providerRow, error: providerError } = await providerRequest.maybeSingle()
-    if (providerError) {
-      console.error("[api/social-proof] provider lookup", providerError)
-      return NextResponse.json({ error: "Failed to load provider." }, { status: 500 })
+      if (!providerRow) {
+        const { data: byName, error: byNameError } = await supabase
+          .from("provider_profiles")
+          .select("profile_id, provider_slug, business_name")
+          .eq("is_active", true)
+          .ilike("business_name", provider)
+          .limit(1)
+        if (byNameError) {
+          console.error("[api/social-proof] provider lookup by name", byNameError)
+          return jsonWithCors({ error: "Failed to load provider." }, { status: 500 })
+        }
+        providerRow = byName?.[0]
+      }
     }
 
     if (!providerRow?.provider_slug) {
-      return NextResponse.json({ error: "Provider not found." }, { status: 404 })
+      return jsonWithCors({ error: "Provider not found." }, { status: 404 })
     }
 
     const { data, error } = await supabase
@@ -66,7 +118,7 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("[api/social-proof] social_proofs lookup", error)
-      return NextResponse.json({ error: "Failed to load social proof." }, { status: 500 })
+      return jsonWithCors({ error: "Failed to load social proof." }, { status: 500 })
     }
 
     const response: SocialProofApiResponse = {
@@ -93,13 +145,14 @@ export async function GET(request: Request) {
       })),
     }
 
-    return NextResponse.json(response, {
+    return jsonWithCors(response, {
       headers: {
+        ...CORS_HEADERS,
         "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
       },
     })
   } catch (error) {
     console.error("[api/social-proof] unexpected error", error)
-    return NextResponse.json({ error: "Failed to load social proof." }, { status: 500 })
+    return jsonWithCors({ error: "Failed to load social proof." }, { status: 500 })
   }
 }

@@ -11,9 +11,8 @@ import {
 } from "@/components/ui/accordion"
 import { ProviderCard } from "@/components/provider-card"
 import { SearchResults } from "@/components/search-results"
-import { StatsSection } from "@/components/stats-section"
 import { SearchBarDynamic } from "@/components/search-bar-dynamic"
-import { providers, cityStats, cities } from "@/lib/mock-data"
+import { providers, cities } from "@/lib/mock-data"
 import {
   buildLocationHref,
   buildLocationProviderTypeHref,
@@ -260,12 +259,6 @@ export default async function LocationPage({ params, searchParams }: LocationPag
   const city = cities.find((c) => c.slug === parsed.city)
   const displayName = city?.name ?? dbCity.name ?? parsed.city
   const state = city?.state
-  const stats = cityStats[parsed.city as keyof typeof cityStats] ?? {
-    averageCost: "N/A",
-    totalProviders: 0,
-    topRated: 0,
-    waitlistAvg: "N/A",
-  }
   const cityProviders = providers.filter((p) => p.city.toLowerCase() === displayName.toLowerCase())
   const countryCities = await getActiveCitiesByCountryCode(parsed.country)
 
@@ -289,12 +282,6 @@ export default async function LocationPage({ params, searchParams }: LocationPag
             parent reviews, compare programs, and connect with top-rated daycare centers near you.
           </p>
           <SearchBarDynamic className="max-w-3xl" />
-        </div>
-      </section>
-
-      <section className="py-8">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <StatsSection stats={stats} cityName={displayName} />
         </div>
       </section>
 
