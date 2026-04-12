@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Sans, Inter } from 'next/font/google'
+import { headers } from "next/headers"
 import { AuthRecoveryRedirect } from "@/components/auth-recovery-redirect"
 import { AnalyticsConsentGate } from '@/components/analytics-consent-gate'
 import { CookieConsentBannerLazy } from '@/components/cookie-consent-banner-lazy'
@@ -39,6 +40,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const requestHeaders = await headers()
+  const isMicrositeRequest = requestHeaders.get("x-microsite-request") === "1"
   const footerCities = await getRandomFooterCities(7)
 
   return (
@@ -50,9 +53,7 @@ export default async function RootLayout({
       <body className="font-sans antialiased min-h-screen flex flex-col" suppressHydrationWarning>
         <AuthRecoveryRedirect />
         <WebVitalsClient />
-        <AppShell footer={<Footer cities={footerCities} />}>
-          {children}
-        </AppShell>
+        {isMicrositeRequest ? children : <AppShell footer={<Footer cities={footerCities} />}>{children}</AppShell>}
         <Toaster />
         <DeferredClientRender timeoutMs={1200}>
           <CookieConsentBannerLazy />

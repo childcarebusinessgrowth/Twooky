@@ -45,7 +45,13 @@ function rewriteSubdomainIfNeeded(request: NextRequest): NextResponse | null {
   const url = request.nextUrl.clone()
   const rest = url.pathname === "/" ? "" : url.pathname
   url.pathname = `/site/${encodeURIComponent(sub)}${rest}`
-  return NextResponse.rewrite(url)
+  const nextHeaders = new Headers(request.headers)
+  nextHeaders.set("x-microsite-request", "1")
+  return NextResponse.rewrite(url, {
+    request: {
+      headers: nextHeaders,
+    },
+  })
 }
 
 function buildLoginRedirect(request: NextRequest): NextResponse {
@@ -66,6 +72,16 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/api")) {
     return NextResponse.next()
+  }
+
+  if (pathname.startsWith("/site/")) {
+    const nextHeaders = new Headers(request.headers)
+    nextHeaders.set("x-microsite-request", "1")
+    return NextResponse.next({
+      request: {
+        headers: nextHeaders,
+      },
+    })
   }
 
   const subdomainRewrite = rewriteSubdomainIfNeeded(request)
