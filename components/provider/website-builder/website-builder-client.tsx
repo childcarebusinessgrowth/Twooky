@@ -10,6 +10,7 @@ import {
   loadProviderWebsiteState,
   publishProviderWebsite,
   saveProviderWebsiteDraft,
+  updateProviderWebsiteSubdomain,
   addProviderWebsitePage,
   uploadProviderWebsiteAsset,
   type WebsitePageRow,
@@ -120,6 +121,17 @@ function newNodeId() {
 
 const PALETTE_DRAG_THRESHOLD_PX = 6
 const PUBLISH_NOTICE_STORAGE_KEY = "provider-website-builder-publish-notice-until"
+const SUBDOMAIN_CLIENT_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+
+function normalizeSubdomainInput(raw: string): string {
+  return raw
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63)
+}
 
 function clientToLocalArtboard(el: HTMLElement, clientX: number, clientY: number) {
   const rect = el.getBoundingClientRect()
@@ -206,6 +218,8 @@ export default function WebsiteBuilderClient() {
   const [pageToDelete, setPageToDelete] = useState<{ id: string; label: string } | null>(null)
   const [blankStartConfirmOpen, setBlankStartConfirmOpen] = useState(false)
   const [paletteDragging, setPaletteDragging] = useState(false)
+  const [subdomainDraft, setSubdomainDraft] = useState("")
+  const [subdomainSaving, setSubdomainSaving] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const publishNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const artboardRef = useRef<HTMLDivElement | null>(null)
@@ -264,6 +278,7 @@ export default function WebsiteBuilderClient() {
 
   const replaceWebsiteStateFromServer = useCallback((next: WebsiteState) => {
     setState(next)
+    setSubdomainDraft(next.website.subdomain_slug)
     setActivePageId(next.pages[0]?.id ?? null)
     setSelectedId(null)
     history.current = [
@@ -287,6 +302,7 @@ export default function WebsiteBuilderClient() {
         return
       }
       setState(res.state)
+      setSubdomainDraft(res.state?.website.subdomain_slug ?? "")
       if (res.state?.pages.length) {
         setActivePageId(res.state.pages[0].id)
       }
@@ -760,7 +776,10 @@ export default function WebsiteBuilderClient() {
     }
   }, [endInteract])
 
-  const sitePreviewBase = `/site/${state?.website.subdomain_slug ?? ""}`
+  const sitePreviewBase = `/site/${encodeURIComponent(state?.website.subdomain_slug ?? "")}`
+  const rootDomain = (process.env.NEXT_PUBLIC_SITE_ROOT_DOMAIN ?? "").trim().toLowerCase()
+  const subdomainHostUrl =
+    state?.website.subdomain_slug && rootDomain ? `https://${state.website.subdomain_slug}.${rootDomain}` : ""
   const mobileValidation = useMemo(() => {
     if (!state) return { ok: true, issues: [] }
     return validateMobileWebsite({
@@ -839,11 +858,49 @@ export default function WebsiteBuilderClient() {
   }
 
   const origin = typeof window !== "undefined" ? window.location.origin : ""
-  const fullLiveUrl = origin ? `${origin}${sitePreviewBase}` : sitePreviewBase
+  const fullLiveUrl = subdomainHostUrl || (origin ? `${origin}${sitePreviewBase}` : sitePreviewBase)
+  const liveOpenHref = subdomainHostUrl || sitePreviewBase
+  const normalizedSubdomainDraft = normalizeSubdomainInput(subdomainDraft)
+  const currentSubdomain = state.website.subdomain_slug
+  const subdomainDirty = normalizedSubdomainDraft !== currentSubdomain
+
+  async function saveSubdomain() {
+    if (!state) return
+    if (!normalizedSubdomainDraft) {
+      toast.error("Subdomain cannot be empty.")
+      return
+    }
+    if (!SUBDOMAIN_CLIENT_REGEX.test(normalizedSubdomainDraft)) {
+      toast.error("Use letters, numbers, or hyphens, and avoid starting/ending with a hyphen.")
+      return
+    }
+    setSubdomainSaving(true)
+    const r = await updateProviderWebsiteSubdomain({
+      websiteId: state.website.id,
+      subdomain: normalizedSubdomainDraft,
+    })
+    setSubdomainSaving(false)
+    if ("error" in r) {
+      toast.error(r.error)
+      return
+    }
+    setState((prev) =>
+      prev
+        ? {
+            ...prev,
+            website: {
+              ...prev.website,
+              subdomain_slug: r.subdomain_slug,
+            },
+          }
+        : prev,
+    )
+    setSubdomainDraft(r.subdomain_slug)
+    toast.success("Subdomain updated.")
+  }
 
   function copyLiveUrl() {
-    const url =
-      typeof window !== "undefined" ? `${window.location.origin}${sitePreviewBase}` : fullLiveUrl
+    const url = subdomainHostUrl || (typeof window !== "undefined" ? `${window.location.origin}${sitePreviewBase}` : fullLiveUrl)
     void navigator.clipboard
       .writeText(url)
       .then(() => toast.success("Copied to clipboard"))
@@ -919,6 +976,7 @@ export default function WebsiteBuilderClient() {
               void loadProviderWebsiteState().then((res) => {
                 if ("ok" in res && res.state) {
                   setState(res.state)
+                  setSubdomainDraft(res.state.website.subdomain_slug)
                   setActivePageId(pageId)
                 }
               })
@@ -975,6 +1033,41 @@ export default function WebsiteBuilderClient() {
         <CardDescription className="text-xs">After you publish, families can open this address.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 p-3 pt-0">
+        <div className="space-y-1.5">
+          <Label htmlFor="website-subdomain" className="text-xs">
+            Subdomain
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="website-subdomain"
+              value={subdomainDraft}
+              onChange={(event) => setSubdomainDraft(event.target.value)}
+              className="h-8 text-xs"
+              placeholder="your-name"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {rootDomain ? (
+              <span className="text-muted-foreground text-xs whitespace-nowrap">.{rootDomain}</span>
+            ) : null}
+          </div>
+          <p className="text-muted-foreground text-[11px]">
+            {rootDomain
+              ? "Your live site uses this as a subdomain under the main domain."
+              : "Root domain is not configured, so local preview uses an internal path."}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            disabled={subdomainSaving || !subdomainDirty}
+            onClick={saveSubdomain}
+          >
+            {subdomainSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            Save subdomain
+          </Button>
+        </div>
         <p className="bg-muted/60 font-mono text-foreground break-all rounded-md px-2 py-1.5 text-[11px] leading-snug">
           {fullLiveUrl}
         </p>
@@ -984,7 +1077,7 @@ export default function WebsiteBuilderClient() {
             Copy
           </Button>
           <Button type="button" variant="outline" size="sm" className="gap-1.5" asChild>
-            <Link href={sitePreviewBase} target="_blank" rel="noopener noreferrer">
+            <Link href={liveOpenHref} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3.5 w-3.5" />
               Open
             </Link>
@@ -1228,10 +1321,10 @@ export default function WebsiteBuilderClient() {
                 </DialogTrigger>
                 <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
                   <DialogHeader>
-                    <DialogTitle>Apply a template</DialogTitle>
+                    <DialogTitle>Switch website style</DialogTitle>
                   </DialogHeader>
                   <p className="text-muted-foreground text-sm">
-                    Replaces all pages and styles with the chosen preset. Your current layout will be overwritten.
+                    Choose a parent-ready template design. This replaces your current pages and style settings.
                   </p>
                   <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-2">
                     {TEMPLATE_KEYS.map((k) => {
@@ -1254,7 +1347,7 @@ export default function WebsiteBuilderClient() {
                                 }
                               }}
                             >
-                              Apply
+                              Use this style
                             </Button>
                           }
                         />
@@ -1310,7 +1403,7 @@ export default function WebsiteBuilderClient() {
               <div className="border-emerald-200 bg-emerald-50 text-emerald-900 flex flex-wrap items-center gap-2 border px-3 py-2 text-sm">
                 <span className="font-semibold">Site is live now.</span>
                 <span>Your latest changes are published.</span>
-                <Link href={sitePreviewBase} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                <Link href={liveOpenHref} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
                   Open live site
                 </Link>
               </div>

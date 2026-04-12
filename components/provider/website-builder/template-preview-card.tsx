@@ -2,6 +2,7 @@ import { TEMPLATE_LANDING } from "@/lib/website-builder/templates/presets"
 import type { TemplateKey } from "@/lib/website-builder/templates/presets-constants"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { Sparkles } from "lucide-react"
 
 type LandingMeta = (typeof TEMPLATE_LANDING)[TemplateKey]
 
@@ -101,7 +102,7 @@ export function TemplatePreviewCard({
   return (
     <Card
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        "group flex h-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
         preview === "montessori" && "border-emerald-900/10",
         preview === "premium" && "border-amber-900/15",
         preview === "community" && "border-orange-300/30",
@@ -109,7 +110,7 @@ export function TemplatePreviewCard({
         className,
       )}
     >
-      <div className="relative h-1.5 w-full shrink-0 overflow-hidden">
+      <div className="relative h-2 w-full shrink-0 overflow-hidden">
         {preview === "premium" ? (
           <div className="grid h-full w-full grid-cols-3">
             <span className="flex-1 bg-zinc-900" />
@@ -138,15 +139,28 @@ export function TemplatePreviewCard({
           />
         )}
       </div>
-      <CardHeader className="space-y-2 pb-2.5">
-        <p className="text-muted-foreground max-w-[95%] text-[11px] font-semibold uppercase tracking-[0.14em]">{meta.tagline}</p>
+      <CardHeader className="space-y-2.5 pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-muted-foreground max-w-[95%] text-[11px] font-semibold uppercase tracking-[0.14em]">
+            {meta.tagline}
+          </p>
+          <span className="bg-primary/10 text-primary inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold">
+            <Sparkles className="h-3 w-3" />
+            Parent-ready
+          </span>
+        </div>
         <CardTitle className="text-xl leading-tight tracking-tight">{meta.title}</CardTitle>
         <CardDescription className="line-clamp-2 text-sm leading-relaxed">{meta.description}</CardDescription>
+        {"bestFor" in meta && typeof meta.bestFor === "string" && (
+          <p className="text-foreground/85 rounded-lg bg-muted/40 px-2.5 py-2 text-xs font-medium">
+            Best for: {meta.bestFor}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="pb-4">
         <MiniPreview variant={preview} primary={meta.primary} secondary={meta.secondary} surface={THEMES_SURFACE[preview]} />
       </CardContent>
-      <CardFooter className="mt-auto flex flex-col gap-3 border-t bg-muted/20 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <CardFooter className="mt-auto flex flex-col gap-3 border-t bg-muted/25 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           <span
             className="h-7 w-7 rounded-full border border-black/10 shadow-sm"
@@ -164,7 +178,7 @@ export function TemplatePreviewCard({
             title="Background"
           />
         </div>
-        {footer}
+        <div className="w-full sm:w-auto">{footer}</div>
       </CardFooter>
     </Card>
   )

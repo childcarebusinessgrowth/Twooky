@@ -20,5 +20,7 @@ export function canvasTextBlockStyle(
     fontFamily: p.fontFamily,
     textAlign: (p.textAlign ?? "left") as "left" | "center" | "right",
     whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   }
 }

@@ -30,6 +30,19 @@ function sanitizeSubdomainBase(raw: string): string {
     .slice(0, 48)
 }
 
+const SUBDOMAIN_MAX_LENGTH = 63
+const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+
+function sanitizeSubdomainInput(raw: string): string {
+  return raw
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, SUBDOMAIN_MAX_LENGTH)
+}
+
 async function uniqueSubdomain(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, base: string) {
   let candidate = base || `site-${randomUUID().slice(0, 8)}`
   if (!/^[a-z0-9]/.test(candidate)) candidate = `s-${candidate}`
@@ -551,6 +564,64 @@ export async function publishProviderWebsite(
   revalidatePath("/site", "layout")
   revalidatePath(`/site/${website.subdomain_slug}`, "layout")
   return { ok: true, publishedVersionId: version.id, publishedAt: version.created_at }
+}
+
+export async function updateProviderWebsiteSubdomain(input: {
+  websiteId: string
+  subdomain: string
+}): Promise<{ ok: true; subdomain_slug: string } | { error: string }> {
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+  if (authError || !user) return { error: "You must be signed in." }
+
+  const normalized = sanitizeSubdomainInput(input.subdomain)
+  if (!normalized) return { error: "Subdomain cannot be empty." }
+  if (!SUBDOMAIN_REGEX.test(normalized)) {
+    return { error: "Subdomain must use only letters, numbers, or hyphens, and cannot start or end with a hyphen." }
+  }
+
+  const { data: website } = await supabase
+    .from("provider_websites")
+    .select("id, profile_id, subdomain_slug")
+    .eq("id", input.websiteId)
+    .maybeSingle()
+  if (!website || website.profile_id !== user.id) return { error: "Website not found." }
+
+  const currentSlug = website.subdomain_slug?.toLowerCase().trim()
+  if (currentSlug === normalized) return { ok: true, subdomain_slug: normalized }
+
+  const { data: existing } = await supabase
+    .from("provider_websites")
+    .select("id")
+    .ilike("subdomain_slug", normalized)
+    .neq("id", input.websiteId)
+    .maybeSingle()
+  if (existing) return { error: "That subdomain is already taken." }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("provider_websites")
+    .update({ subdomain_slug: normalized })
+    .eq("id", input.websiteId)
+    .select("subdomain_slug")
+    .single()
+
+  if (updateError || !updated) {
+    if (updateError?.message.toLowerCase().includes("duplicate")) {
+      return { error: "That subdomain is already taken." }
+    }
+    return { error: updateError?.message ?? "Failed to update subdomain." }
+  }
+
+  revalidatePath("/dashboard/provider/website")
+  revalidatePath("/dashboard/provider/website/build")
+  revalidatePath("/site", "layout")
+  revalidatePath(`/site/${currentSlug}`, "layout")
+  revalidatePath(`/site/${updated.subdomain_slug}`, "layout")
+
+  return { ok: true, subdomain_slug: updated.subdomain_slug }
 }
 
 function sanitizeFilename(name: string): string {

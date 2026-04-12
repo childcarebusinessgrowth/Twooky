@@ -20,6 +20,33 @@ import {
   ageGroupsToProgramLabels,
   formatAgeGroupLabel,
 } from "@/lib/age-groups-to-program-labels"
+import {
+  ensureCachedGoogleProviderPhoto,
+  persistGooglePlaceSummaryCache,
+} from "@/lib/cache-google-provider-photo"
+import {
+  hasFreshCachedGoogleReviews,
+  readCachedGooglePlaceSummary,
+  type ProviderGoogleCacheRow,
+} from "@/lib/google-place-cache"
+import { revalidateActiveProvidersDirectoryCache } from "@/lib/revalidate-public-directory"
+
+const PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE =
+  "profile_id, provider_slug, business_name, city, address, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+
+const PROVIDER_PROFILE_SELECT_LEGACY =
+  "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+
+const HOME_FEATURED_SELECT_WITH_GOOGLE_CACHE =
+  "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at"
+
+const HOME_FEATURED_SELECT_LEGACY =
+  "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id"
+
+function isMissingColumnError(message: string | undefined): boolean {
+  const m = (message ?? "").toLowerCase()
+  return m.includes("does not exist") && m.includes("column")
+}
 
 export type ActiveProviderRow = {
   profile_id: string
@@ -50,7 +77,9 @@ export type ActiveProviderRow = {
   saved_by_parent_count: number
   /** ISO 3166-1 alpha-2 from `countries.code` when `country_id` is set */
   country_code: string | null
-  /** First Places API photo ref when no primary upload; used with `/api/place-photo`. */
+  /** Saved one-time Google fallback image in Supabase Storage. */
+  google_cached_photo_storage_path: string | null
+  /** First Places API photo ref when no primary/cached upload; used with `/api/place-photo`. */
   google_photo_reference: string | null
 }
 
@@ -89,13 +118,21 @@ export async function getActiveProvidersFromDb(
   const googleApiKey =
     process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
-  const { data: profiles, error: profilesError } = await supabase
+  let { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
-    .select(
-      "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
-    )
+    .select(PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE)
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
+
+  if (profilesError && isMissingColumnError(profilesError.message)) {
+    const retry = await supabase
+      .from("provider_profiles")
+      .select(PROVIDER_PROFILE_SELECT_LEGACY)
+      .eq("listing_status", "active")
+      .not("provider_slug", "is", null)
+    profiles = retry.data
+    profilesError = retry.error
+  }
 
   if (profilesError || !profiles?.length) return []
 
@@ -144,6 +181,8 @@ export async function getActiveProvidersFromDb(
   }
 
   const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
+  const googleCachedPhotoPathByProfile: Record<string, string | null> = {}
+  let didPersistGoogleCache = false
   const findPlaceByKey = new Map<string, Promise<string | null>>()
   const geocodeByAddress = new Map<string, Promise<{ lat: number; lng: number } | null>>()
 
@@ -173,6 +212,10 @@ export async function getActiveProvidersFromDb(
   await Promise.all(
     profiles.map(async (profile) => {
       const hasPrimary = Boolean(primaryPhotoByProfile[profile.profile_id])
+      let cachedGooglePhotoPath =
+        (profile as { google_fallback_storage_path?: string | null }).google_fallback_storage_path?.trim() ||
+        null
+      const cachedGoogle = profile as ProviderGoogleCacheRow
       const name = profile.business_name?.trim() ?? ""
       const addressLine = [profile.address, profile.city].filter(Boolean).join(", ").trim()
 
@@ -181,20 +224,64 @@ export async function getActiveProvidersFromDb(
         placeId = await resolvePlaceIdFromTextCached(name, addressLine)
       }
 
-      let summary = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+      let summary = readCachedGooglePlaceSummary(cachedGoogle)
+      const needsPhotoRef = !hasPrimary && !cachedGooglePhotoPath && !summary?.photoReference
+      const shouldRefreshReviews = !hasFreshCachedGoogleReviews(cachedGoogle)
+      const needsCoordinates =
+        typeof summary?.latitude !== "number" ||
+        !Number.isFinite(summary.latitude) ||
+        typeof summary?.longitude !== "number" ||
+        !Number.isFinite(summary.longitude)
+
+      if (placeId && (shouldRefreshReviews || needsPhotoRef || needsCoordinates)) {
+        const fetched = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+        if (fetched) {
+          summary = { ...(summary ?? {}), ...fetched }
+          const persisted = await persistGooglePlaceSummaryCache({
+            providerProfileId: profile.profile_id,
+            placeId,
+            summary: fetched,
+          })
+          if (persisted) {
+            didPersistGoogleCache = true
+          }
+        }
+      }
 
       // Stored place_id may be wrong or have no Places photos; try text resolution for photo only.
       if (!hasPrimary && name && addressLine && !summary?.photoReference) {
         const textPlaceId = await resolvePlaceIdFromTextCached(name, addressLine)
         if (textPlaceId && textPlaceId !== placeId) {
           const alt = await fetchGooglePlaceDetailsSummary(textPlaceId, googleApiKey)
-          if (alt?.photoReference) {
-            summary = { ...(summary ?? {}), photoReference: alt.photoReference }
+          if (alt) {
+            summary = { ...(summary ?? {}), ...alt }
+            placeId = textPlaceId
+            const persisted = await persistGooglePlaceSummaryCache({
+              providerProfileId: profile.profile_id,
+              placeId,
+              summary: alt,
+            })
+            if (persisted) {
+              didPersistGoogleCache = true
+            }
           }
         }
       }
 
+      if (!hasPrimary && !cachedGooglePhotoPath && summary?.photoReference) {
+        const savedPath = await ensureCachedGoogleProviderPhoto({
+          providerProfileId: profile.profile_id,
+          placeId,
+          photoReference: summary.photoReference,
+        })
+        if (savedPath) {
+          cachedGooglePhotoPath = savedPath
+          didPersistGoogleCache = true
+        }
+      }
+
       googleSummaryByProfile[profile.profile_id] = summary
+      googleCachedPhotoPathByProfile[profile.profile_id] = cachedGooglePhotoPath
 
       if (
         typeof summary?.latitude === "number" &&
@@ -218,6 +305,14 @@ export async function getActiveProvidersFromDb(
       coordsByProfile[profile.profile_id] = await getGeocodedCoords(geocodeInput)
     })
   )
+
+  if (didPersistGoogleCache) {
+    try {
+      revalidateActiveProvidersDirectoryCache()
+    } catch {
+      // revalidation APIs are not always available in every server runtime entrypoint
+    }
+  }
 
   return profiles.map((p) => {
     const stats = reviewStatsByProfile[p.profile_id]
@@ -267,6 +362,7 @@ export async function getActiveProvidersFromDb(
       available_spots_count: (p as { available_spots_count?: number | null }).available_spots_count ?? null,
       saved_by_parent_count: savedByParentCountByProfile[p.profile_id] ?? 0,
       country_code: countryCode,
+      google_cached_photo_storage_path: googleCachedPhotoPathByProfile[p.profile_id] ?? null,
       google_photo_reference: googlePhotoRef,
     }
   })
@@ -282,7 +378,7 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v2-google-photos"],
+  ["directory-active-providers-v4-google-cache"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 
@@ -302,6 +398,12 @@ type HomeFeaturedProfileRow = {
   verified_provider_badge: boolean | null
   verified_provider_badge_color: string | null
   google_place_id: string | null
+  google_fallback_storage_path: string | null
+  google_photo_reference_cached: string | null
+  google_rating_cached: number | null
+  google_review_count_cached: number | null
+  google_reviews_url_cached: string | null
+  google_reviews_cached_at: string | null
 }
 
 /**
@@ -316,22 +418,34 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
 
       const { data: profiles, error: profilesError } = await supabase
         .from("provider_profiles")
-        .select(
-          "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id",
-        )
+        .select(HOME_FEATURED_SELECT_WITH_GOOGLE_CACHE)
         .eq("listing_status", "active")
         .eq("featured", true)
         .not("provider_slug", "is", null)
         .limit(limit)
 
-      if (profilesError || !profiles?.length) {
-        if (profilesError) {
-          console.error("[home-featured] Failed lightweight featured provider query", profilesError.message)
+      let profileRows = profiles
+      let profileRowsError = profilesError
+      if (profileRowsError && isMissingColumnError(profileRowsError.message)) {
+        const retry = await supabase
+          .from("provider_profiles")
+          .select(HOME_FEATURED_SELECT_LEGACY)
+          .eq("listing_status", "active")
+          .eq("featured", true)
+          .not("provider_slug", "is", null)
+          .limit(limit)
+        profileRows = retry.data
+        profileRowsError = retry.error
+      }
+
+      if (profileRowsError || !profileRows?.length) {
+        if (profileRowsError) {
+          console.error("[home-featured] Failed lightweight featured provider query", profileRowsError.message)
         }
         return []
       }
 
-      const profileIds = profiles.map((row) => row.profile_id)
+      const profileIds = profileRows.map((row) => row.profile_id)
       const googleApiKey =
         process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -378,6 +492,8 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       }
 
       const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
+      const googleCachedPhotoPathByProfile: Record<string, string | null> = {}
+      let didPersistGoogleCache = false
       const findPlaceByKey = new Map<string, Promise<string | null>>()
       const resolvePlaceIdFromTextCachedHome = (name: string, addressLine: string): Promise<string | null> => {
         const key = `${name.toLowerCase()}|${addressLine.toLowerCase()}`
@@ -389,8 +505,10 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         return pending
       }
       await Promise.all(
-        (profiles as HomeFeaturedProfileRow[]).map(async (profile) => {
+        (profileRows as HomeFeaturedProfileRow[]).map(async (profile) => {
           const hasPrimary = Boolean(photoByProfileId[profile.profile_id])
+          let cachedGooglePhotoPath = profile.google_fallback_storage_path?.trim() || null
+          const cachedGoogle = profile as ProviderGoogleCacheRow
           const name = profile.business_name?.trim() ?? ""
           const addressLine = [profile.address, profile.city].filter(Boolean).join(", ").trim()
 
@@ -399,28 +517,76 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
             placeId = await resolvePlaceIdFromTextCachedHome(name, addressLine)
           }
 
-          let summary = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+          let summary = readCachedGooglePlaceSummary(cachedGoogle)
+          const needsPhotoRef = !hasPrimary && !cachedGooglePhotoPath && !summary?.photoReference
+          const shouldRefreshReviews = !hasFreshCachedGoogleReviews(cachedGoogle)
+
+          if (placeId && (shouldRefreshReviews || needsPhotoRef)) {
+            const fetched = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+            if (fetched) {
+              summary = { ...(summary ?? {}), ...fetched }
+              const persisted = await persistGooglePlaceSummaryCache({
+                providerProfileId: profile.profile_id,
+                placeId,
+                summary: fetched,
+              })
+              if (persisted) {
+                didPersistGoogleCache = true
+              }
+            }
+          }
 
           if (!hasPrimary && name && addressLine && !summary?.photoReference) {
             const textPlaceId = await resolvePlaceIdFromTextCachedHome(name, addressLine)
             if (textPlaceId && textPlaceId !== placeId) {
               const alt = await fetchGooglePlaceDetailsSummary(textPlaceId, googleApiKey)
-              if (alt?.photoReference) {
-                summary = { ...(summary ?? {}), photoReference: alt.photoReference }
+              if (alt) {
+                summary = { ...(summary ?? {}), ...alt }
+                placeId = textPlaceId
+                const persisted = await persistGooglePlaceSummaryCache({
+                  providerProfileId: profile.profile_id,
+                  placeId,
+                  summary: alt,
+                })
+                if (persisted) {
+                  didPersistGoogleCache = true
+                }
               }
             }
           }
 
+          if (!hasPrimary && !cachedGooglePhotoPath && summary?.photoReference) {
+            const savedPath = await ensureCachedGoogleProviderPhoto({
+              providerProfileId: profile.profile_id,
+              placeId,
+              photoReference: summary.photoReference,
+            })
+            if (savedPath) {
+              cachedGooglePhotoPath = savedPath
+              didPersistGoogleCache = true
+            }
+          }
+
           googleSummaryByProfile[profile.profile_id] = summary
+          googleCachedPhotoPathByProfile[profile.profile_id] = cachedGooglePhotoPath
         })
       )
 
-      return (profiles as HomeFeaturedProfileRow[]).map((row) => {
+      if (didPersistGoogleCache) {
+        try {
+          revalidateActiveProvidersDirectoryCache()
+        } catch {
+          // revalidation APIs are not always available in every server runtime entrypoint
+        }
+      }
+
+      return (profileRows as HomeFeaturedProfileRow[]).map((row) => {
         const slug = row.provider_slug ?? row.profile_id
         const symbol = (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
         const googleSummary = googleSummaryByProfile[row.profile_id]
         const image = buildProviderCardImageUrl(
           photoByProfileId[row.profile_id] ?? null,
+          googleCachedPhotoPathByProfile[row.profile_id] ?? null,
           googleSummary?.photoReference ?? null,
           baseUrl
         )
@@ -458,7 +624,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         }
       })
     },
-    ["home-featured-providers-v5-google-photos", String(limit)],
+    ["home-featured-providers-v6-google-cache", String(limit)],
     { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
   )()
 }
@@ -760,6 +926,7 @@ export async function getRecommendedProvidersForDashboard(
     const location = [row.city, row.address].filter(Boolean).join(", ") || ","
     const image = buildProviderCardImageUrl(
       row.primary_photo_storage_path,
+      row.google_cached_photo_storage_path,
       row.google_photo_reference,
       baseUrl
     )
@@ -792,6 +959,7 @@ export function activeProviderRowToCardData(
   const priceRange = formatDailyFeeRange(from, to, symbol)
   const image = buildProviderCardImageUrl(
     row.primary_photo_storage_path,
+    row.google_cached_photo_storage_path,
     row.google_photo_reference,
     baseUrl
   )

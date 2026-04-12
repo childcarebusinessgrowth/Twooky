@@ -52,6 +52,10 @@ function countryCodeToLabel(raw: string): string {
   }
 }
 
+function isCoordinateLocationText(value: string): boolean {
+  return /^-?\d{1,3}(?:\.\d+)?,\s*-?\d{1,3}(?:\.\d+)?$/.test(value.trim())
+}
+
 export function SearchBar({
   ...props
 }: SearchBarProps) {
@@ -110,6 +114,14 @@ function SearchBarContent({
     }
     return ""
   }, [searchParams])
+  const showsCoordinateFallback = useMemo(() => isCoordinateLocationText(location), [location])
+  const locationInputValue = showsCoordinateFallback ? "" : location
+  const compactLocationPlaceholder = showsCoordinateFallback
+    ? "Using current location"
+    : "Location (city or zip)"
+  const heroLocationPlaceholder = showsCoordinateFallback
+    ? "Using current location"
+    : "City, state, or zip"
   const hasLocationQuery = useMemo(() => {
     const directLocation = searchParams.get("location")?.trim()
     if (directLocation) return true
@@ -268,9 +280,9 @@ function SearchBarContent({
         <div className="relative flex-1 min-w-[200px]">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Location (city or zip)"
+            placeholder={compactLocationPlaceholder}
             className="pl-10 pr-10 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none"
-            value={location}
+            value={locationInputValue}
             onChange={(e) => setLocation(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -348,9 +360,9 @@ function SearchBarContent({
             <div className="relative w-full">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="City, state, or zip"
+                placeholder={heroLocationPlaceholder}
                 className={`w-full pl-10 pr-4 h-11 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${inputClassName}`}
-                value={location}
+                value={locationInputValue}
                 onChange={(e) => setLocation(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {

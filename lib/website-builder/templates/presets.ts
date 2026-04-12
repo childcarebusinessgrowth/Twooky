@@ -58,59 +58,59 @@ interface ThemePack {
 const THEMES: Record<TemplateKey, ThemePack> = {
   montessori: {
     key: "montessori",
-    primary: "#2d6a4f",
-    secondary: "#1b4332",
-    background: "#f4f1ea",
-    surface: "#e9f5ee",
-    text: "#1b4332",
-    muted: "#52796f",
-    accent: "#40916c",
-    heroTitle: "Montessori-inspired early years",
-    heroSub: "Independence, concentration, and respect , in a calm, prepared environment.",
-    footerBlurb: "© Your nursery name · Montessori-inspired care",
-    navBrandLabel: "Montessori nursery",
+    primary: "#2f7d5a",
+    secondary: "#1f4f3c",
+    background: "#f6f4ed",
+    surface: "#e9f7f0",
+    text: "#1f4f3c",
+    muted: "#4e7a6a",
+    accent: "#4ea97a",
+    heroTitle: "Calm starts, confident little learners",
+    heroSub: "A nurturing Montessori-inspired environment where independence, care, and curiosity grow every day.",
+    footerBlurb: "© Your nursery name · Montessori-inspired early years",
+    navBrandLabel: "Little Roots Montessori",
   },
   premium: {
     key: "premium",
-    primary: "#c9a227",
-    secondary: "#0f172a",
-    background: "#fafaf9",
-    surface: "#f5f0e6",
+    primary: "#d4a93d",
+    secondary: "#0f1f3a",
+    background: "#f9f8f4",
+    surface: "#f7f1e8",
     text: "#0f172a",
     muted: "#475569",
-    accent: "#b45309",
-    heroTitle: "Premium childcare experience",
-    heroSub: "Small ratios, curated curriculum, and concierge-level family partnership.",
+    accent: "#c56b26",
+    heroTitle: "Boutique care with exceptional family support",
+    heroSub: "Small group sizes, thoughtful learning plans, and warm daily communication parents can rely on.",
     footerBlurb: "© Your nursery name · Premium early learning",
-    navBrandLabel: "Little Scholars",
+    navBrandLabel: "Little Scholars House",
   },
   community: {
     key: "community",
-    primary: "#e07a5f",
-    secondary: "#3d405b",
-    background: "#fefae0",
-    surface: "#faedcd",
-    text: "#3d405b",
-    muted: "#5c5f7a",
-    accent: "#81b29a",
-    heroTitle: "Rooted in community",
-    heroSub: "Local families, inclusive culture, and partnerships that lift every child.",
-    footerBlurb: "© Your nursery name · Community childcare",
-    navBrandLabel: "Neighborhood preschool",
+    primary: "#ea7a62",
+    secondary: "#3f466b",
+    background: "#fff8e7",
+    surface: "#fbeed1",
+    text: "#3f466b",
+    muted: "#61688c",
+    accent: "#7fb7a0",
+    heroTitle: "A welcoming place where every family belongs",
+    heroSub: "Community-led early learning with inclusive values, playful discovery, and strong parent partnerships.",
+    footerBlurb: "© Your nursery name · Community-led childcare",
+    navBrandLabel: "Sunflower Community Preschool",
   },
   sports: {
     key: "sports",
-    primary: "#203e68",
+    primary: "#1f4d82",
     secondary: "#1e3a8a",
-    background: "#eff6ff",
-    surface: "#dbeafe",
-    text: "#1e3a8a",
-    muted: "#1d4ed8",
-    accent: "#f97316",
-    heroTitle: "Active kids, confident learners",
-    heroSub: "Daily movement, teamwork, and outdoor play alongside strong early academics.",
-    footerBlurb: "© Your nursery name · Active early learning",
-    navBrandLabel: "Active Kids Club",
+    background: "#eef6ff",
+    surface: "#d8eafe",
+    text: "#1c3f76",
+    muted: "#2358a5",
+    accent: "#f5822a",
+    heroTitle: "Big energy, kind routines, happy progress",
+    heroSub: "Movement-rich days, outdoor adventures, and confidence-building learning for active children.",
+    footerBlurb: "© Your nursery name · Active play and learning",
+    navBrandLabel: "Move & Grow Kids",
   },
 }
 
@@ -181,13 +181,16 @@ function contactFormBlock(
   h: number,
   introHint: string,
 ): CanvasNode {
+  const resolvedIntroHint =
+    introHint.trim() ||
+    "Share a few details and our team will reply within two working days to help you plan next steps."
   return {
     id: nid(),
     type: "contactForm",
     parentId: null,
     zIndex: 25,
     props: {
-      introHint,
+      introHint: resolvedIntroHint,
       showProgramInterest: true,
       textAlign: "center",
     },
@@ -2577,36 +2580,36 @@ export function alignFooterForPublishedPageLayout(pathSlug: string, nodes: Canva
 function supplementalCopyForPage(pathSlug: string): { title: string; body: string; cta: string } | null {
   if (pathSlug === "") {
     return {
-      title: "What families ask most",
-      body: "Opening hours, settling-in support, meals, and daily communication are all tailored around your child's age and routine. During your tour, we will walk through your family's priorities and the best start date options.",
-      cta: "Plan your visit",
+      title: "Everything parents ask before joining",
+      body: "We cover daily routines, settling-in support, meals, safeguarding, and how we share updates with families. During your tour, we help you find the best start plan for your child.",
+      cta: "Book your family tour",
     }
   }
   if (pathSlug === "about") {
     return {
-      title: "Meet the team",
-      body: "Our educators combine warm relationships with clear developmental goals. We share regular updates, hold family conferences, and build transition plans so children move confidently into each next stage.",
+      title: "Meet your child's future educators",
+      body: "Our team blends warm relationships with purposeful teaching. We provide regular family updates, parent meetings, and smooth transition plans so children feel secure at every stage.",
       cta: "Talk with our team",
     }
   }
   if (pathSlug === "programs") {
     return {
-      title: "How placement works",
-      body: "After your visit, we suggest the most suitable program and share a simple next-step checklist. Start dates, orientation sessions, and room introductions are arranged to make the transition smooth for both child and parent.",
-      cta: "Ask about availability",
+      title: "How enrollment works",
+      body: "After your visit, we recommend the best-fit program and share easy next steps. We coordinate orientation sessions and classroom introductions to make the transition smooth for both children and parents.",
+      cta: "Check current availability",
     }
   }
   if (pathSlug === "fees") {
     return {
-      title: "Need a tailored quote?",
-      body: "We can provide options based on your preferred schedule, age group, and term length. Our team can also explain payment timelines, sibling discounts, and any local support routes available to your family.",
+      title: "Need a personalized fee plan?",
+      body: "We can share options by schedule, age group, and term length. We also explain payment timelines, sibling offers, and any local support your family may be eligible for.",
       cta: "Request fee details",
     }
   }
   if (pathSlug === "gallery") {
     return {
-      title: "See the environment in person",
-      body: "Photos are a starting point, but an in-person visit helps you experience the rhythm, atmosphere, and interactions that matter most. Book a walkthrough and observe real classroom moments.",
+      title: "See daily life in person",
+      body: "Photos offer a quick look, but a visit lets you feel the atmosphere and see real child-educator interactions. Join us for a walkthrough and explore your child's future space.",
       cta: "Book a walkthrough",
     }
   }
@@ -2703,6 +2706,7 @@ export const TEMPLATE_LANDING: Record<
     title: string
     description: string
     tagline: string
+    bestFor: string
     primary: string
     secondary: string
     background: string
@@ -2710,36 +2714,40 @@ export const TEMPLATE_LANDING: Record<
   }
 > = {
   montessori: {
-    title: "Montessori",
-    tagline: "Split hero · serif calm",
-    description: "Prepared-environment layout with left-aligned nav and three-column pillars.",
+    title: "Montessori Calm",
+    tagline: "Calm rhythm · natural warmth",
+    description: "Peaceful layouts with gentle structure and reassuring copy for families seeking focus and care.",
+    bestFor: "settings that emphasize independence, calm routines, and thoughtful guidance",
     primary: THEMES.montessori.primary,
     secondary: THEMES.montessori.secondary,
     background: THEMES.montessori.background,
     preview: "montessori",
   },
   premium: {
-    title: "Premium",
-    tagline: "Dark hero · gold accent",
-    description: "Navy band, centered luxury copy, and sharp editorial gallery tiles.",
+    title: "Premium Studio",
+    tagline: "Editorial polish · high trust",
+    description: "Upscale design language with elegant typography and polished conversion sections for tours.",
+    bestFor: "boutique nurseries that want a premium feel and parent confidence",
     primary: THEMES.premium.primary,
     secondary: THEMES.premium.secondary,
     background: THEMES.premium.background,
     preview: "premium",
   },
   community: {
-    title: "Community",
-    tagline: "Rounded · welcoming",
-    description: "Soft cards, pill CTAs, and side-by-side photos with warm footer contrast.",
+    title: "Community Joy",
+    tagline: "Friendly colour · family-first",
+    description: "Playful, welcoming sections that highlight belonging, communication, and everyday moments.",
+    bestFor: "centres that lead with warmth, inclusion, and local community connection",
     primary: THEMES.community.primary,
     secondary: THEMES.community.secondary,
     background: THEMES.community.background,
     preview: "community",
   },
   sports: {
-    title: "Sports & active",
-    tagline: "Stats strip · bold type",
-    description: "Energetic stat bar, split hero image, and uppercase section headers.",
+    title: "Active Explorers",
+    tagline: "Energetic flow · strong clarity",
+    description: "Bold playful layout focused on movement, confidence-building, and active learning stories.",
+    bestFor: "programs with outdoor play, movement-led learning, and energetic branding",
     primary: THEMES.sports.primary,
     secondary: THEMES.sports.secondary,
     background: THEMES.sports.background,

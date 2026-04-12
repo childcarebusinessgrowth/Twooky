@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { fetchGooglePlaceDetailsSummary } from "@/lib/google-place-reviews"
+import {
+  persistGooglePlaceSummaryCache,
+} from "@/lib/cache-google-provider-photo"
+import {
+  hasFreshCachedGoogleReviews,
+  readCachedGooglePlaceSummary,
+  type ProviderGoogleCacheRow,
+} from "@/lib/google-place-cache"
 import { ageGroupsToProgramLabels } from "@/lib/age-groups-to-program-labels"
 import { formatDailyFeeRange } from "@/lib/currency"
 import {
@@ -72,6 +80,17 @@ function normalizeAvailabilityStatus(value: unknown): PublicAvailabilityStatus {
 const PLACEHOLDER_IMAGE =
   "https://images.pexels.com/photos/1648377/pexels-photo-1648377.jpeg?auto=compress&cs=tinysrgb&w=800"
 
+const PUBLIC_PROVIDER_SELECT_WITH_GOOGLE_CACHE =
+  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+
+const PUBLIC_PROVIDER_SELECT_LEGACY =
+  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+
+function isMissingColumnError(message: string | undefined): boolean {
+  const m = (message ?? "").toLowerCase()
+  return m.includes("does not exist") && m.includes("column")
+}
+
 export async function getActivePublicProviderBySlug(
   supabase: SupabaseClient,
   slug: string,
@@ -80,14 +99,23 @@ export async function getActivePublicProviderBySlug(
   const slugTrimmed = slug.trim()
   if (!slugTrimmed) return null
 
-  const { data: profile, error: profileError } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from("provider_profiles")
-    .select(
-      "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
-    )
+    .select(PUBLIC_PROVIDER_SELECT_WITH_GOOGLE_CACHE)
     .ilike("provider_slug", slugTrimmed)
     .eq("listing_status", "active")
     .maybeSingle()
+
+  if (profileError && isMissingColumnError(profileError.message)) {
+    const retry = await supabase
+      .from("provider_profiles")
+      .select(PUBLIC_PROVIDER_SELECT_LEGACY)
+      .ilike("provider_slug", slugTrimmed)
+      .eq("listing_status", "active")
+      .maybeSingle()
+    profile = retry.data
+    profileError = retry.error
+  }
 
   if (profileError || !profile) return null
 
@@ -96,7 +124,7 @@ export async function getActivePublicProviderBySlug(
   const googleApiKey =
     process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
-  const [photosResult, reviews, faqsResult, googleReviewSummary, ageGroupsResult] = await Promise.all([
+  const [photosResult, reviews, faqsResult, ageGroupsResult] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
@@ -110,12 +138,27 @@ export async function getActivePublicProviderBySlug(
       .select("question, answer")
       .eq("provider_profile_id", profileId)
       .order("sort_order", { ascending: true }),
-    fetchGooglePlaceDetailsSummary(profile.google_place_id, googleApiKey),
     supabase
       .from("age_groups")
       .select("tag, age_range")
       .eq("is_active", true),
   ])
+
+  const cachedGoogle = profile as ProviderGoogleCacheRow
+  let googleReviewSummary = readCachedGooglePlaceSummary(cachedGoogle)
+  const hasFreshGoogleReviews = hasFreshCachedGoogleReviews(cachedGoogle)
+  const placeId = profile.google_place_id?.trim() ?? null
+  if (placeId && !hasFreshGoogleReviews) {
+    const fetched = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
+    if (fetched) {
+      googleReviewSummary = { ...(googleReviewSummary ?? {}), ...fetched }
+      await persistGooglePlaceSummaryCache({
+        providerProfileId: profileId,
+        placeId,
+        summary: fetched,
+      })
+    }
+  }
 
   const photoRows = photosResult.data ?? []
   const photos = photoRows.map((row) => ({

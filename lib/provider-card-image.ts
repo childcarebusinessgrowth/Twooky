@@ -10,15 +10,20 @@ function buildPhotoPublicUrl(storagePath: string, baseUrl: string): string {
 /**
  * Card image URL for directory/search: **primary Supabase upload always wins** over Google Places.
  * If `primaryPath` is set (from `provider_photos.is_primary`), Google photo references are ignored.
+ * Then falls back to a cached Google image stored in Supabase.
  * Otherwise uses `/api/place-photo` when a Places `photo_reference` exists, else the local placeholder.
  */
 export function buildProviderCardImageUrl(
   primaryPath: string | null,
+  cachedGoogleStoragePath: string | null,
   googlePhotoReference: string | null,
   baseUrl: string
 ): string {
   if (primaryPath) {
     return buildPhotoPublicUrl(primaryPath, baseUrl)
+  }
+  if (cachedGoogleStoragePath) {
+    return buildPhotoPublicUrl(cachedGoogleStoragePath, baseUrl)
   }
   const ref = googlePhotoReference?.trim()
   if (ref) {

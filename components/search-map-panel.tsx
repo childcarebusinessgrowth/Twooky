@@ -221,19 +221,19 @@ export function SearchMapPanel({
           })
         })
 
-        if (!usedSearchArea) {
-          if (mapProviders.length > 1) {
-            map.fitBounds(bounds, 80)
-          } else if (mapProviders.length === 1) {
-            map.setCenter({
-              lat: mapProviders[0].latitude,
-              lng: mapProviders[0].longitude,
-            })
-            map.setZoom(13)
-          } else {
-            map.setCenter(center)
-            map.setZoom(10)
-          }
+        if (mapProviders.length > 1) {
+          // Prioritize the actual provider marker spread so nearby matches do not visually collapse
+          // into a single pin when a broad location viewport (e.g. "London") is used.
+          map.fitBounds(bounds, 80)
+        } else if (mapProviders.length === 1) {
+          map.setCenter({
+            lat: mapProviders[0].latitude,
+            lng: mapProviders[0].longitude,
+          })
+          map.setZoom(13)
+        } else if (!usedSearchArea) {
+          map.setCenter(center)
+          map.setZoom(10)
         }
       } catch (error) {
         const message =

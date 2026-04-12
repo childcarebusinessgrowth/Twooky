@@ -470,6 +470,13 @@ export interface Database {
           city_id: string | null
           currency_id: string | null
           google_place_id: string | null
+          google_photo_reference_cached: string | null
+          google_fallback_storage_path: string | null
+          google_fallback_cached_at: string | null
+          google_rating_cached: number | null
+          google_review_count_cached: number | null
+          google_reviews_url_cached: string | null
+          google_reviews_cached_at: string | null
           virtual_tour_url: string | null
           virtual_tour_urls: string[] | null
           description: string | null
@@ -518,6 +525,13 @@ export interface Database {
           city_id?: string | null
           currency_id?: string | null
           google_place_id?: string | null
+          google_photo_reference_cached?: string | null
+          google_fallback_storage_path?: string | null
+          google_fallback_cached_at?: string | null
+          google_rating_cached?: number | null
+          google_review_count_cached?: number | null
+          google_reviews_url_cached?: string | null
+          google_reviews_cached_at?: string | null
           virtual_tour_url?: string | null
           virtual_tour_urls?: string[] | null
           description?: string | null
@@ -566,6 +580,13 @@ export interface Database {
           city_id?: string | null
           currency_id?: string | null
           google_place_id?: string | null
+          google_photo_reference_cached?: string | null
+          google_fallback_storage_path?: string | null
+          google_fallback_cached_at?: string | null
+          google_rating_cached?: number | null
+          google_review_count_cached?: number | null
+          google_reviews_url_cached?: string | null
+          google_reviews_cached_at?: string | null
           virtual_tour_url?: string | null
           virtual_tour_urls?: string[] | null
           description?: string | null

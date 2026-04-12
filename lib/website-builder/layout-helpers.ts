@@ -81,21 +81,53 @@ function desktopRect(node: CanvasNode): LayoutRect {
   return pickLayoutForBreakpoint(node, "desktop")
 }
 
+function estimatedMobileTextHeight(node: CanvasNode): number {
+  const raw = typeof node.props.text === "string" ? node.props.text : ""
+  const text = raw.trim()
+  const fs =
+    typeof node.props.fontSize === "number" && Number.isFinite(node.props.fontSize)
+      ? node.props.fontSize
+      : 16
+  if (!text) return Math.max(32, Math.round(fs * 1.5))
+
+  const availableWidth = MOBILE_W - 24
+  const charsPerLine = Math.max(14, Math.floor(availableWidth / Math.max(7.5, fs * 0.56)))
+  const visualLines = text.split("\n").reduce((sum, part) => {
+    const len = part.trim().length
+    return sum + Math.max(1, Math.ceil(len / charsPerLine))
+  }, 0)
+  const lineHeightPx = fs * 1.35
+  const contentHeight = Math.ceil(visualLines * lineHeightPx + 12)
+  return Math.max(36, Math.min(520, contentHeight))
+}
+
 /** Mobile stack uses a conservative text min-height to avoid oversized empty bands. */
 function mobileStackHeight(node: CanvasNode): number {
   const base = desktopRect(node).h
   const p = node.props
   switch (node.type) {
     case "text": {
+      const textEstimate = estimatedMobileTextHeight(node)
       const fs =
         typeof p.fontSize === "number" && Number.isFinite(p.fontSize) ? p.fontSize : 16
-      const cap = fs >= 32 ? Math.min(base, 180) : fs >= 24 ? Math.min(base, 130) : fs >= 20 ? Math.min(base, 100) : Math.min(base, 88)
+      const cap = fs >= 32 ? Math.min(base, 220) : fs >= 24 ? Math.min(base, 160) : fs >= 20 ? Math.min(base, 124) : Math.min(base, 104)
       const minH =
         fs >= 32 ? Math.max(52, Math.round(fs * 1.35)) : fs >= 24 ? Math.max(40, Math.round(fs * 1.25)) : fs >= 20 ? Math.max(34, 28) : 28
-      return Math.max(minH, Math.min(cap, base))
+      const adaptive = Math.max(minH, textEstimate)
+      return Math.max(adaptive, Math.min(cap, base))
     }
     case "button":
       return Math.max(24, Math.min(base, 56))
+    case "image":
+      return Math.max(140, Math.min(base, 300))
+    case "video":
+      return Math.max(190, Math.min(base, 260))
+    case "gallery":
+      return Math.max(170, Math.min(base, 320))
+    case "contactForm":
+      return Math.max(340, Math.min(base, 560))
+    case "footer":
+      return Math.max(64, Math.min(base, 140))
     default:
       return Math.max(24, base)
   }

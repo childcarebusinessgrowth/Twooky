@@ -531,6 +531,20 @@ alter table if exists public.provider_profiles
   add column if not exists address text;
 alter table if exists public.provider_profiles
   add column if not exists google_place_id text;
+alter table if exists public.provider_profiles
+  add column if not exists google_photo_reference_cached text;
+alter table if exists public.provider_profiles
+  add column if not exists google_fallback_storage_path text;
+alter table if exists public.provider_profiles
+  add column if not exists google_fallback_cached_at timestamptz;
+alter table if exists public.provider_profiles
+  add column if not exists google_rating_cached numeric;
+alter table if exists public.provider_profiles
+  add column if not exists google_review_count_cached integer;
+alter table if exists public.provider_profiles
+  add column if not exists google_reviews_url_cached text;
+alter table if exists public.provider_profiles
+  add column if not exists google_reviews_cached_at timestamptz;
 
 -- Program
 alter table if exists public.provider_profiles

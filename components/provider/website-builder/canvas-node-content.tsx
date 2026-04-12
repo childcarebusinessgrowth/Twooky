@@ -23,6 +23,15 @@ import {
 
 export type CanvasNodeContentVariant = "editor" | "published"
 
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+}
+
 function formatSubdomainBrand(slug: string | undefined): string {
   if (!slug?.trim()) return ""
   return slug
@@ -36,7 +45,7 @@ function resolveNavbarBrandLabel(
   p: CanvasNode["props"],
   subdomainSlug: string | undefined,
 ): string {
-  const raw = typeof p.brandLabel === "string" ? p.brandLabel.trim() : ""
+  const raw = typeof p.brandLabel === "string" ? decodeHtmlEntities(p.brandLabel).trim() : ""
   if (raw.length > 0) return raw
   const fromSub = formatSubdomainBrand(subdomainSlug)
   if (fromSub) return fromSub
@@ -91,15 +100,30 @@ export function CanvasNodeContent({
   const p = n.props
 
   switch (n.type) {
-    case "text":
+    case "text": {
+      const rawFontSize =
+        typeof p.fontSize === "number" && Number.isFinite(p.fontSize) ? p.fontSize : 16
+      const mobileFontSize =
+        isMobileBreakpoint && variant === "published"
+          ? rawFontSize >= 36
+            ? Math.max(20, Math.round(rawFontSize * 0.82))
+            : rawFontSize >= 28
+              ? Math.max(18, Math.round(rawFontSize * 0.88))
+              : rawFontSize
+          : rawFontSize
       return (
         <div
           className="h-full w-full overflow-hidden"
-          style={canvasTextBlockStyle(p)}
+          style={{
+            ...canvasTextBlockStyle(p),
+            fontSize: `${mobileFontSize}px`,
+            lineHeight: isMobileBreakpoint && variant === "published" ? 1.4 : undefined,
+          }}
         >
           {p.text ?? ""}
         </div>
       )
+    }
 
     case "button": {
       const href =
@@ -161,7 +185,6 @@ export function CanvasNodeContent({
             draggable={false}
             className={cn(
               variant === "editor" ? "pointer-events-none object-cover" : "object-cover",
-              variant === "published" && isMobileBreakpoint && "object-contain",
             )}
             loading={variant === "published" ? "lazy" : undefined}
             sizes={
@@ -294,14 +317,20 @@ export function CanvasNodeContent({
               </SheetTrigger>
             </nav>
             <SheetContent
+              forceMount
               side="right"
-              className="flex w-[min(100%,22rem)] flex-col gap-3 sm:max-w-sm"
+              className="flex w-[min(100%,22rem)] flex-col gap-3 border-l-primary/20 sm:max-w-sm data-[state=closed]:duration-150 data-[state=open]:duration-180"
               style={{ backgroundColor: p.backgroundColor ?? "#ffffff" }}
             >
               <SheetHeader>
-                <SheetTitle style={{ color: p.color ?? "#0f172a" }}>Menu</SheetTitle>
+                <SheetTitle className="text-lg" style={{ color: p.color ?? "#0f172a" }}>
+                  Menu
+                </SheetTitle>
+                <p className="text-sm font-medium" style={{ color: p.color ?? "#0f172a" }}>
+                  {brandText}
+                </p>
               </SheetHeader>
-              <div className="flex flex-col gap-1 pr-2">
+              <div className="min-h-0 flex flex-1 flex-col gap-1 overflow-y-auto pr-2">
                 {items.map((it, i) => {
                   const pathTrim = it.path.trim()
                   const lower = pathTrim.toLowerCase()
@@ -312,25 +341,30 @@ export function CanvasNodeContent({
                   const isHttp = lower.startsWith("http://") || lower.startsWith("https://")
                   const newTab = Boolean(isExt && isHttp && it.openInNewTab)
                   const style = isBtn ? btnStyle : ({ textDecoration: "none", color: p.color ?? "#0f172a" } as const)
+                  const displayLabel = decodeHtmlEntities(it.label)
 
                   if (isExt) {
                     return (
                       <SheetClose asChild key={`${i}-${it.id ?? it.label}-${href}`}>
                         <a
                           href={href}
-                          className={cn(sheetLinkClass, !isBtn && "hover:bg-black/6")}
+                          className={cn(sheetLinkClass, "whitespace-normal wrap-break-word", !isBtn && "hover:bg-black/6")}
                           style={style}
                           {...(newTab ? { target: "_blank" as const, rel: "noopener noreferrer" } : {})}
                         >
-                          {it.label}
+                          {displayLabel}
                         </a>
                       </SheetClose>
                     )
                   }
                   return (
                     <SheetClose asChild key={`${i}-${it.id ?? it.label}-${href}`}>
-                      <Link href={href} className={cn(sheetLinkClass, !isBtn && "hover:bg-black/6")} style={style}>
-                        {it.label}
+                      <Link
+                        href={href}
+                        className={cn(sheetLinkClass, "whitespace-normal wrap-break-word", !isBtn && "hover:bg-black/6")}
+                        style={style}
+                      >
+                        {displayLabel}
                       </Link>
                     </SheetClose>
                   )
@@ -383,26 +417,33 @@ export function CanvasNodeContent({
               </SheetTrigger>
             </div>
             <SheetContent
+              forceMount
               side="right"
-              className="w-[min(100%,22rem)] sm:max-w-sm"
+              className="w-[min(100%,22rem)] border-l-primary/20 sm:max-w-sm data-[state=closed]:duration-150 data-[state=open]:duration-180"
               style={{ backgroundColor: p.backgroundColor ?? "#ffffff" }}
             >
               <SheetHeader>
-                <SheetTitle style={{ color: p.color ?? "#0f172a" }}>Menu</SheetTitle>
+                <SheetTitle className="text-lg" style={{ color: p.color ?? "#0f172a" }}>
+                  Menu
+                </SheetTitle>
+                <p className="text-sm font-medium" style={{ color: p.color ?? "#0f172a" }}>
+                  {brandText}
+                </p>
               </SheetHeader>
-              <div className="flex flex-col gap-1 pr-2">
+              <div className="min-h-0 flex max-h-[72vh] flex-col gap-1 overflow-y-auto pr-2">
                 {items.map((it, i) => {
                   const isBtn = (it.variant ?? "link") === "button"
+                  const displayLabel = decodeHtmlEntities(it.label)
                   return (
                     <span
                       key={it.id ?? `${i}-${it.path}-${it.label}`}
                       className={cn(
-                        "flex min-h-11 items-center rounded-md px-3 py-2 text-base font-medium",
+                        "flex min-h-11 items-center rounded-md px-3 py-2 text-base font-medium whitespace-normal wrap-break-word",
                         isBtn ? "justify-center" : "",
                       )}
                       style={isBtn ? btnStyle : undefined}
                     >
-                      {it.label}
+                      {displayLabel}
                     </span>
                   )
                 })}
@@ -451,6 +492,7 @@ export function CanvasNodeContent({
                 const newTab = Boolean(isExt && isHttp && it.openInNewTab)
                 const className = !isBtn && !isExt ? "hover:underline" : undefined
                 const style = isBtn ? btnStyle : ({ textDecoration: "none" } as const)
+                const displayLabel = decodeHtmlEntities(it.label)
 
                 if (isExt) {
                   return (
@@ -461,13 +503,13 @@ export function CanvasNodeContent({
                       style={style}
                       {...(newTab ? { target: "_blank" as const, rel: "noopener noreferrer" } : {})}
                     >
-                      {it.label}
+                      {displayLabel}
                     </a>
                   )
                 }
                 return (
                   <Link key={`${i}-${it.id ?? it.label}-${href}`} href={href} className={className} style={style}>
-                    {it.label}
+                    {displayLabel}
                   </Link>
                 )
               })}
@@ -505,13 +547,14 @@ export function CanvasNodeContent({
           >
             {items.map((it, i) => {
               const isBtn = (it.variant ?? "link") === "button"
+              const displayLabel = decodeHtmlEntities(it.label)
               return (
                 <span
                   key={it.id ?? `${i}-${it.path}-${it.label}`}
                   className={isBtn ? "shrink-0 rounded-md px-2 py-1 text-xs font-medium whitespace-nowrap" : "shrink-0 whitespace-nowrap"}
                   style={isBtn ? { backgroundColor: primary, color: "#fff" } : undefined}
                 >
-                  {it.label}
+                  {displayLabel}
                 </span>
               )
             })}
@@ -532,13 +575,18 @@ export function CanvasNodeContent({
             backgroundColor: p.backgroundColor ?? "#0f172a",
             color: p.color ?? "#e2e8f0",
             fontFamily: p.fontFamily,
-            fontSize: p.fontSize ? `${p.fontSize}px` : 14,
+            fontSize:
+              isMobileBreakpoint && variant === "published"
+                ? `${Math.max(12, Math.min(15, p.fontSize ?? 14))}px`
+                : p.fontSize
+                  ? `${p.fontSize}px`
+                  : 14,
             justifyContent: flexJustifyContent(p.textAlign, "center"),
             textAlign: (p.textAlign ?? "center") as "left" | "center" | "right",
             overflow: isMobileBreakpoint ? "visible" : "hidden",
           }}
         >
-          <span className="text-balance wrap-break-word">
+          <span className="w-full wrap-break-word text-balance leading-relaxed">
             {footerTextWithTwookyLink(p.text ?? "")}
           </span>
         </footer>
