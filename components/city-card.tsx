@@ -1,17 +1,19 @@
 import Link from "next/link"
 import { MapPin, ArrowRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { buildLocationHref } from "@/lib/locations"
 
 interface CityCardProps {
   name: string
   state: string
+  countryCode: string
   slug: string
   providerCount: number
 }
 
-export function CityCard({ name, state, slug, providerCount }: CityCardProps) {
+export function CityCard({ name, state, countryCode, slug, providerCount }: CityCardProps) {
   return (
-    <Link href={`/locations/${slug}`}>
+    <Link href={buildLocationHref(countryCode, slug)}>
       <Card className="group h-full rounded-2xl border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 cursor-pointer">
         <CardContent className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">

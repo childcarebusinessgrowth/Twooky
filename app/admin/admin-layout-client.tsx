@@ -22,6 +22,7 @@ import {
   Flag,
   Handshake,
   Shield,
+  Megaphone,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -81,6 +82,7 @@ function getSidebarItems(pendingClaimsCount: number, canManageTeam: boolean): (S
     },
     { kind: "link", label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
     { kind: "link", label: "Reviews", href: "/admin/reviews", icon: Star },
+    { kind: "link", label: "Social Proof", href: "/admin/social-proof", icon: Megaphone },
     {
       kind: "link",
       label: "Claim Requests",

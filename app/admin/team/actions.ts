@@ -21,8 +21,8 @@ export type TeamMemberRow = {
 export type TeamActionResult = {
   ok: boolean
   error?: string
-  generatedPassword?: string
   emailSent?: boolean
+  teamMember?: TeamMemberRow
 }
 
 type TeamMemberWithProfileRow = {
@@ -111,6 +111,9 @@ export async function createAdminTeamMember(input: {
   const displayName = input.displayName?.trim() || null
 
   if (!teamRole) return { ok: false, error: "Invalid team role." }
+  if (teamRole === "top_admin") {
+    return { ok: false, error: "Top Admin creation is temporarily disabled." }
+  }
   if (!email || !email.includes("@")) return { ok: false, error: "Please enter a valid email address." }
 
   const admin = getSupabaseAdminClient()
@@ -180,6 +183,12 @@ export async function createAdminTeamMember(input: {
   )
   if (teamError) return { ok: false, error: teamError.message }
 
+  const { data: createdTeamMemberRow } = await admin
+    .from("admin_team_members" as never)
+    .select("created_at")
+    .eq("profile_id", targetUserId)
+    .maybeSingle()
+
   const emailSent = await sendAdminTeamCredentialsEmail({
     email,
     password: generatedPassword,
@@ -188,8 +197,18 @@ export async function createAdminTeamMember(input: {
     isReset: false,
   })
 
-  revalidatePath(TEAM_PATH)
-  return { ok: true, generatedPassword, emailSent }
+  return {
+    ok: true,
+    emailSent,
+    teamMember: {
+      profileId: targetUserId,
+      email,
+      displayName: displayName ?? email,
+      teamRole,
+      isActive: true,
+      createdAt: (createdTeamMemberRow as { created_at?: string } | null)?.created_at ?? new Date().toISOString(),
+    },
+  }
 }
 
 export async function regenerateTeamMemberPassword(profileId: string): Promise<TeamActionResult> {
@@ -239,8 +258,7 @@ export async function regenerateTeamMemberPassword(profileId: string): Promise<T
     isReset: true,
   })
 
-  revalidatePath(TEAM_PATH)
-  return { ok: true, generatedPassword, emailSent }
+  return { ok: true, emailSent }
 }
 
 export async function updateTeamMemberRole(profileId: string, teamRole: string): Promise<TeamActionResult> {

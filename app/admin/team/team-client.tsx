@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,6 +39,11 @@ const roleOptions = [
   { value: "top_admin", label: "Top Admin" },
 ] as const
 
+const createRoleOptions = [
+  { value: "base_user", label: "Base User" },
+  { value: "account_manager", label: "Account Manager" },
+] as const
+
 const rolePermissionNotes = [
   {
     role: "Base User",
@@ -71,11 +77,11 @@ function roleLabel(role: TeamMemberRow["teamRole"]): string {
 }
 
 export function AdminTeamClient({ initialMembers }: { initialMembers: TeamMemberRow[] }) {
+  const { toast } = useToast()
   const [members, setMembers] = useState(initialMembers)
   const [createEmail, setCreateEmail] = useState("")
-  const [createRole, setCreateRole] = useState<(typeof roleOptions)[number]["value"]>("base_user")
+  const [createRole, setCreateRole] = useState<(typeof createRoleOptions)[number]["value"]>("base_user")
   const [createDisplayName, setCreateDisplayName] = useState("")
-  const [latestPassword, setLatestPassword] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -89,14 +95,8 @@ export function AdminTeamClient({ initialMembers }: { initialMembers: TeamMember
     [members],
   )
 
-  function copyPassword(value: string) {
-    void navigator.clipboard.writeText(value)
-    setStatus("Password copied to clipboard.")
-  }
-
   function onCreateMember() {
     setStatus(null)
-    setLatestPassword(null)
     startTransition(async () => {
       const result = await createAdminTeamMember({
         email: createEmail,
@@ -104,29 +104,78 @@ export function AdminTeamClient({ initialMembers }: { initialMembers: TeamMember
         displayName: createDisplayName,
       })
       if (!result.ok) {
-        setStatus(result.error ?? "Could not create team member.")
+        const message = result.error ?? "Could not create team member."
+        setStatus(message)
+        toast({
+          title: "Could not add team member",
+          description: message,
+          variant: "destructive",
+        })
         return
       }
-      setStatus(result.emailSent ? "Team user created and credentials emailed." : "Team user created. Email send failed.")
-      if (result.generatedPassword) setLatestPassword(result.generatedPassword)
+      if (result.teamMember) {
+        setMembers((prev) => {
+          const exists = prev.some((member) => member.profileId === result.teamMember?.profileId)
+          if (exists) {
+            return prev.map((member) => (member.profileId === result.teamMember?.profileId ? result.teamMember : member))
+          }
+          return [...prev, result.teamMember]
+        })
+      }
+
+      if (result.emailSent) {
+        const message = "New user added and credentials sent by email."
+        setStatus(message)
+        toast({
+          title: "Team member added",
+          description: message,
+          variant: "success",
+        })
+      } else {
+        const message = "User was added, but credentials email could not be sent."
+        setStatus(message)
+        toast({
+          title: "User added, email failed",
+          description: message,
+          variant: "destructive",
+        })
+      }
       setCreateEmail("")
       setCreateDisplayName("")
-      window.location.reload()
     })
   }
 
   function onRegeneratePassword(profileId: string) {
     setStatus(null)
-    setLatestPassword(null)
     startTransition(async () => {
       const result = await regenerateTeamMemberPassword(profileId)
       if (!result.ok) {
-        setStatus(result.error ?? "Could not regenerate password.")
+        const message = result.error ?? "Could not regenerate credentials."
+        setStatus(message)
+        toast({
+          title: "Could not regenerate credentials",
+          description: message,
+          variant: "destructive",
+        })
         return
       }
-      setStatus(result.emailSent ? "Password regenerated and emailed." : "Password regenerated. Email send failed.")
-      if (result.generatedPassword) setLatestPassword(result.generatedPassword)
-      window.location.reload()
+      if (result.emailSent) {
+        const message = "New credentials have been sent by email."
+        setStatus(message)
+        toast({
+          title: "Credentials sent",
+          description: message,
+          variant: "success",
+        })
+      } else {
+        const message = "Credentials were regenerated, but the email could not be sent."
+        setStatus(message)
+        toast({
+          title: "Email delivery failed",
+          description: message,
+          variant: "destructive",
+        })
+      }
     })
   }
 
@@ -190,13 +239,13 @@ export function AdminTeamClient({ initialMembers }: { initialMembers: TeamMember
             />
             <Select
               value={createRole}
-              onValueChange={(value) => setCreateRole(value as (typeof roleOptions)[number]["value"])}
+              onValueChange={(value) => setCreateRole(value as (typeof createRoleOptions)[number]["value"])}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                {roleOptions.map((option) => (
+                {createRoleOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -211,20 +260,6 @@ export function AdminTeamClient({ initialMembers }: { initialMembers: TeamMember
           </div>
         </CardContent>
       </Card>
-
-      {latestPassword && (
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle>Latest Generated Password</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-3">
-            <code className="rounded bg-muted px-3 py-2 text-sm">{latestPassword}</code>
-            <Button variant="outline" onClick={() => copyPassword(latestPassword)}>
-              Copy password
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
 

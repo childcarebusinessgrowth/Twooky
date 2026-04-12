@@ -62,7 +62,7 @@ export default function NotFound() {
         <p className="mt-6 text-xs text-muted-foreground">
           Or explore our{" "}
           <Link
-            href="/locations/austin"
+            href="/locations/us/austin"
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             locations

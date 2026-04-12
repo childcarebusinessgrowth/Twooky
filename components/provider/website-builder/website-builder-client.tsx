@@ -1332,6 +1332,7 @@ export default function WebsiteBuilderClient() {
                       return (
                         <TemplatePreviewCard
                           key={k}
+                          templateKey={k}
                           meta={meta}
                           className="h-full"
                           footer={

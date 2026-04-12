@@ -1,104 +1,68 @@
-import { TEMPLATE_LANDING } from "@/lib/website-builder/templates/presets"
+import { PublicSiteRenderer } from "@/components/provider/website-builder/public-site-renderer"
+import { ARTBOARD } from "@/lib/website-builder/layout-helpers"
+import { TEMPLATE_LANDING, getTemplateDraft } from "@/lib/website-builder/templates/presets"
 import type { TemplateKey } from "@/lib/website-builder/templates/presets-constants"
+import type { PublishedPageSnapshot, PublishedSiteSnapshot } from "@/lib/website-builder/types"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { Sparkles } from "lucide-react"
 
 type LandingMeta = (typeof TEMPLATE_LANDING)[TemplateKey]
 
-function MiniPreview({ variant, primary, secondary, surface }: { variant: LandingMeta["preview"]; primary: string; secondary: string; surface: string }) {
-  switch (variant) {
-    case "montessori":
-      return (
-        <div className="relative h-[124px] w-full overflow-hidden rounded-xl border border-black/5 bg-[#f4f1ea] p-3">
-          <div className="h-2 w-20 rounded-full bg-[#e9f5ee]" />
-          <div className="mt-3 flex gap-2.5">
-            <div className="h-16 w-[42%] rounded-lg bg-muted/80" style={{ backgroundColor: `${primary}22` }} />
-            <div className="flex flex-1 flex-col gap-1 pt-0.5">
-              <div className="h-2.5 w-full rounded-full bg-secondary/60" style={{ backgroundColor: secondary }} />
-              <div className="h-1.5 w-4/5 rounded bg-muted" />
-              <div className="mt-1.5 h-4 w-16 rounded-full" style={{ backgroundColor: primary }} />
-            </div>
-          </div>
-          <div className="mt-3 flex gap-1.5">
-            <div className="h-6 flex-1 rounded-lg border border-dashed border-black/10" style={{ backgroundColor: surface }} />
-            <div className="h-6 flex-1 rounded-lg border border-dashed border-black/10" style={{ backgroundColor: surface }} />
-            <div className="h-6 flex-1 rounded-lg border border-dashed border-black/10" style={{ backgroundColor: surface }} />
-          </div>
-        </div>
-      )
-    case "premium":
-      return (
-        <div className="relative h-[124px] w-full overflow-hidden rounded-xl border border-black/10 bg-zinc-100">
-          <div className="h-9 w-full bg-zinc-900" />
-          <div className="absolute left-1/2 top-4 w-[88%] -translate-x-1/2 space-y-1.5">
-            <div className="mx-auto h-2.5 w-3/4 rounded-full bg-white/90" />
-            <div className="mx-auto h-1.5 w-1/2 rounded" style={{ backgroundColor: primary }} />
-            <div className="mx-auto mt-1 h-4 w-16 rounded-full" style={{ backgroundColor: primary }} />
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 top-[56px] bg-[#f5f0e6] px-3 pt-2.5">
-            <div className="flex gap-2.5">
-              <div className="flex-1 space-y-1">
-                <div className="h-2 w-20 rounded-full bg-zinc-800" />
-                <div className="h-1 w-full rounded bg-zinc-400/60" />
-                <div className="h-1 w-4/5 rounded bg-zinc-400/40" />
-              </div>
-              <div className="h-12 w-14 rounded-lg border border-black/10 bg-white shadow-sm" />
-            </div>
-          </div>
-        </div>
-      )
-    case "community":
-      return (
-        <div className="relative h-[124px] w-full overflow-hidden rounded-xl border border-black/5 bg-[#fefae0] p-3">
-          <div
-            className="mx-auto rounded-xl border border-black/5 px-4 py-3 text-center"
-            style={{ backgroundColor: surface }}
-          >
-            <div className="mx-auto h-2.5 w-4/5 rounded-full bg-[#3d405b]/30" />
-            <div className="mx-auto mt-1 h-1.5 w-3/5 rounded bg-muted" />
-            <div className="mx-auto mt-2 h-5 w-20 rounded-full" style={{ backgroundColor: primary }} />
-          </div>
-          <div className="mt-2.5 flex gap-1.5">
-            <div className="h-11 flex-1 rounded-lg border border-black/5" style={{ backgroundColor: `${primary}22` }} />
-            <div className="h-11 flex-1 rounded-lg border border-black/5" style={{ backgroundColor: `${primary}18` }} />
-          </div>
-        </div>
-      )
-    case "sports":
-      return (
-        <div className="relative h-[124px] w-full overflow-hidden rounded-xl border border-black/10 bg-sky-50">
-          <div className="flex h-6 w-full items-center justify-around gap-1 px-2" style={{ backgroundColor: primary }}>
-            <div className="h-1 w-8 rounded bg-white/90" />
-            <div className="h-1 w-8 rounded bg-white/90" />
-            <div className="h-1 w-8 rounded bg-white/90" />
-          </div>
-          <div className="flex gap-2.5 p-3">
-            <div className="h-14 w-[45%] rounded-lg bg-sky-200/80" />
-            <div className="flex flex-1 flex-col gap-1 pt-0.5">
-              <div className="h-2.5 w-full rounded bg-sky-900/80" />
-              <div className="h-1.5 w-4/5 rounded bg-sky-600/50" />
-              <div className="mt-1 h-4 w-14 rounded-full" style={{ backgroundColor: "#f97316" }} />
-            </div>
-          </div>
-          <div className="px-3 pb-3">
-            <div className="h-1 w-full rounded bg-orange-400/50" />
-          </div>
-        </div>
-      )
+function templatePreviewSnapshot(templateKey: TemplateKey): {
+  snapshot: PublishedSiteSnapshot
+  page: PublishedPageSnapshot
+} {
+  const draft = getTemplateDraft(templateKey, previewIdGenerator(templateKey))
+  const pages: PublishedPageSnapshot[] = draft.pages.map((page) => ({
+    path_slug: page.path_slug,
+    title: page.title,
+    seo_title: page.seo_title ?? null,
+    meta_description: page.meta_description ?? null,
+    is_home: page.is_home,
+    sort_order: page.sort_order,
+    nodes: page.canvas_nodes,
+  }))
+  const homePage = pages.find((page) => page.is_home || page.path_slug === "") ?? pages[0]
+  return {
+    snapshot: {
+      version: 1,
+      subdomain_slug: "preview",
+      template_key: templateKey,
+      theme: draft.theme_tokens,
+      nav: draft.nav_items,
+      pages,
+    },
+    page: homePage,
   }
 }
 
+function previewIdGenerator(templateKey: TemplateKey) {
+  let idx = 0
+  return () => `template-preview-${templateKey}-${idx++}`
+}
+
+const PREVIEW_SNAPSHOTS: Record<TemplateKey, { snapshot: PublishedSiteSnapshot; page: PublishedPageSnapshot }> = {
+  montessori: templatePreviewSnapshot("montessori"),
+  premium: templatePreviewSnapshot("premium"),
+  community: templatePreviewSnapshot("community"),
+  sports: templatePreviewSnapshot("sports"),
+}
+const PREVIEW_DESKTOP_SCALE = 0.36
+
 export function TemplatePreviewCard({
+  templateKey,
   meta,
   className,
   footer,
 }: {
+  templateKey: TemplateKey
   meta: LandingMeta
   className?: string
   footer: React.ReactNode
 }) {
   const preview = meta.preview
+  const renderedPreview = PREVIEW_SNAPSHOTS[templateKey]
   return (
     <Card
       className={cn(
@@ -158,7 +122,19 @@ export function TemplatePreviewCard({
         )}
       </CardHeader>
       <CardContent className="pb-4">
-        <MiniPreview variant={preview} primary={meta.primary} secondary={meta.secondary} surface={THEMES_SURFACE[preview]} />
+        <div className="relative h-[170px] w-full overflow-hidden rounded-xl border border-black/10 bg-background shadow-sm">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-0 origin-top"
+            style={{
+              width: `${ARTBOARD.desktop.w}px`,
+              transform: `translateX(-50%) scale(${PREVIEW_DESKTOP_SCALE})`,
+            }}
+          >
+            <PublicSiteRenderer snapshot={renderedPreview.snapshot} siteBase="/preview-template" page={renderedPreview.page} />
+          </div>
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-transparent to-background/28" />
+        </div>
       </CardContent>
       <CardFooter className="mt-auto flex flex-col gap-3 border-t bg-muted/25 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
@@ -182,12 +158,4 @@ export function TemplatePreviewCard({
       </CardFooter>
     </Card>
   )
-}
-
-/** Theme surface tints for mini wireframe (matches presets) */
-const THEMES_SURFACE: Record<LandingMeta["preview"], string> = {
-  montessori: "#e9f5ee",
-  premium: "#f5f0e6",
-  community: "#faedcd",
-  sports: "#dbeafe",
 }

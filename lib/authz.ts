@@ -7,6 +7,7 @@ export type AdminPermission =
   | "badges.verify"
   | "listings.manage"
   | "sponsors.manage"
+  | "social-proof.manage"
   | "parents.manage"
   | "blogs.manage"
   | "directory.manage"
@@ -91,6 +92,7 @@ export function getAdminPermissionsForRole(role: AdminTeamRole): ReadonlySet<Adm
       "badges.verify",
       "listings.manage",
       "sponsors.manage",
+      "social-proof.manage",
       "parents.manage",
       "blogs.manage",
       "directory.manage",
@@ -104,6 +106,7 @@ export function getAdminPermissionsForRole(role: AdminTeamRole): ReadonlySet<Adm
       "badges.verify",
       "listings.manage",
       "sponsors.manage",
+      "social-proof.manage",
       "parents.manage",
       "blogs.manage",
       "directory.manage",

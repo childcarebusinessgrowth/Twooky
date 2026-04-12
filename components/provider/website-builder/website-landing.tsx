@@ -197,6 +197,7 @@ export default function WebsiteLanding() {
             return (
               <TemplatePreviewCard
                 key={key}
+                templateKey={key}
                 meta={t}
                 className="h-full"
                 footer={

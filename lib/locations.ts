@@ -23,6 +23,45 @@ type CityRow = {
   is_popular: boolean
   sort_order: number
   is_active: boolean
+  country_code: string | null
+}
+
+type CityLookupRow = {
+  id: string
+  country_id: string
+  name: string
+  slug: string
+  search_country_code: string
+  search_city_slug: string
+  is_popular: boolean
+  sort_order: number
+  is_active: boolean
+  countries?: { code?: string | null } | null
+}
+
+export type LocationRouteParams = {
+  country: string
+  city: string
+}
+
+function normalizeCountryCodeForPath(code: string): string {
+  return code.trim().toLowerCase()
+}
+
+export function buildLocationHref(countryCode: string, citySlug: string): string {
+  return `/locations/${normalizeCountryCodeForPath(countryCode)}/${citySlug.trim().toLowerCase()}`
+}
+
+function mapCityLookupRow(row: CityLookupRow): CityRow {
+  const relationCode =
+    typeof row.countries?.code === "string" && row.countries.code.trim()
+      ? row.countries.code.trim().toLowerCase()
+      : null
+
+  return {
+    ...row,
+    country_code: relationCode ?? normalizeCountryCodeForPath(row.search_country_code),
+  }
 }
 
 type PopularLocationGroupOptions = {
@@ -45,6 +84,7 @@ export async function getPopularLocationGroups(
     id: string
     country_id: string
     name: string
+    slug: string
     search_country_code: string
     search_city_slug: string
     is_popular: boolean
@@ -65,7 +105,7 @@ export async function getPopularLocationGroups(
       supabase
         .from("cities")
         .select(
-          "id, country_id, name, search_country_code, search_city_slug, is_popular, sort_order, is_active",
+          "id, country_id, name, slug, search_country_code, search_city_slug, is_popular, sort_order, is_active",
         )
         .eq("is_active", true)
         .eq("is_popular", true)
@@ -98,7 +138,7 @@ export async function getPopularLocationGroups(
       const citiesResult = await supabase
         .from("cities")
         .select(
-          "id, country_id, name, search_country_code, search_city_slug, is_popular, sort_order, is_active",
+          "id, country_id, name, slug, search_country_code, search_city_slug, is_popular, sort_order, is_active",
         )
         .eq("is_active", true)
         .eq("is_popular", true)
@@ -161,7 +201,7 @@ export async function getPopularLocationGroups(
 
     group.locations.push({
       label: `Childcares in ${city.name}`,
-      href: `/search?country=${city.search_country_code}&city=${city.search_city_slug}`,
+      href: buildLocationHref(country.code, city.slug),
     })
   }
 
@@ -185,17 +225,154 @@ export async function getCityBySlug(slug: string): Promise<CityRow | null> {
   const { data, error } = await supabase
     .from("cities")
     .select(
-      "id, country_id, name, slug, search_country_code, search_city_slug, is_popular, sort_order, is_active",
+      "id, country_id, name, slug, search_country_code, search_city_slug, is_popular, sort_order, is_active, countries(code)",
     )
     .eq("slug", slug)
-    .maybeSingle<CityRow>()
+    .maybeSingle<CityLookupRow>()
 
   if (error) {
     console.error("[locations] Failed to load city by slug", slug, error.message)
     return null
   }
 
-  return data ?? null
+  return data ? mapCityLookupRow(data) : null
+}
+
+export async function getCityByCountryAndSlug(
+  countryCode: string,
+  citySlug: string,
+): Promise<CityRow | null> {
+  const supabase = getSupabaseAdminClient()
+  const normalizedCountry = countryCode.trim().toUpperCase()
+
+  const { data, error } = await supabase
+    .from("cities")
+    .select(
+      "id, country_id, name, slug, search_country_code, search_city_slug, is_popular, sort_order, is_active, countries!inner(code, is_active)",
+    )
+    .eq("slug", citySlug)
+    .eq("is_active", true)
+    .eq("countries.code", normalizedCountry)
+    .eq("countries.is_active", true)
+    .maybeSingle<CityLookupRow>()
+
+  if (error) {
+    console.error(
+      "[locations] Failed to load city by country and slug",
+      normalizedCountry,
+      citySlug,
+      error.message,
+    )
+    return null
+  }
+
+  return data ? mapCityLookupRow(data) : null
+}
+
+export async function resolveLegacyCitySlugToCanonical(
+  citySlug: string,
+): Promise<LocationRouteParams | null> {
+  const supabase = getSupabaseAdminClient()
+
+  const { data, error } = await supabase
+    .from("cities")
+    .select(
+      "slug, search_country_code, countries!inner(code, is_active)",
+    )
+    .eq("slug", citySlug)
+    .eq("is_active", true)
+    .eq("countries.is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true })
+
+  if (error) {
+    console.error("[locations] Failed to resolve legacy city slug", citySlug, error.message)
+    return null
+  }
+
+  const rows = (data ?? []) as Array<{
+    slug: string
+    search_country_code: string
+    countries?: { code?: string | null } | null
+  }>
+  if (rows.length === 0) {
+    return null
+  }
+
+  const mapped = rows.map((row) => ({
+    country:
+      (typeof row.countries?.code === "string" && row.countries.code.trim()
+        ? normalizeCountryCodeForPath(row.countries.code)
+        : normalizeCountryCodeForPath(row.search_country_code)),
+    city: row.slug,
+  }))
+
+  const uniqueCountryCodes = new Set(mapped.map((item) => item.country))
+  if (uniqueCountryCodes.size !== 1) {
+    return null
+  }
+
+  return mapped[0] ?? null
+}
+
+export async function getActiveLocationRouteParams(): Promise<LocationRouteParams[]> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("cities")
+    .select("slug, search_country_code, countries!inner(code, is_active)")
+    .eq("is_active", true)
+    .eq("countries.is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true })
+
+  if (error) {
+    console.error("[locations] Failed to build location route params", error.message)
+    return []
+  }
+
+  const rows = (data ?? []) as Array<{
+    slug: string
+    search_country_code: string
+    countries?: { code?: string | null } | null
+  }>
+
+  return rows.map((row) => ({
+    country:
+      (typeof row.countries?.code === "string" && row.countries.code.trim()
+        ? normalizeCountryCodeForPath(row.countries.code)
+        : normalizeCountryCodeForPath(row.search_country_code)),
+    city: row.slug,
+  }))
+}
+
+export async function getActiveCitiesByCountryCode(
+  countryCode: string,
+): Promise<Array<{ name: string; slug: string; country: string }>> {
+  const supabase = getSupabaseAdminClient()
+  const normalizedCountry = countryCode.trim().toUpperCase()
+  const { data, error } = await supabase
+    .from("cities")
+    .select("name, slug, countries!inner(code, is_active)")
+    .eq("is_active", true)
+    .eq("countries.code", normalizedCountry)
+    .eq("countries.is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true })
+
+  if (error) {
+    console.error("[locations] Failed to list country cities", normalizedCountry, error.message)
+    return []
+  }
+
+  const rows = (data ?? []) as Array<{ name: string; slug: string; countries?: { code?: string | null } | null }>
+  return rows.map((row) => ({
+    name: row.name,
+    slug: row.slug,
+    country:
+      (typeof row.countries?.code === "string" && row.countries.code.trim()
+        ? normalizeCountryCodeForPath(row.countries.code)
+        : normalizeCountryCodeForPath(countryCode)),
+  }))
 }
 
 export type FooterCityLink = {
@@ -204,13 +381,13 @@ export type FooterCityLink = {
 }
 
 const FOOTER_CITY_FALLBACK: FooterCityLink[] = [
-  { name: "London", href: "/locations/london" },
-  { name: "Dubai", href: "/locations/dubai" },
-  { name: "New York", href: "/locations/new-york" },
-  { name: "Los Angeles", href: "/locations/los-angeles" },
-  { name: "Chicago", href: "/locations/chicago" },
-  { name: "Miami", href: "/locations/miami" },
-  { name: "San Francisco", href: "/locations/san-francisco" },
+  { name: "London", href: "/locations/uk/london" },
+  { name: "Dubai", href: "/locations/ae/dubai" },
+  { name: "New York", href: "/locations/us/new-york" },
+  { name: "Los Angeles", href: "/locations/us/los-angeles" },
+  { name: "Chicago", href: "/locations/us/chicago" },
+  { name: "Miami", href: "/locations/us/miami" },
+  { name: "San Francisco", href: "/locations/us/san-francisco" },
 ]
 
 function shuffleInPlace<T>(arr: T[], random: () => number): void {
@@ -231,15 +408,21 @@ export async function getRandomFooterCities(limit: number): Promise<FooterCityLi
 
       const { data, error } = await supabase
         .from("cities")
-        .select("name, slug")
+        .select("name, slug, search_country_code, countries!inner(code, is_active)")
         .eq("is_active", true)
+        .eq("countries.is_active", true)
 
       if (error) {
         console.error("[locations] Failed to load cities for footer", error.message)
         return FOOTER_CITY_FALLBACK
       }
 
-      const rows = (data ?? []) as { name: string; slug: string }[]
+      const rows = (data ?? []) as Array<{
+        name: string
+        slug: string
+        search_country_code: string
+        countries?: { code?: string | null } | null
+      }>
       if (rows.length === 0) {
         return FOOTER_CITY_FALLBACK
       }
@@ -248,7 +431,12 @@ export async function getRandomFooterCities(limit: number): Promise<FooterCityLi
       const take = Math.min(limit, rows.length)
       return rows.slice(0, take).map((c) => ({
         name: c.name,
-        href: `/locations/${c.slug}`,
+        href: buildLocationHref(
+          (typeof c.countries?.code === "string" && c.countries.code.trim()
+            ? c.countries.code
+            : c.search_country_code),
+          c.slug,
+        ),
       }))
     },
     ["footer-cities", String(limit)],
