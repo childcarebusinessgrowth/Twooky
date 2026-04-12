@@ -270,6 +270,7 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
     setImagePreviewUrl(null)
     setPendingImageFile(null)
+    setForm((current) => ({ ...current, imageUrl: "" }))
     const input = document.getElementById("sp-image-file") as HTMLInputElement | null
     if (input) input.value = ""
   }
@@ -278,6 +279,7 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
     setVideoPreviewUrl(null)
     setPendingVideoFile(null)
+    setForm((current) => ({ ...current, videoUrl: "" }))
     const input = document.getElementById("sp-video-file") as HTMLInputElement | null
     if (input) input.value = ""
   }
@@ -571,12 +573,10 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
                         unoptimized={Boolean(imagePreviewUrl)}
                       />
                     </div>
-                    {pendingImageFile && (
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={removeImageSelection}>
-                        <X className="h-4 w-4" />
-                        Remove selected image
-                      </Button>
-                    )}
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={removeImageSelection}>
+                      <X className="h-4 w-4" />
+                      {pendingImageFile ? "Remove selected image" : "Remove current image"}
+                    </Button>
                   </div>
                 )}
                 <Input
@@ -599,12 +599,10 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
                       controls
                       className="w-full rounded-lg border bg-black/90"
                     />
-                    {pendingVideoFile && (
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={removeVideoSelection}>
-                        <X className="h-4 w-4" />
-                        Remove selected video
-                      </Button>
-                    )}
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={removeVideoSelection}>
+                      <X className="h-4 w-4" />
+                      {pendingVideoFile ? "Remove selected video" : "Remove current video"}
+                    </Button>
                   </div>
                 )}
                 <Input
