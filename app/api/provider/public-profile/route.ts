@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 export async function GET() {
   try {
@@ -19,10 +20,12 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+
     const { data: profile, error: profileError } = await supabase
       .from("provider_profiles")
       .select("provider_slug")
-      .eq("profile_id", user.id)
+      .eq("profile_id", providerProfileId)
       .maybeSingle()
 
     if (profileError) {

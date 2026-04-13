@@ -29,10 +29,6 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Inquiry not found." }, { status: 404 })
     }
 
-    if (row.provider_profile_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 })
-    }
-
     const { data: messageDecrypted } = await supabase.rpc("get_guest_inquiry_message_decrypted", {
       p_guest_inquiry_id: guestId,
     })

@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
       const { data: profileRow, error: profileErr } = await supabase
         .from("provider_profiles")
-        .select("provider_slug, is_admin_managed, listing_status")
+        .select("provider_slug, is_admin_managed, owner_profile_id, listing_status")
         .eq("profile_id", siteRow.profile_id)
         .eq("listing_status", "active")
         .maybeSingle()
@@ -85,7 +85,9 @@ export async function POST(request: Request) {
       if (!profileRow?.provider_slug) {
         return NextResponse.json({ error: "Provider not found." }, { status: 404 })
       }
-      if (profileRow.is_admin_managed) {
+      const isClaimed =
+        typeof profileRow.owner_profile_id === "string" && profileRow.owner_profile_id.trim().length > 0
+      if (profileRow.is_admin_managed && !isClaimed) {
         return NextResponse.json(
           { error: "Inquiries are not available for this provider." },
           { status: 403 },
@@ -136,7 +138,7 @@ export async function POST(request: Request) {
     if (!websiteSubdomain) {
       const { data: providerRow, error: providerLookupError } = await supabase
         .from("provider_profiles")
-        .select("profile_id, is_admin_managed")
+        .select("profile_id, is_admin_managed, owner_profile_id")
         .ilike("provider_slug", providerSlug)
         .eq("listing_status", "active")
         .maybeSingle()
@@ -156,7 +158,9 @@ export async function POST(request: Request) {
       if (!providerRow) {
         return NextResponse.json({ error: "Provider not found." }, { status: 404 })
       }
-      if (providerRow.is_admin_managed) {
+      const isClaimed =
+        typeof providerRow.owner_profile_id === "string" && providerRow.owner_profile_id.trim().length > 0
+      if (providerRow.is_admin_managed && !isClaimed) {
         return NextResponse.json(
           { error: "Inquiries are not available for this provider." },
           { status: 403 },

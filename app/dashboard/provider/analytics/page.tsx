@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getProviderAnalytics, type DateRangeKey } from "@/lib/provider-analytics"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { AnalyticsCharts } from "./AnalyticsCharts"
 
 export const dynamic = "force-dynamic"
@@ -48,7 +49,8 @@ export default async function AnalyticsPage({
     )
   }
 
-  const data = await getProviderAnalytics(supabase, user.id, range)
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const data = await getProviderAnalytics(supabase, providerProfileId, range)
   return (
     <Suspense fallback={<div className="animate-pulse rounded-lg h-8 bg-muted w-48" />}>
       <AnalyticsCharts key={range} data={data} currentRange={range} />
