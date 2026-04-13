@@ -509,6 +509,7 @@ export interface Database {
           availability_status: "openings" | "waitlist" | "full"
           available_spots_count: number | null
           is_admin_managed: boolean
+          owner_profile_id: string | null
           notify_new_inquiries: boolean
           notify_new_reviews: boolean
           notify_weekly_analytics: boolean
@@ -564,6 +565,7 @@ export interface Database {
           availability_status?: "openings" | "waitlist" | "full"
           available_spots_count?: number | null
           is_admin_managed?: boolean
+          owner_profile_id?: string | null
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean
@@ -619,6 +621,7 @@ export interface Database {
           availability_status?: "openings" | "waitlist" | "full"
           available_spots_count?: number | null
           is_admin_managed?: boolean
+          owner_profile_id?: string | null
           notify_new_inquiries?: boolean
           notify_new_reviews?: boolean
           notify_weekly_analytics?: boolean
