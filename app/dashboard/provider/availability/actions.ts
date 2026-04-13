@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { notifyFavoritingParentsOfAvailabilityChange } from "@/lib/email/favoriteProviderAvailabilityNotification"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 export type ProviderAvailabilityStatus = "openings" | "waitlist" | "full"
 
@@ -23,11 +24,12 @@ export async function getProviderAvailability(): Promise<{
   if (userError || !user) {
     return { data: null, error: userError?.message ?? "Not authenticated" }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { data, error } = await supabase
     .from("provider_profiles")
     .select("availability_status, available_spots_count")
-    .eq("profile_id", user.id)
+    .eq("profile_id", providerProfileId)
     .maybeSingle()
 
   if (error) {
@@ -76,6 +78,7 @@ export async function updateProviderAvailability(input: {
   if (userError || !user) {
     return { error: userError?.message ?? "Not authenticated" }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const normalizedSpots =
     input.availabilityStatus === "openings"
@@ -91,32 +94,34 @@ export async function updateProviderAvailability(input: {
   const { data: existingRow } = await supabase
     .from("provider_profiles")
     .select("availability_status")
-    .eq("profile_id", user.id)
+    .eq("profile_id", providerProfileId)
     .maybeSingle()
 
   const previousStatus = normalizeAvailabilityStatus(existingRow?.availability_status ?? null)
 
-  const { error } = await supabase.from("provider_profiles").upsert(
-    {
-      profile_id: user.id,
+  const { data: updatedRow, error } = await supabase
+    .from("provider_profiles")
+    .update({
       availability_status: input.availabilityStatus,
       available_spots_count: normalizedSpots,
-    },
-    { onConflict: "profile_id" },
-  )
+    })
+    .eq("profile_id", providerProfileId)
+    .select("profile_id")
+    .maybeSingle()
 
   if (error) return { error: error.message }
+  if (!updatedRow) return { error: "Provider profile not found." }
 
   const nextStatus = input.availabilityStatus
   if (nextStatus === "full" && previousStatus !== "full") {
     void notifyFavoritingParentsOfAvailabilityChange({
-      providerProfileId: user.id,
+      providerProfileId,
       kind: "full",
     })
   }
   if (nextStatus === "waitlist" && previousStatus !== "waitlist") {
     void notifyFavoritingParentsOfAvailabilityChange({
-      providerProfileId: user.id,
+      providerProfileId,
       kind: "waitlist",
     })
   }

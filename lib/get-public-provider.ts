@@ -76,10 +76,10 @@ const PLACEHOLDER_IMAGE =
   "https://images.pexels.com/photos/1648377/pexels-photo-1648377.jpeg?auto=compress&cs=tinysrgb&w=800"
 
 const PUBLIC_PROVIDER_SELECT_WITH_GOOGLE_CACHE =
-  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
 
 const PUBLIC_PROVIDER_SELECT_LEGACY =
-  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
 
 function isMissingColumnError(message: string | undefined): boolean {
   const m = (message ?? "").toLowerCase()
@@ -236,6 +236,8 @@ export async function getActivePublicProviderBySlug(
     availabilityStatus === "openings" && availableSpotsCount != null && availableSpotsCount > 0
       ? `Spots Available (${availableSpotsCount})`
       : AVAILABILITY_LABELS[availabilityStatus]
+  const ownerProfileId = (profile as { owner_profile_id?: string | null }).owner_profile_id ?? null
+  const isClaimed = typeof ownerProfileId === "string" && ownerProfileId.trim().length > 0
 
   return {
     profileId,
@@ -269,7 +271,7 @@ export async function getActivePublicProviderBySlug(
     mealsIncluded,
     outdoorSpace,
     specialNeeds,
-    inquiriesEnabled: !profile.is_admin_managed,
+    inquiriesEnabled: !profile.is_admin_managed || isClaimed,
     earlyLearningExcellenceBadge: profile.early_learning_excellence_badge ?? false,
     verifiedProviderBadge: profile.verified_provider_badge ?? false,
     verifiedProviderBadgeColor: profile.verified_provider_badge_color ?? "emerald",
