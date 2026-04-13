@@ -87,12 +87,19 @@ async function resolveCurriculumIdsByName(names: string[]): Promise<string[]> {
   return ids
 }
 
-async function isDuplicateProvider(businessName: string, cityText: string, cityId?: string): Promise<boolean> {
+async function isDuplicateProvider(
+  businessName: string,
+  address: string,
+  cityText: string
+): Promise<boolean> {
   const supabase = getSupabaseAdminClient()
-  const base = supabase.from("provider_profiles").select("profile_id").ilike("business_name", businessName)
-  const { data, error } = cityId
-    ? await base.eq("city_id", cityId).limit(1)
-    : await base.ilike("city", cityText).limit(1)
+  const { data, error } = await supabase
+    .from("provider_profiles")
+    .select("profile_id")
+    .eq("business_name", businessName)
+    .eq("address", address)
+    .eq("city", cityText)
+    .limit(1)
   if (error) throw new Error(error.message)
   return (data ?? []).length > 0
 }
@@ -165,12 +172,12 @@ export async function POST(request: Request) {
           countryId: countryIdResolved || row.countryId,
         })
 
-        const duplicate = await isDuplicateProvider(businessName, city, cityIdResolved || undefined)
+        const duplicate = await isDuplicateProvider(businessName, address, city)
         if (duplicate) {
           results.push({
             rowNumber,
             status: "skipped",
-            reason: "Duplicate provider (business name + city).",
+            reason: "Duplicate provider (business name + address + city).",
           })
           continue
         }

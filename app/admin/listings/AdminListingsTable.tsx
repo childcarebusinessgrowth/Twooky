@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -106,6 +106,26 @@ export function AdminListingsTable({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [localSearch, setLocalSearch] = useState(searchQuery)
   const [filtersOpen, setFiltersOpen] = useState(false)
+
+  useEffect(() => {
+    setLocalSearch(searchQuery)
+  }, [searchQuery])
+
+  useEffect(() => {
+    const nextSearch = localSearch.trim()
+    const currentSearch = searchParams.get("search")?.trim() ?? ""
+    if (nextSearch === currentSearch) return
+
+    const timeoutId = setTimeout(() => {
+      const next = new URLSearchParams(searchParams.toString())
+      next.set("page", "1")
+      if (nextSearch) next.set("search", nextSearch)
+      else next.delete("search")
+      router.replace(`/admin/listings?${next.toString()}`, { scroll: false })
+    }, 250)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [localSearch, router, searchParams])
 
   const toggleSelect = (profileId: string) => {
     setSelectedIds((prev) => {

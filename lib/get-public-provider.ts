@@ -1,11 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
-import { fetchGooglePlaceDetailsSummary } from "@/lib/google-place-reviews"
 import {
-  persistGooglePlaceSummaryCache,
-} from "@/lib/cache-google-provider-photo"
-import {
-  hasFreshCachedGoogleReviews,
   readCachedGooglePlaceSummary,
   type ProviderGoogleCacheRow,
 } from "@/lib/google-place-cache"
@@ -130,9 +125,6 @@ export async function getActivePublicProviderBySlug(
 
   const profileId = profile.profile_id
 
-  const googleApiKey =
-    process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
   const [photosResult, reviews, faqsResult, ageGroupsResult] = await Promise.all([
     supabase
       .from("provider_photos")
@@ -154,20 +146,7 @@ export async function getActivePublicProviderBySlug(
   ])
 
   const cachedGoogle = profile as ProviderGoogleCacheRow
-  let googleReviewSummary = readCachedGooglePlaceSummary(cachedGoogle)
-  const hasFreshGoogleReviews = hasFreshCachedGoogleReviews(cachedGoogle)
-  const placeId = profile.google_place_id?.trim() ?? null
-  if (placeId && !hasFreshGoogleReviews) {
-    const fetched = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
-    if (fetched) {
-      googleReviewSummary = { ...(googleReviewSummary ?? {}), ...fetched }
-      await persistGooglePlaceSummaryCache({
-        providerProfileId: profileId,
-        placeId,
-        summary: fetched,
-      })
-    }
-  }
+  const googleReviewSummary = readCachedGooglePlaceSummary(cachedGoogle)
 
   const photoRows = photosResult.data ?? []
   const photos = photoRows.map((row) => ({

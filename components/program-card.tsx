@@ -4,16 +4,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { iconMap, type ProgramCardData } from "@/lib/program-types"
 
 interface ProgramCardProps {
-  program: ProgramCardData
+  program: ProgramCardData & { href?: string }
   compact?: boolean
 }
 
 export function ProgramCard({ program, compact = false }: ProgramCardProps) {
   const Icon = iconMap[program.icon] ?? Baby
+  const href = program.href ?? `/programs/${program.slug}`
 
   if (compact) {
     return (
-      <Link href={`/programs/${program.slug}`} className="group block h-full">
+      <Link href={href} className="group block h-full">
         <Card className="h-full rounded-3xl border-border/60 bg-card shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:border-tertiary/30 cursor-pointer">
           <CardContent className="p-6 md:p-7 flex h-full flex-col">
             <div className="mb-5 flex items-start justify-between gap-4">
@@ -45,7 +46,7 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
   }
 
   return (
-    <Link href={`/programs/${program.slug}`}>
+    <Link href={href}>
       <Card className="h-full rounded-2xl border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 cursor-pointer">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">

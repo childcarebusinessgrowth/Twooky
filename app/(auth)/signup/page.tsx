@@ -632,7 +632,7 @@ function SignupPageContent() {
                   </Field>
 
                   <Field>
-                    <FieldLabel>Child Age</FieldLabel>
+                    <FieldLabel>Child Age Range</FieldLabel>
                     <div className="relative">
                       <Baby className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Select
@@ -640,14 +640,14 @@ function SignupPageContent() {
                         onValueChange={(value) => setChildAgeGroup(value)}
                       >
                         <SelectTrigger className="pl-10">
-                          <SelectValue placeholder="Select age group" />
+                          <SelectValue placeholder="Select age range" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="infant">Infant (0-12 months)</SelectItem>
-                          <SelectItem value="toddler">Toddler (1-2 years)</SelectItem>
-                          <SelectItem value="preschool">Preschool (3-4 years)</SelectItem>
-                          <SelectItem value="prek">Pre-K (4-5 years)</SelectItem>
-                          <SelectItem value="school">School Age (5+)</SelectItem>
+                          <SelectItem value="infant">0-12 months</SelectItem>
+                          <SelectItem value="toddler">1-2 years</SelectItem>
+                          <SelectItem value="preschool">3-4 years</SelectItem>
+                          <SelectItem value="prek">4-5 years</SelectItem>
+                          <SelectItem value="school">5+ years</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

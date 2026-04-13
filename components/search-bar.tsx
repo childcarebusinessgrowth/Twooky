@@ -382,7 +382,7 @@ function SearchBarContent({
           {/* Child Age */}
           <div className="flex-1">
             <label className={`text-xs font-medium mb-2 block ${labelClassName}`}>
-              Child Age
+              Child Age Range
             </label>
             <Select value={ageGroup} onValueChange={setAgeGroup}>
               <SelectTrigger
@@ -390,7 +390,7 @@ function SearchBarContent({
               >
                 <div className="flex items-center gap-2 truncate">
                   <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder={isLoadingOptions ? "Loading..." : "Select age"} />
+                  <SelectValue placeholder={isLoadingOptions ? "Loading..." : "Select age range"} />
                 </div>
               </SelectTrigger>
               <SelectContent className="data-[state=open]:animate-none data-[state=closed]:animate-none">

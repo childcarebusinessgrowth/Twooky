@@ -5,10 +5,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
+import { TopRatedBadge } from "@/components/top-rated-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import type { Provider } from "@/lib/mock-data"
 
-const TOP_RATED_MIN_RATING = 4.5
+const TOP_RATED_MIN_RATING = 4.8
 const TOP_RATED_MIN_REVIEWS = 10
 const PARENT_FAVOURITE_MIN_SAVES = 2
 const DESCRIPTION_MAX_LENGTH = 150
@@ -103,10 +104,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                     <EarlyLearningExcellenceBadge size="sm" />
                   )}
                   {isTopRated(provider) && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-pink-50 to-rose-50 dark:from-pink-950/50 dark:to-rose-950/50 border border-pink-200/70 dark:border-pink-700/40 px-3 py-1.5 text-xs font-semibold text-pink-700 dark:text-pink-300 shadow-sm ring-1 ring-pink-100/50 dark:ring-pink-800/30">
-                      <Star className="h-4 w-4 fill-amber-500 dark:fill-amber-400" />
-                      Top Rated
-                    </span>
+                    <TopRatedBadge size="sm" />
                   )}
                   {isParentFavourite(provider) && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 border border-violet-200/70 dark:border-violet-700/40 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-violet-100/50 dark:ring-violet-800/30">
@@ -207,10 +205,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
               <EarlyLearningExcellenceBadge size="sm" />
             )}
             {isTopRated(provider) && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-pink-50 to-rose-50 dark:from-pink-950/50 dark:to-rose-950/50 border border-pink-200/70 dark:border-pink-700/40 px-3 py-1.5 text-xs font-semibold text-pink-700 dark:text-pink-300 shadow-sm ring-1 ring-pink-100/50 dark:ring-pink-800/30">
-                <Star className="h-4 w-4 fill-amber-500 dark:fill-amber-400" />
-                Top Rated
-              </span>
+              <TopRatedBadge size="sm" />
             )}
             {isParentFavourite(provider) && (
               <span className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 border border-violet-200/70 dark:border-violet-700/40 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-violet-100/50 dark:ring-violet-800/30">

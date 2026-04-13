@@ -239,8 +239,9 @@ export function AdminLayoutClient({
   const unreadCount = notifications.filter((n) => !n.readAt).length
 
   useEffect(() => {
+    if (pathname.startsWith("/admin/listings")) return
     setHeaderSearch(searchParams.get("search") ?? "")
-  }, [searchParams])
+  }, [pathname, searchParams])
 
   const runHeaderSearch = useCallback(() => {
     const q = headerSearch.trim()

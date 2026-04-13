@@ -6,6 +6,7 @@ import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-direc
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertAdminPermission } from "@/lib/authzServer"
 import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
+import { startPerfTimer } from "@/lib/perf-metrics"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const PROVIDER_DOCUMENTS_BUCKET = "provider-documents"
@@ -14,6 +15,7 @@ const LISTINGS_PATH = "/admin/listings"
 const DEFAULT_PAGE_SIZE = 10
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"])
+let providerPhotosBucketReadyPromise: Promise<void> | null = null
 
 export type ListingStatus = "active" | "pending" | "inactive"
 
@@ -70,20 +72,34 @@ function sanitizeFilename(name: string): string {
 }
 
 async function ensureProviderPhotosBucket() {
-  const supabase = getSupabaseAdminClient()
-  const { data: buckets, error: listError } = await supabase.storage.listBuckets()
-  if (listError) throw new Error(listError.message)
+  if (providerPhotosBucketReadyPromise) {
+    await providerPhotosBucketReadyPromise
+    return
+  }
 
-  const exists = buckets?.some((bucket) => bucket.name === PROVIDER_PHOTOS_BUCKET)
-  if (exists) return
+  providerPhotosBucketReadyPromise = (async () => {
+    const supabase = getSupabaseAdminClient()
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+    if (listError) throw new Error(listError.message)
 
-  const { error: createError } = await supabase.storage.createBucket(PROVIDER_PHOTOS_BUCKET, {
-    public: true,
-    fileSizeLimit: `${MAX_IMAGE_SIZE_BYTES}`,
-    allowedMimeTypes: Array.from(ALLOWED_IMAGE_TYPES),
-  })
-  if (createError && !createError.message.toLowerCase().includes("already")) {
-    throw new Error(createError.message)
+    const exists = buckets?.some((bucket) => bucket.name === PROVIDER_PHOTOS_BUCKET)
+    if (exists) return
+
+    const { error: createError } = await supabase.storage.createBucket(PROVIDER_PHOTOS_BUCKET, {
+      public: true,
+      fileSizeLimit: `${MAX_IMAGE_SIZE_BYTES}`,
+      allowedMimeTypes: Array.from(ALLOWED_IMAGE_TYPES),
+    })
+    if (createError && !createError.message.toLowerCase().includes("already")) {
+      throw new Error(createError.message)
+    }
+  })()
+
+  try {
+    await providerPhotosBucketReadyPromise
+  } catch (error) {
+    providerPhotosBucketReadyPromise = null
+    throw error
   }
 }
 
@@ -106,6 +122,7 @@ export async function getAdminListings(
 ): Promise<{ listings: AdminListingRow[]; total: number }> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const perf = startPerfTimer("getAdminListings", { page: options.page ?? 1 })
   const page = Math.max(1, options.page ?? 1)
   const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE
   const useRatingReviewsFilter =
@@ -129,17 +146,7 @@ export async function getAdminListings(
     }
   }
   if (options.countryId?.trim()) {
-    const { data: citiesInCountry } = await supabase
-      .from("cities")
-      .select("name")
-      .eq("country_id", options.countryId.trim())
-      .eq("is_active", true)
-    const cityNames = (citiesInCountry ?? []).map((r) => r.name).filter(Boolean)
-    if (cityNames.length > 0) {
-      query = query.in("city", cityNames)
-    } else {
-      query = query.eq("city", "__no_match__")
-    }
+    query = query.eq("country_id", options.countryId.trim())
   }
   if (options.featured === "yes") {
     query = query.eq("featured", true)
@@ -160,6 +167,7 @@ export async function getAdminListings(
     const to = from + pageSize - 1
     const { data: rows, count, error } = await query.range(from, to)
     if (error) throw new Error(error.message)
+    perf.mark("loaded_listing_page_rows", { rows: rows?.length ?? 0 })
     allRows = rows ?? []
     profileIds = allRows.map((r) => r.profile_id)
     const total = count ?? 0
@@ -198,6 +206,7 @@ export async function getAdminListings(
         primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
       }
     })
+    perf.end({ total })
     return { listings, total }
   }
 
@@ -265,6 +274,7 @@ export async function getAdminListings(
     }
   })
 
+  perf.end({ total })
   return { listings, total }
 }
 
@@ -342,6 +352,7 @@ export async function getAdminListingDetail(
 ): Promise<AdminListingDetail | null> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const perf = startPerfTimer("getAdminListingDetail", { profile_id: profileId })
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
 
   const { data: profile, error: profileError } = await supabase
@@ -355,6 +366,7 @@ export async function getAdminListingDetail(
   if (profileError || !profile) {
     return null
   }
+  perf.mark("loaded_profile")
 
   const [{ data: countryRow }, { data: cityRow }] = await Promise.all([
     profile.country_id
@@ -393,18 +405,27 @@ export async function getAdminListingDetail(
       .order("uploaded_at", { ascending: true }),
   ])
 
-  const documents: AdminListingDetailDocument[] = []
-  for (const d of docRows ?? []) {
-    const { data: signed } = await supabase.storage
-      .from(PROVIDER_DOCUMENTS_BUCKET)
-      .createSignedUrl(d.storage_path, SIGNED_URL_EXPIRY_SECONDS)
-    documents.push({
-      id: d.id,
-      document_type: d.document_type,
-      signed_url: signed?.signedUrl ?? null,
-      file_size: d.file_size,
-    })
-  }
+  const docPaths = (docRows ?? []).map((d) => d.storage_path)
+  const { data: signedBatch } =
+    docPaths.length > 0
+      ? await supabase.storage
+          .from(PROVIDER_DOCUMENTS_BUCKET)
+          .createSignedUrls(docPaths, SIGNED_URL_EXPIRY_SECONDS)
+      : { data: [] as Array<{ path?: string; signedUrl?: string | null }> }
+  const signedByPath = new Map<string, string | null>(
+    (signedBatch ?? []).map((entry) => [entry.path ?? "", entry.signedUrl ?? null])
+  )
+  const documents: AdminListingDetailDocument[] = (docRows ?? []).map((d) => ({
+    id: d.id,
+    document_type: d.document_type,
+    signed_url: signedByPath.get(d.storage_path) ?? null,
+    file_size: d.file_size,
+  }))
+  perf.mark("loaded_photos_faq_docs", {
+    photo_count: photoRows?.length ?? 0,
+    faq_count: faqRows?.length ?? 0,
+    doc_count: docRows?.length ?? 0,
+  })
 
   const photos: AdminListingDetailPhoto[] = (photoRows ?? []).map((row) => ({
     id: row.id,
@@ -419,6 +440,7 @@ export async function getAdminListingDetail(
     answer: row.answer ?? "",
   }))
 
+  perf.end()
   return {
     profile: {
       ...profile,
@@ -654,11 +676,13 @@ export async function deleteListingPhoto(
 export async function deleteListing(profileId: string): Promise<{ error?: string }> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const perf = startPerfTimer("deleteListing", { profile_id: profileId })
   try {
     await deleteProviderPhotoStorage(profileId)
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to delete provider photos from storage" }
   }
+  perf.mark("deleted_photo_storage")
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, role")
@@ -675,11 +699,13 @@ export async function deleteListing(profileId: string): Promise<{ error?: string
     .delete()
     .eq("profile_id", profileId)
   if (error) return { error: error.message }
+  perf.mark("deleted_provider_profile")
   revalidatePath(LISTINGS_PATH)
   revalidatePath(`${LISTINGS_PATH}/${profileId}`)
   revalidatePath("/search")
   revalidatePath("/")
   revalidateProviderDirectoryCaches()
+  perf.end({ ok: true })
   return {}
 }
 
@@ -689,6 +715,7 @@ export async function addListingPhotos(
 ): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const perf = startPerfTimer("addListingPhotos", { profile_id: profileId })
 
   const photos = formData
     .getAll("photos")
@@ -729,6 +756,13 @@ export async function addListingPhotos(
 
   try {
     await ensureProviderPhotosBucket()
+    const photoRows: Array<{
+      provider_profile_id: string
+      storage_path: string
+      caption: string | null
+      is_primary: boolean
+      sort_order: number
+    }> = []
 
     for (let i = 0; i < photos.length; i += 1) {
       const photo = photos[i]
@@ -744,17 +778,18 @@ export async function addListingPhotos(
         })
       if (uploadError) throw new Error(uploadError.message)
       uploadedPaths.push(storagePath)
-
-      const { error: insertPhotoError } = await supabase.from("provider_photos").insert({
+      photoRows.push({
         provider_profile_id: profileId,
         storage_path: storagePath,
         caption: null,
         is_primary: !hasPrimary && i === 0,
         sort_order: nextSortOrder,
       })
-      if (insertPhotoError) throw new Error(insertPhotoError.message)
       nextSortOrder += 1
     }
+    const { error: insertPhotoError } = await supabase.from("provider_photos").insert(photoRows)
+    if (insertPhotoError) throw new Error(insertPhotoError.message)
+    perf.mark("uploaded_and_inserted_photos", { count: photos.length })
   } catch (error) {
     if (uploadedPaths.length > 0) {
       await supabase.storage.from(PROVIDER_PHOTOS_BUCKET).remove(uploadedPaths)
@@ -780,6 +815,7 @@ export async function addListingPhotos(
   if (profileAfter?.provider_slug) {
     revalidatePath(`/providers/${profileAfter.provider_slug}`)
   }
+  perf.end({ ok: true, added: photos.length })
   return { ok: true, added: photos.length }
 }
 

@@ -38,18 +38,22 @@ type ParentProfileHeroData = {
   childAgeGroup: string | null
 }
 
-const CHILD_AGE_GROUP_LABELS: Record<string, string> = {
-  infant: "Infant (0-12 months)",
-  toddler: "Toddler (1-2 years)",
-  preschool: "Preschool (3-4 years)",
-  prek: "Pre-K (4-5 years)",
-  school: "School Age (5+)",
+const CHILD_AGE_GROUP_RANGES: Record<string, string> = {
+  infant: "0-12 months",
+  toddler: "1-2 years",
+  preschool: "3-4 years",
+  prek: "4-5 years",
+  school: "5+ years",
+  schoolage: "5+ years",
+  school_age: "5+ years",
 }
 
 function getChildAgeGroupDisplay(value: string | null): string | null {
   if (!value || typeof value !== "string") return null
   const trimmed = value.trim().toLowerCase()
-  return CHILD_AGE_GROUP_LABELS[trimmed] ?? trimmed
+  const rangeOnlyMatch = trimmed.match(/\(([^)]+)\)/)
+  if (rangeOnlyMatch?.[1]) return rangeOnlyMatch[1].trim()
+  return CHILD_AGE_GROUP_RANGES[trimmed] ?? trimmed
 }
 
 /** Maps parent_profiles.child_age_group to provider age_groups_served tags. */
@@ -514,7 +518,7 @@ export default async function ParentDashboardPage() {
                     <TableRow>
                       <TableHead className="text-xs text-muted-foreground">Provider</TableHead>
                       <TableHead className="hidden sm:table-cell text-xs text-muted-foreground">
-                        Child age
+                        Child age range
                       </TableHead>
                       <TableHead className="hidden md:table-cell text-xs text-muted-foreground">
                         Message

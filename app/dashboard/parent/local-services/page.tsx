@@ -1,4 +1,5 @@
 import { RequireAuth } from "@/components/RequireAuth"
+import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import {
   ParentLocalServicesClient,
@@ -73,7 +74,7 @@ export default async function ParentLocalServicesPage() {
   const ageGroups: ParentAgeGroupOption[] = (agesRes.data ?? []).map((g) => ({
     id: g.id,
     tag: g.tag,
-    ageRange: g.age_range,
+    ageRange: normalizeAgeRangeLabel(g.age_range),
     sortOrder: g.sort_order,
   }))
 

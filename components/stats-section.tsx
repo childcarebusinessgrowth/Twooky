@@ -25,7 +25,7 @@ export function StatsSection({ stats, cityName }: StatsSectionProps) {
     },
     {
       icon: Star,
-      label: "Top Rated (4.5+ stars)",
+      label: "Top Rated (4.8+ stars)",
       value: stats.topRated.toString(),
     },
     {

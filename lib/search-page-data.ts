@@ -13,6 +13,7 @@ import {
 } from "@/lib/search-providers-db"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { CACHE_TAGS } from "@/lib/cache-tags"
+import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 import { resolveLocationTextFromQuery } from "@/lib/search-location-query"
 import type { SearchFilterOptions } from "@/components/filter-sidebar"
 
@@ -153,7 +154,7 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
       ageGroups: (ageGroups ?? []).map((row) => {
         return {
           value: row.tag === "school_age" ? "schoolage" : row.tag,
-          label: row.age_range,
+          label: normalizeAgeRangeLabel(row.age_range),
         }
       }),
       programTypes: (programTypes ?? []).map((row) => ({ value: row.name, label: row.name })),
@@ -182,6 +183,10 @@ const loadSearchFilterOptionsCached = unstable_cache(
   ["search-filter-options"],
   { revalidate: 300, tags: [CACHE_TAGS.directoryFilters] },
 )
+
+export async function getSearchFilterOptions(): Promise<SearchFilterOptions> {
+  return loadSearchFilterOptionsCached()
+}
 
 export async function getSearchPageData(options: {
   searchParams: SearchPageQueryParams

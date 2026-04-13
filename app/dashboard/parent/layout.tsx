@@ -16,8 +16,12 @@ import {
   Store,
   Tag,
   BookOpen,
+  Compass,
+  GraduationCap,
+  Wallet,
 } from "lucide-react"
-import { useState } from "react"
+import type { LucideIcon } from "lucide-react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -29,21 +33,64 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { RequireAuth } from "@/components/RequireAuth"
 import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
 
-const sidebarItems = [
-  { label: "Dashboard", href: "/dashboard/parent", icon: LayoutDashboard },
-  { label: "Saved Providers", href: "/dashboard/parent/saved", icon: Heart },
-  { label: "My Inquiries", href: "/dashboard/parent/inquiries", icon: MessageSquare },
-  { label: "My Reviews", href: "/dashboard/parent/reviews", icon: Star },
-  { label: "Compare Providers", href: "/dashboard/parent/compare", icon: Scale },
-  { label: "Local Services", href: "/dashboard/parent/local-services", icon: Store },
-  { label: "Discounts", href: "/dashboard/parent/discounts", icon: Tag },
-  { label: "Articles", href: "/dashboard/parent/blog", icon: BookOpen },
-  { label: "Account Settings", href: "/dashboard/parent/settings", icon: Settings },
+type SidebarLinkItem = {
+  kind: "link"
+  label: string
+  href: string
+  icon: LucideIcon
+}
+
+type SidebarGroupItem = {
+  kind: "group"
+  label: string
+  icon: LucideIcon
+  pathPrefix: string
+  children: { label: string; href: string; icon?: LucideIcon }[]
+}
+
+const sidebarItems: (SidebarLinkItem | SidebarGroupItem)[] = [
+  { kind: "link", label: "Dashboard", href: "/dashboard/parent", icon: LayoutDashboard },
+  { kind: "link", label: "Saved Providers", href: "/dashboard/parent/saved", icon: Heart },
+  { kind: "link", label: "My Inquiries", href: "/dashboard/parent/inquiries", icon: MessageSquare },
+  { kind: "link", label: "My Reviews", href: "/dashboard/parent/reviews", icon: Star },
+  { kind: "link", label: "Compare Providers", href: "/dashboard/parent/compare", icon: Scale },
+  {
+    kind: "group",
+    label: "Decision Support",
+    icon: Compass,
+    pathPrefix: "/dashboard/parent/decision-support",
+    children: [
+      {
+        label: "Programs",
+        href: "/dashboard/parent/decision-support/programs",
+        icon: GraduationCap,
+      },
+      {
+        label: "Cost guides By City",
+        href: "/dashboard/parent/decision-support/cost-guides",
+        icon: Wallet,
+      },
+      {
+        label: "Find My Perfect Childcare",
+        href: "/dashboard/parent/decision-support/find-my-perfect-childcare",
+        icon: Search,
+      },
+    ],
+  },
+  { kind: "link", label: "Local Services", href: "/dashboard/parent/local-services", icon: Store },
+  { kind: "link", label: "Discounts", href: "/dashboard/parent/discounts", icon: Tag },
+  { kind: "link", label: "Articles", href: "/dashboard/parent/blog", icon: BookOpen },
+  { kind: "link", label: "Account Settings", href: "/dashboard/parent/settings", icon: Settings },
 ]
 
 function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
@@ -52,6 +99,19 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
   return (
     <nav className="flex flex-col gap-1 px-3">
       {sidebarItems.map((item) => {
+        if (item.kind === "group") {
+          const hasActiveChild = item.children.some((child) => pathname === child.href)
+          return (
+            <ParentSidebarGroup
+              key={item.label}
+              item={item}
+              pathname={pathname}
+              hasActiveChild={hasActiveChild}
+              onItemClick={onItemClick}
+            />
+          )
+        }
+
         const isActive =
           item.href === "/dashboard/parent"
             ? pathname === "/dashboard/parent"
@@ -77,16 +137,84 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
   )
 }
 
+function ParentSidebarGroup({
+  item,
+  pathname,
+  hasActiveChild,
+  onItemClick,
+}: {
+  item: SidebarGroupItem
+  pathname: string
+  hasActiveChild: boolean
+  onItemClick?: () => void
+}) {
+  const [open, setOpen] = useState(() => pathname.startsWith(item.pathPrefix))
+
+  useEffect(() => {
+    if (pathname.startsWith(item.pathPrefix)) {
+      setOpen(true)
+    }
+  }, [item.pathPrefix, pathname])
+
+  const Icon = item.icon
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger
+        className={cn(
+          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          hasActiveChild
+            ? "bg-primary/15 text-foreground"
+            : "text-muted-foreground hover:text-primary/90 hover:bg-primary/10"
+        )}
+      >
+        <span className="flex items-center gap-3">
+          <Icon className="h-5 w-5 shrink-0" />
+          {item.label}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1 space-y-0.5 pl-2">
+        <div className="ml-2 border-l border-border pl-2">
+          {item.children.map((child) => {
+            const childActive = pathname === child.href
+            const ChildIcon = child.icon
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={onItemClick}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  childActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-primary/90 hover:bg-primary/10"
+                )}
+              >
+                {ChildIcon ? <ChildIcon className="h-4 w-4 shrink-0" /> : null}
+                {child.label}
+              </Link>
+            )
+          })}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 export default function ParentDashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "parent")
+  const isDecisionSupportProgramRoute =
+    pathname === "/dashboard/parent/decision-support/programs" ||
+    pathname.startsWith("/dashboard/parent/decision-support/programs/")
 
   const handleSignOut = async () => {
     await signOut()
@@ -232,7 +360,12 @@ export default function ParentDashboardLayout({
 
         {/* Page content */}
         <main className="min-w-0 bg-background px-4 py-5 lg:px-8 lg:py-8">
-          <div className="mx-auto min-w-0 max-w-6xl space-y-6 lg:space-y-8">
+          <div
+            className={cn(
+              "mx-auto min-w-0 space-y-6 lg:space-y-8",
+              isDecisionSupportProgramRoute ? "max-w-none" : "max-w-6xl"
+            )}
+          >
             {children}
           </div>
         </main>

@@ -719,6 +719,12 @@
     on public.provider_profiles (provider_slug)
     where provider_slug is not null;
 
+  create unique index if not exists provider_profiles_business_address_city_unique_idx
+    on public.provider_profiles (business_name, address, city)
+    where business_name is not null
+      and address is not null
+      and city is not null;
+
   -- ============================================================================
   -- 4b. Provider photos (facility gallery, captions, primary)
   -- ============================================================================
@@ -1918,4 +1924,30 @@
   --         provider_website_published_versions
   -- RPC: get_published_provider_website(subdomain) for public reads of published snapshots.
   -- Storage bucket: provider-website-assets (created at upload time via admin client).
+
+  -- ============================================================================
+  -- 12. CRUD/search performance indexes (20260413123000_crud_perf_indexes_and_search.sql)
+  -- ============================================================================
+  create extension if not exists pg_trgm;
+
+  create index if not exists provider_profiles_business_name_trgm_idx
+    on public.provider_profiles using gin (business_name gin_trgm_ops);
+
+  create index if not exists provider_profiles_provider_slug_trgm_idx
+    on public.provider_profiles using gin (provider_slug gin_trgm_ops);
+
+  create index if not exists provider_profiles_country_status_created_idx
+    on public.provider_profiles (country_id, listing_status, created_at desc);
+
+  create index if not exists provider_profiles_status_created_idx
+    on public.provider_profiles (listing_status, created_at desc);
+
+  create index if not exists provider_profiles_featured_status_created_idx
+    on public.provider_profiles (featured, listing_status, created_at desc);
+
+  create index if not exists provider_photos_profile_primary_sort_created_idx
+    on public.provider_photos (provider_profile_id, is_primary, sort_order, created_at);
+
+  create index if not exists provider_listing_documents_profile_uploaded_idx
+    on public.provider_listing_documents (provider_profile_id, uploaded_at);
 

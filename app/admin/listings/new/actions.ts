@@ -7,14 +7,19 @@ import { assertAdminPermission } from "@/lib/authzServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
 import { resolveGooglePlaceIdFromText } from "@/lib/google-place-id"
+import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
+import { startPerfTimer } from "@/lib/perf-metrics"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"])
 const MAX_FAQS = 30
 const MAX_VIRTUAL_TOURS = 8
+const GOOGLE_PLACE_TIMEOUT_MS = 1200
+
+let providerPhotosBucketReadyPromise: Promise<void> | null = null
 
 export type AdminProviderCountryOption = { id: string; name: string }
 export type AdminProviderCityOption = { id: string; country_id: string; name: string }
@@ -69,20 +74,34 @@ function normalizeVirtualTourUrls(rawValues: string[]): { urls: string[]; error?
 }
 
 async function ensureProviderPhotosBucket() {
-  const supabase = getSupabaseAdminClient()
-  const { data: buckets, error: listError } = await supabase.storage.listBuckets()
-  if (listError) throw new Error(listError.message)
+  if (providerPhotosBucketReadyPromise) {
+    await providerPhotosBucketReadyPromise
+    return
+  }
 
-  const exists = buckets?.some((bucket) => bucket.name === PROVIDER_PHOTOS_BUCKET)
-  if (exists) return
+  providerPhotosBucketReadyPromise = (async () => {
+    const supabase = getSupabaseAdminClient()
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+    if (listError) throw new Error(listError.message)
 
-  const { error: createError } = await supabase.storage.createBucket(PROVIDER_PHOTOS_BUCKET, {
-    public: true,
-    fileSizeLimit: `${MAX_IMAGE_SIZE_BYTES}`,
-    allowedMimeTypes: Array.from(ALLOWED_IMAGE_TYPES),
-  })
-  if (createError && !createError.message.toLowerCase().includes("already")) {
-    throw new Error(createError.message)
+    const exists = buckets?.some((bucket) => bucket.name === PROVIDER_PHOTOS_BUCKET)
+    if (exists) return
+
+    const { error: createError } = await supabase.storage.createBucket(PROVIDER_PHOTOS_BUCKET, {
+      public: true,
+      fileSizeLimit: `${MAX_IMAGE_SIZE_BYTES}`,
+      allowedMimeTypes: Array.from(ALLOWED_IMAGE_TYPES),
+    })
+    if (createError && !createError.message.toLowerCase().includes("already")) {
+      throw new Error(createError.message)
+    }
+  })()
+
+  try {
+    await providerPhotosBucketReadyPromise
+  } catch (error) {
+    providerPhotosBucketReadyPromise = null
+    throw error
   }
 }
 
@@ -109,6 +128,28 @@ async function cleanupStoragePaths(paths: string[]) {
   if (paths.length === 0) return
   const supabase = getSupabaseAdminClient()
   await supabase.storage.from(PROVIDER_PHOTOS_BUCKET).remove(paths)
+}
+
+async function resolveGooglePlaceIdFast(businessName: string, address: string): Promise<string | null> {
+  const timeout = new Promise<string | null>((resolve) => {
+    setTimeout(() => resolve(null), GOOGLE_PLACE_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([resolveGooglePlaceIdFromText(businessName, address), timeout])
+  } catch {
+    return null
+  }
+}
+
+async function hasPrimaryPhotoForProvider(profileId: string): Promise<boolean> {
+  const supabase = getSupabaseAdminClient()
+  const { count, error } = await supabase
+    .from("provider_photos")
+    .select("id", { head: true, count: "exact" })
+    .eq("provider_profile_id", profileId)
+    .eq("is_primary", true)
+  if (error) return false
+  return (count ?? 0) > 0
 }
 
 export async function getAdminProviderCreateOptions(): Promise<{
@@ -194,6 +235,7 @@ export async function getAdminProviderCreateOptions(): Promise<{
 export async function createAdminProvider(formData: FormData): Promise<CreateAdminProviderResult> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const perf = startPerfTimer("createAdminProvider")
 
   const businessName = asTrimmedText(formData.get("businessName"))
   const description = asTrimmedText(formData.get("description"))
@@ -336,40 +378,46 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   let resolvedCityName = city
   let resolvedCurrencyId: string | null = null
 
-  if (currencyId) {
-    const { data: currencyRow, error: currencyError } = await supabase
-      .from("currencies")
-      .select("id")
-      .eq("id", currencyId)
-      .eq("is_active", true)
-      .maybeSingle()
-    if (currencyError) return { ok: false, error: currencyError.message }
-    if (!currencyRow) return { ok: false, error: "Selected currency is invalid." }
-    resolvedCurrencyId = currencyRow.id
-  }
+  const [{ data: currencyRow, error: currencyError }, { data: countryRow, error: countryError }, { data: cityRow, error: cityError }] =
+    await Promise.all([
+      currencyId
+        ? supabase
+            .from("currencies")
+            .select("id")
+            .eq("id", currencyId)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      countryId
+        ? supabase
+            .from("countries")
+            .select("id")
+            .eq("id", countryId)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      cityId
+        ? supabase
+            .from("cities")
+            .select("id, country_id, name")
+            .eq("id", cityId)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+  perf.mark("validated_location_lookups")
 
-  if (countryId) {
-    const { data: countryRow, error: countryError } = await supabase
-      .from("countries")
-      .select("id")
-      .eq("id", countryId)
-      .eq("is_active", true)
-      .maybeSingle()
-    if (countryError) return { ok: false, error: countryError.message }
-    if (!countryRow) return { ok: false, error: "Selected country is invalid." }
-    resolvedCountryId = countryRow.id
-  }
+  if (currencyError) return { ok: false, error: currencyError.message }
+  if (currencyId && !currencyRow) return { ok: false, error: "Selected currency is invalid." }
+  if (currencyRow) resolvedCurrencyId = currencyRow.id
 
-  if (cityId) {
-    const cityQuery = supabase
-      .from("cities")
-      .select("id, country_id, name")
-      .eq("id", cityId)
-      .eq("is_active", true)
-      .maybeSingle()
-    const { data: cityRow, error: cityError } = await cityQuery
-    if (cityError) return { ok: false, error: cityError.message }
-    if (!cityRow) return { ok: false, error: "Selected city is invalid." }
+  if (countryError) return { ok: false, error: countryError.message }
+  if (countryId && !countryRow) return { ok: false, error: "Selected country is invalid." }
+  if (countryRow) resolvedCountryId = countryRow.id
+
+  if (cityError) return { ok: false, error: cityError.message }
+  if (cityId && !cityRow) return { ok: false, error: "Selected city is invalid." }
+  if (cityRow) {
     if (resolvedCountryId && cityRow.country_id !== resolvedCountryId) {
       return { ok: false, error: "Selected city does not belong to selected country." }
     }
@@ -379,7 +427,8 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   }
 
   const profileId = randomUUID()
-  const resolvedGooglePlaceId = await resolveGooglePlaceIdFromText(businessName, address)
+  const resolvedGooglePlaceId = await resolveGooglePlaceIdFast(businessName, address)
+  perf.mark("resolved_google_place", { hit: Boolean(resolvedGooglePlaceId) })
   let slug: string
   try {
     slug = await createUniqueProviderSlug(businessName)
@@ -431,11 +480,25 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       if (insertProfileError.code === "23505" && insertProfileError.message.toLowerCase().includes("provider_slug")) {
         return { ok: false, error: "A provider with a similar slug already exists. Please try a different business name." }
       }
+      if (
+        insertProfileError.code === "23505" &&
+        insertProfileError.message.toLowerCase().includes("provider_profiles_business_address_city_unique_idx")
+      ) {
+        return { ok: false, error: "A provider with the same business name and location already exists." }
+      }
       return { ok: false, error: insertProfileError.message }
     }
+    perf.mark("inserted_provider_profile")
 
     if (photos.length > 0) {
       await ensureProviderPhotosBucket()
+      const photoRows: Array<{
+        provider_profile_id: string
+        storage_path: string
+        caption: string | null
+        is_primary: boolean
+        sort_order: number
+      }> = []
       for (let i = 0; i < photos.length; i += 1) {
         const photo = photos[i]
         const safeName = sanitizeFilename(photo.name || "image")
@@ -451,18 +514,19 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
           throw new Error(uploadError.message)
         }
         uploadedPaths.push(storagePath)
-
-        const { error: insertPhotoError } = await supabase.from("provider_photos").insert({
+        photoRows.push({
           provider_profile_id: profileId,
           storage_path: storagePath,
           caption: photoCaptions[i] || null,
           is_primary: i === primaryPhotoIndex,
           sort_order: i,
         })
-        if (insertPhotoError) {
-          throw new Error(insertPhotoError.message)
-        }
       }
+      const { error: insertPhotoError } = await supabase.from("provider_photos").insert(photoRows)
+      if (insertPhotoError) {
+        throw new Error(insertPhotoError.message)
+      }
+      perf.mark("uploaded_and_inserted_photos", { count: photos.length })
     }
 
     if (faqs.length > 0) {
@@ -474,7 +538,19 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       }))
       const { error: faqError } = await supabase.from("provider_faqs").insert(rows)
       if (faqError) throw new Error(faqError.message)
+      perf.mark("inserted_faqs", { count: faqs.length })
     }
+
+    const hasPrimaryPhoto = await hasPrimaryPhotoForProvider(profileId)
+    await enrichProviderGooglePlaceCache({
+      providerProfileId: profileId,
+      businessName,
+      address,
+      placeId: resolvedGooglePlaceId,
+      hasPrimaryPhoto,
+      logContext: "admin-create-provider",
+    })
+    perf.mark("enriched_google_place_cache")
   } catch (error) {
     await supabase.from("provider_profiles").delete().eq("profile_id", profileId)
     await cleanupStoragePaths(uploadedPaths)
@@ -490,6 +566,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   revalidatePath("/")
   revalidateProviderDirectoryCaches()
   revalidatePath(`/providers/${slug}`)
+  perf.end({ ok: true })
   return { ok: true, profileId, slug }
 }
 
@@ -503,6 +580,7 @@ export async function updateAdminProvider(
 ): Promise<UpdateAdminProviderResult> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const perf = startPerfTimer("updateAdminProvider", { profile_id: profileId })
 
   const businessName = asTrimmedText(formData.get("businessName"))
   const description = asTrimmedText(formData.get("description"))
@@ -643,40 +721,46 @@ export async function updateAdminProvider(
   let resolvedCityName = city
   let resolvedCurrencyId: string | null = null
 
-  if (currencyId) {
-    const { data: currencyRow, error: currencyError } = await supabase
-      .from("currencies")
-      .select("id")
-      .eq("id", currencyId)
-      .eq("is_active", true)
-      .maybeSingle()
-    if (currencyError) return { ok: false, error: currencyError.message }
-    if (!currencyRow) return { ok: false, error: "Selected currency is invalid." }
-    resolvedCurrencyId = currencyRow.id
-  }
+  const [{ data: currencyRow, error: currencyError }, { data: countryRow, error: countryError }, { data: cityRow, error: cityError }] =
+    await Promise.all([
+      currencyId
+        ? supabase
+            .from("currencies")
+            .select("id")
+            .eq("id", currencyId)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      countryId
+        ? supabase
+            .from("countries")
+            .select("id")
+            .eq("id", countryId)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      cityId
+        ? supabase
+            .from("cities")
+            .select("id, country_id, name")
+            .eq("id", cityId)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+  perf.mark("validated_location_lookups")
 
-  if (countryId) {
-    const { data: countryRow, error: countryError } = await supabase
-      .from("countries")
-      .select("id")
-      .eq("id", countryId)
-      .eq("is_active", true)
-      .maybeSingle()
-    if (countryError) return { ok: false, error: countryError.message }
-    if (!countryRow) return { ok: false, error: "Selected country is invalid." }
-    resolvedCountryId = countryRow.id
-  }
+  if (currencyError) return { ok: false, error: currencyError.message }
+  if (currencyId && !currencyRow) return { ok: false, error: "Selected currency is invalid." }
+  if (currencyRow) resolvedCurrencyId = currencyRow.id
 
-  if (cityId) {
-    const cityQuery = supabase
-      .from("cities")
-      .select("id, country_id, name")
-      .eq("id", cityId)
-      .eq("is_active", true)
-      .maybeSingle()
-    const { data: cityRow, error: cityError } = await cityQuery
-    if (cityError) return { ok: false, error: cityError.message }
-    if (!cityRow) return { ok: false, error: "Selected city is invalid." }
+  if (countryError) return { ok: false, error: countryError.message }
+  if (countryId && !countryRow) return { ok: false, error: "Selected country is invalid." }
+  if (countryRow) resolvedCountryId = countryRow.id
+
+  if (cityError) return { ok: false, error: cityError.message }
+  if (cityId && !cityRow) return { ok: false, error: "Selected city is invalid." }
+  if (cityRow) {
     if (resolvedCountryId && cityRow.country_id !== resolvedCountryId) {
       return { ok: false, error: "Selected city does not belong to selected country." }
     }
@@ -687,12 +771,16 @@ export async function updateAdminProvider(
 
   const { data: existingProfile, error: fetchError } = await supabase
     .from("provider_profiles")
-    .select("profile_id, provider_slug, listing_status")
+    .select("profile_id, provider_slug, listing_status, google_place_id")
     .eq("profile_id", profileId)
     .maybeSingle()
 
   if (fetchError) return { ok: false, error: fetchError.message }
   if (!existingProfile) return { ok: false, error: "Listing not found." }
+  perf.mark("loaded_existing_profile")
+
+  const resolvedGooglePlaceId = await resolveGooglePlaceIdFast(businessName, address)
+  const nextGooglePlaceId = resolvedGooglePlaceId ?? existingProfile.google_place_id ?? null
 
   const previousStatus = (existingProfile.listing_status ?? "pending") as string
   const shouldVerify =
@@ -708,6 +796,7 @@ export async function updateAdminProvider(
       description: description || null,
       website: website || null,
       address: address || null,
+      google_place_id: nextGooglePlaceId,
       provider_types: providerTypes.length > 0 ? providerTypes : null,
       age_groups_served: ageGroupsServed.length > 0 ? ageGroupsServed : null,
       curriculum_type: curriculumTypes.length > 0 ? curriculumTypes : null,
@@ -736,7 +825,16 @@ export async function updateAdminProvider(
     })
     .eq("profile_id", profileId)
 
-  if (updateProfileError) return { ok: false, error: updateProfileError.message }
+  if (updateProfileError) {
+    if (
+      updateProfileError.code === "23505" &&
+      updateProfileError.message.toLowerCase().includes("provider_profiles_business_address_city_unique_idx")
+    ) {
+      return { ok: false, error: "A provider with the same business name and location already exists." }
+    }
+    return { ok: false, error: updateProfileError.message }
+  }
+  perf.mark("updated_provider_profile")
 
   if (listingStatus === "active" && previousStatus !== "active") {
     await supabase.from("provider_notifications").insert({
@@ -765,6 +863,7 @@ export async function updateAdminProvider(
     }))
     const { error: faqError } = await supabase.from("provider_faqs").insert(rows)
     if (faqError) return { ok: false, error: faqError.message }
+    perf.mark("reinserted_faqs", { count: faqs.length })
   }
 
   const uploadedPaths: string[] = []
@@ -782,6 +881,13 @@ export async function updateAdminProvider(
 
     try {
       await ensureProviderPhotosBucket()
+      const photoRows: Array<{
+        provider_profile_id: string
+        storage_path: string
+        caption: string | null
+        is_primary: boolean
+        sort_order: number
+      }> = []
       for (let i = 0; i < photos.length; i += 1) {
         const photo = photos[i]
         const safeName = sanitizeFilename(photo.name || "image")
@@ -795,17 +901,18 @@ export async function updateAdminProvider(
           })
         if (uploadError) throw new Error(uploadError.message)
         uploadedPaths.push(storagePath)
-
-        const { error: insertPhotoError } = await supabase.from("provider_photos").insert({
+        photoRows.push({
           provider_profile_id: profileId,
           storage_path: storagePath,
           caption: photoCaptions[i] || null,
           is_primary: !hasPrimary && i === primaryPhotoIndex,
           sort_order: nextSortOrder,
         })
-        if (insertPhotoError) throw new Error(insertPhotoError.message)
         nextSortOrder += 1
       }
+      const { error: insertPhotoError } = await supabase.from("provider_photos").insert(photoRows)
+      if (insertPhotoError) throw new Error(insertPhotoError.message)
+      perf.mark("uploaded_and_inserted_photos", { count: photos.length })
     } catch (error) {
       if (uploadedPaths.length > 0) {
         await supabase.storage.from(PROVIDER_PHOTOS_BUCKET).remove(uploadedPaths)
@@ -817,6 +924,17 @@ export async function updateAdminProvider(
     }
   }
 
+  const hasPrimaryPhoto = await hasPrimaryPhotoForProvider(profileId)
+  await enrichProviderGooglePlaceCache({
+    providerProfileId: profileId,
+    businessName,
+    address,
+    placeId: nextGooglePlaceId,
+    hasPrimaryPhoto,
+    logContext: "admin-update-provider",
+  })
+  perf.mark("enriched_google_place_cache")
+
   revalidatePath("/admin/listings")
   revalidatePath(`/admin/listings/${profileId}`)
   revalidatePath("/search")
@@ -825,5 +943,6 @@ export async function updateAdminProvider(
   if (existingProfile.provider_slug) {
     revalidatePath(`/providers/${existingProfile.provider_slug}`)
   }
+  perf.end({ ok: true })
   return { ok: true, profileId }
 }

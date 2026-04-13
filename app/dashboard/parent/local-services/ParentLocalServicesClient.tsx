@@ -119,7 +119,7 @@ export function ParentLocalServicesClient({ deals, ageGroups, loadError }: Props
           </Select>
         </div>
         <div className="space-y-2 sm:min-w-[200px]">
-          <Label htmlFor="filter-age">Child age</Label>
+          <Label htmlFor="filter-age">Child age range</Label>
           <Select value={childAge} onValueChange={setChildAge}>
             <SelectTrigger id="filter-age" className="rounded-xl border-border/60 bg-muted/40">
               <SelectValue placeholder="All ages" />

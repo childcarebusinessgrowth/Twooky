@@ -1,3 +1,9 @@
 {
-  "installCommand": "pnpm install --frozen-lockfile"
+  "installCommand": "pnpm install --frozen-lockfile",
+  "crons": [
+    {
+      "path": "/api/cron/google-place-refresh",
+      "schedule": "0 3 1 * *"
+    }
+  ]
 }

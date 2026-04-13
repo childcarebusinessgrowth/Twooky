@@ -147,7 +147,7 @@ export function SearchResults({
       chips.push({
         key: `fees:${minFee ?? ""}-${maxFee ?? ""}`,
         param: "feeRange",
-        label: `${sym}${minFee ?? "0"} - ${sym}${maxFee ?? "3000"}+`,
+        label: `${sym}${minFee ?? "20"} - ${sym}${maxFee ?? "300"}`,
       })
     }
 

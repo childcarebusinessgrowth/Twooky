@@ -44,6 +44,10 @@ export interface FilterState {
   minRating: number | null
 }
 
+const DAILY_FEE_MIN = 20
+const DAILY_FEE_MAX = 300
+const DAILY_FEE_STEP = 10
+
 const STATIC_AGE_GROUPS: FilterOption[] = [
   { value: "Infant (0-12 months)", label: "Infant (0-12 months)" },
   { value: "Toddler (1-2 years)", label: "Toddler (1-2 years)" },
@@ -103,7 +107,7 @@ export function FilterSidebar({ onFilterChange, filterOptions, className = "" }:
   const [filters, setFilters] = useState<FilterState>({
     ageGroups: [],
     programTypes: [],
-    tuitionRange: [500, 2500],
+    tuitionRange: [DAILY_FEE_MIN, DAILY_FEE_MAX],
     languages: [],
     features: [],
     curriculumTypes: [],
@@ -132,7 +136,7 @@ export function FilterSidebar({ onFilterChange, filterOptions, className = "" }:
     const cleared: FilterState = {
       ageGroups: [],
       programTypes: [],
-      tuitionRange: [500, 2500],
+      tuitionRange: [DAILY_FEE_MIN, DAILY_FEE_MAX],
       languages: [],
       features: [],
       curriculumTypes: [],
@@ -188,15 +192,15 @@ export function FilterSidebar({ onFilterChange, filterOptions, className = "" }:
           <div className="pt-2 px-1">
             <Slider
               value={filters.tuitionRange}
-              min={500}
-              max={3000}
-              step={100}
+              min={DAILY_FEE_MIN}
+              max={DAILY_FEE_MAX}
+              step={DAILY_FEE_STEP}
               onValueChange={(value) => updateFilter('tuitionRange', value as [number, number])}
               className="mb-4"
             />
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>{(filterOptions?.currencySymbol ?? "$")}{filters.tuitionRange[0]}</span>
-              <span>{(filterOptions?.currencySymbol ?? "$")}{filters.tuitionRange[1]}+</span>
+              <span>{(filterOptions?.currencySymbol ?? "$")}{filters.tuitionRange[1]}</span>
             </div>
           </div>
         </FilterSection>

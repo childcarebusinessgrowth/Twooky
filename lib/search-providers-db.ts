@@ -3,9 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
 import { CACHE_TAGS } from "@/lib/cache-tags"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
-import { fetchGooglePlaceDetailsSummary, type GooglePlaceDetailsSummary } from "./google-place-reviews"
-import { resolveGooglePlaceIdFromText } from "./google-place-id"
-import { geocodeAddressToCoordinates } from "./geocode-server"
+import type { GooglePlaceDetailsSummary } from "./google-place-reviews"
 import { formatDailyFeeRange } from "./currency"
 import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
 import { getSupabaseAdminClient } from "./supabaseAdmin"
@@ -21,15 +19,9 @@ import {
   formatAgeGroupLabel,
 } from "@/lib/age-groups-to-program-labels"
 import {
-  ensureCachedGoogleProviderPhoto,
-  persistGooglePlaceSummaryCache,
-} from "@/lib/cache-google-provider-photo"
-import {
-  hasFreshCachedGoogleReviews,
   readCachedGooglePlaceSummary,
   type ProviderGoogleCacheRow,
 } from "@/lib/google-place-cache"
-import { revalidateActiveProvidersDirectoryCache } from "@/lib/revalidate-public-directory"
 
 const PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE =
   "profile_id, provider_slug, business_name, city, address, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
@@ -136,9 +128,6 @@ function toProviderTypeIds(values: string[] | null): ProviderTypeId[] {
 export async function getActiveProvidersFromDb(
   supabase: SupabaseClient
 ): Promise<ActiveProviderRow[]> {
-  const googleApiKey =
-    process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
   let { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
     .select(PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE)
@@ -203,137 +192,16 @@ export async function getActiveProvidersFromDb(
 
   const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
   const googleCachedPhotoPathByProfile: Record<string, string | null> = {}
-  let didPersistGoogleCache = false
-  const findPlaceByKey = new Map<string, Promise<string | null>>()
-  const geocodeByAddress = new Map<string, Promise<{ lat: number; lng: number } | null>>()
-
-  const getGeocodedCoords = async (address: string): Promise<{ lat: number; lng: number } | null> => {
-    const normalizedAddress = address.trim()
-    if (!normalizedAddress || !googleApiKey?.trim()) return null
-
-    const existing = geocodeByAddress.get(normalizedAddress)
-    if (existing) return existing
-
-    const pending = geocodeAddressToCoordinates(normalizedAddress, googleApiKey)
-    geocodeByAddress.set(normalizedAddress, pending)
-    return pending
-  }
-
-  const resolvePlaceIdFromTextCached = (name: string, addressLine: string): Promise<string | null> => {
-    const key = `${name.toLowerCase()}|${addressLine.toLowerCase()}`
-    let pending = findPlaceByKey.get(key)
-    if (!pending) {
-      pending = resolveGooglePlaceIdFromText(name, addressLine)
-      findPlaceByKey.set(key, pending)
-    }
-    return pending
-  }
-
   const coordsByProfile: Record<string, { lat: number; lng: number } | null> = {}
-  await Promise.all(
-    profiles.map(async (profile) => {
-      const hasPrimary = Boolean(primaryPhotoByProfile[profile.profile_id])
-      let cachedGooglePhotoPath =
-        (profile as { google_fallback_storage_path?: string | null }).google_fallback_storage_path?.trim() ||
-        null
-      const cachedGoogle = profile as ProviderGoogleCacheRow
-      const name = profile.business_name?.trim() ?? ""
-      const addressLine = [profile.address, profile.city].filter(Boolean).join(", ").trim()
-
-      let placeId = (profile.google_place_id as string | null | undefined)?.trim() || null
-      if (!placeId && !hasPrimary && name && addressLine) {
-        placeId = await resolvePlaceIdFromTextCached(name, addressLine)
-      }
-
-      let summary = readCachedGooglePlaceSummary(cachedGoogle)
-      const needsPhotoRef = !hasPrimary && !cachedGooglePhotoPath && !summary?.photoReference
-      const shouldRefreshReviews = !hasFreshCachedGoogleReviews(cachedGoogle)
-      const needsCoordinates =
-        typeof summary?.latitude !== "number" ||
-        !Number.isFinite(summary.latitude) ||
-        typeof summary?.longitude !== "number" ||
-        !Number.isFinite(summary.longitude)
-
-      if (placeId && (shouldRefreshReviews || needsPhotoRef || needsCoordinates)) {
-        const fetched = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
-        if (fetched) {
-          summary = { ...(summary ?? {}), ...fetched }
-          const persisted = await persistGooglePlaceSummaryCache({
-            providerProfileId: profile.profile_id,
-            placeId,
-            summary: fetched,
-          })
-          if (persisted) {
-            didPersistGoogleCache = true
-          }
-        }
-      }
-
-      // Stored place_id may be wrong or have no Places photos; try text resolution for photo only.
-      if (!hasPrimary && name && addressLine && !summary?.photoReference) {
-        const textPlaceId = await resolvePlaceIdFromTextCached(name, addressLine)
-        if (textPlaceId && textPlaceId !== placeId) {
-          const alt = await fetchGooglePlaceDetailsSummary(textPlaceId, googleApiKey)
-          if (alt) {
-            summary = { ...(summary ?? {}), ...alt }
-            placeId = textPlaceId
-            const persisted = await persistGooglePlaceSummaryCache({
-              providerProfileId: profile.profile_id,
-              placeId,
-              summary: alt,
-            })
-            if (persisted) {
-              didPersistGoogleCache = true
-            }
-          }
-        }
-      }
-
-      if (!hasPrimary && !cachedGooglePhotoPath && summary?.photoReference) {
-        const savedPath = await ensureCachedGoogleProviderPhoto({
-          providerProfileId: profile.profile_id,
-          placeId,
-          photoReference: summary.photoReference,
-        })
-        if (savedPath) {
-          cachedGooglePhotoPath = savedPath
-          didPersistGoogleCache = true
-        }
-      }
-
-      googleSummaryByProfile[profile.profile_id] = summary
-      googleCachedPhotoPathByProfile[profile.profile_id] = cachedGooglePhotoPath
-
-      if (
-        typeof summary?.latitude === "number" &&
-        Number.isFinite(summary.latitude) &&
-        typeof summary?.longitude === "number" &&
-        Number.isFinite(summary.longitude)
-      ) {
-        coordsByProfile[profile.profile_id] = {
-          lat: summary.latitude,
-          lng: summary.longitude,
-        }
-        return
-      }
-
-      const geocodeInput = [profile.address, profile.city].filter(Boolean).join(", ")
-      if (!geocodeInput.trim()) {
-        coordsByProfile[profile.profile_id] = null
-        return
-      }
-
-      coordsByProfile[profile.profile_id] = await getGeocodedCoords(geocodeInput)
-    })
-  )
-
-  if (didPersistGoogleCache) {
-    try {
-      revalidateActiveProvidersDirectoryCache()
-    } catch {
-      // revalidation APIs are not always available in every server runtime entrypoint
-    }
-  }
+  profiles.forEach((profile) => {
+    const summary = readCachedGooglePlaceSummary(profile as ProviderGoogleCacheRow)
+    const cachedGooglePhotoPath =
+      (profile as { google_fallback_storage_path?: string | null }).google_fallback_storage_path?.trim() ||
+      null
+    googleSummaryByProfile[profile.profile_id] = summary
+    googleCachedPhotoPathByProfile[profile.profile_id] = cachedGooglePhotoPath
+    coordsByProfile[profile.profile_id] = null
+  })
 
   return profiles.map((p) => {
     const stats = reviewStatsByProfile[p.profile_id]
@@ -467,8 +335,6 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       }
 
       const profileIds = profileRows.map((row) => row.profile_id)
-      const googleApiKey =
-        process.env.GOOGLE_MAPS_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
       const [{ data: photos }, reviewsResult, favoritesResult] = await Promise.all([
         supabase
@@ -514,92 +380,13 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
 
       const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
       const googleCachedPhotoPathByProfile: Record<string, string | null> = {}
-      let didPersistGoogleCache = false
-      const findPlaceByKey = new Map<string, Promise<string | null>>()
-      const resolvePlaceIdFromTextCachedHome = (name: string, addressLine: string): Promise<string | null> => {
-        const key = `${name.toLowerCase()}|${addressLine.toLowerCase()}`
-        let pending = findPlaceByKey.get(key)
-        if (!pending) {
-          pending = resolveGooglePlaceIdFromText(name, addressLine)
-          findPlaceByKey.set(key, pending)
-        }
-        return pending
-      }
-      await Promise.all(
-        (profileRows as HomeFeaturedProfileRow[]).map(async (profile) => {
-          const hasPrimary = Boolean(photoByProfileId[profile.profile_id])
-          let cachedGooglePhotoPath = profile.google_fallback_storage_path?.trim() || null
-          const cachedGoogle = profile as ProviderGoogleCacheRow
-          const name = profile.business_name?.trim() ?? ""
-          const addressLine = [profile.address, profile.city].filter(Boolean).join(", ").trim()
-
-          let placeId = profile.google_place_id?.trim() || null
-          if (!placeId && !hasPrimary && name && addressLine) {
-            placeId = await resolvePlaceIdFromTextCachedHome(name, addressLine)
-          }
-
-          let summary = readCachedGooglePlaceSummary(cachedGoogle)
-          const needsPhotoRef = !hasPrimary && !cachedGooglePhotoPath && !summary?.photoReference
-          const shouldRefreshReviews = !hasFreshCachedGoogleReviews(cachedGoogle)
-
-          if (placeId && (shouldRefreshReviews || needsPhotoRef)) {
-            const fetched = await fetchGooglePlaceDetailsSummary(placeId, googleApiKey)
-            if (fetched) {
-              summary = { ...(summary ?? {}), ...fetched }
-              const persisted = await persistGooglePlaceSummaryCache({
-                providerProfileId: profile.profile_id,
-                placeId,
-                summary: fetched,
-              })
-              if (persisted) {
-                didPersistGoogleCache = true
-              }
-            }
-          }
-
-          if (!hasPrimary && name && addressLine && !summary?.photoReference) {
-            const textPlaceId = await resolvePlaceIdFromTextCachedHome(name, addressLine)
-            if (textPlaceId && textPlaceId !== placeId) {
-              const alt = await fetchGooglePlaceDetailsSummary(textPlaceId, googleApiKey)
-              if (alt) {
-                summary = { ...(summary ?? {}), ...alt }
-                placeId = textPlaceId
-                const persisted = await persistGooglePlaceSummaryCache({
-                  providerProfileId: profile.profile_id,
-                  placeId,
-                  summary: alt,
-                })
-                if (persisted) {
-                  didPersistGoogleCache = true
-                }
-              }
-            }
-          }
-
-          if (!hasPrimary && !cachedGooglePhotoPath && summary?.photoReference) {
-            const savedPath = await ensureCachedGoogleProviderPhoto({
-              providerProfileId: profile.profile_id,
-              placeId,
-              photoReference: summary.photoReference,
-            })
-            if (savedPath) {
-              cachedGooglePhotoPath = savedPath
-              didPersistGoogleCache = true
-            }
-          }
-
-          googleSummaryByProfile[profile.profile_id] = summary
-          googleCachedPhotoPathByProfile[profile.profile_id] = cachedGooglePhotoPath
-        })
-      )
-
-      if (didPersistGoogleCache) {
-        try {
-          revalidateActiveProvidersDirectoryCache()
-        } catch {
-          // revalidation APIs are not always available in every server runtime entrypoint
-        }
-      }
+      ;(profileRows as HomeFeaturedProfileRow[]).forEach((profile) => {
+        googleSummaryByProfile[profile.profile_id] = readCachedGooglePlaceSummary(
+          profile as ProviderGoogleCacheRow
+        )
+        googleCachedPhotoPathByProfile[profile.profile_id] =
+          profile.google_fallback_storage_path?.trim() || null
+      })
 
       return (profileRows as HomeFeaturedProfileRow[]).map((row) => {
         const slug = row.provider_slug ?? row.profile_id
@@ -693,6 +480,20 @@ function matchesProviderTypes(row: ActiveProviderRow, types?: string[]): boolean
   return types.some((t) => profileTypes.includes(t.toLowerCase()))
 }
 
+function matchesProgramTypes(row: ActiveProviderRow, programTypes?: string[]): boolean {
+  if (!programTypes?.length) return true
+  const rowProgramTypes = ageGroupsToProgramLabels(row.age_groups_served).map((value) =>
+    value.toLowerCase(),
+  )
+  if (!rowProgramTypes.length) return false
+  return programTypes.some((programType) => {
+    const normalized = programType.toLowerCase()
+    return rowProgramTypes.some(
+      (candidate) => candidate === normalized || candidate.includes(normalized) || normalized.includes(candidate),
+    )
+  })
+}
+
 function matchesCurriculum(row: ActiveProviderRow, curriculumTypes?: string[]): boolean {
   if (!curriculumTypes?.length) return true
   const arr = row.curriculum_type ?? []
@@ -756,6 +557,7 @@ export function filterActiveProviders(
     locationText,
     queryText,
     ageTags,
+    programTypes,
     providerTypes,
     curriculumTypes,
     minTuition,
@@ -769,6 +571,7 @@ export function filterActiveProviders(
     if (!matchesLocation(row, locationText)) return false
     if (!matchesQuery(row, queryText)) return false
     if (!matchesAgeTags(row, ageTags)) return false
+    if (!matchesProgramTypes(row, programTypes)) return false
     if (!matchesProviderTypes(row, providerTypes)) return false
     if (!matchesCurriculum(row, curriculumTypes)) return false
     if (!matchesTuition(row, minTuition, maxTuition)) return false

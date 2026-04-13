@@ -9,4 +9,6 @@ export const CACHE_TAGS = {
   directoryFilters: "dir:search-filters",
   /** Footer “browse cities” links (randomized subset, cached). */
   footerCities: "dir:footer-cities",
+  /** Parent dashboard cost guide records grouped by city. */
+  cityMonthlyCostGuides: "dir:city-monthly-cost-guides",
 } as const

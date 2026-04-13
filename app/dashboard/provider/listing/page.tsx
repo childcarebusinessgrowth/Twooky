@@ -116,6 +116,18 @@ async function resolveGooglePlaceId(
   return placeId || null
 }
 
+async function enrichGoogleCacheAfterSave(
+  businessName: string,
+  address: string,
+  placeId: string | null,
+): Promise<void> {
+  await fetch("/api/provider/enrich-google-cache", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ businessName, address, placeId }),
+  }).catch(() => null)
+}
+
 export default function ManageListingPage() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -680,6 +692,12 @@ export default function ManageListingPage() {
         )
         return
       }
+
+      await enrichGoogleCacheAfterSave(
+        trimmedBusinessName,
+        address.trim(),
+        resolvedGooglePlaceId,
+      )
 
       setBusinessName(trimmedBusinessName)
       setVirtualTourUrls(normalizedVirtualTourUrls.length > 0 ? normalizedVirtualTourUrls : [""])

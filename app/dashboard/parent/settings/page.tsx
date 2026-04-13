@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -17,6 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 
 type AgeGroupOption = { value: string; label: string }
 
@@ -63,7 +63,7 @@ export default function ParentSettingsPage() {
       setAgeGroupOptions(
         rows.map((r) => ({
           value: r.tag,
-          label: r.age_range,
+          label: normalizeAgeRangeLabel(r.age_range),
         })),
       )
     }
@@ -191,8 +191,7 @@ export default function ParentSettingsPage() {
             Account settings
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Update your contact details, child&apos;s information, and how you&apos;d like to
-            hear from Twooky.
+            Update your contact details and child&apos;s information.
           </p>
         </div>
 
@@ -263,14 +262,14 @@ export default function ParentSettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="child-age" className="text-xs font-medium text-foreground">
-                  Child age
+                  Child age range
                 </Label>
                 <Select
                   value={childAgeSelectValue}
                   onValueChange={(value) => setParentProfile((p) => ({ ...p, childAgeGroup: value }))}
                 >
                   <SelectTrigger id="child-age" className="h-9 w-full rounded-xl border-border/60 bg-muted/40">
-                    <SelectValue placeholder="Select age group" />
+                    <SelectValue placeholder="Select age range" />
                   </SelectTrigger>
                   <SelectContent>
                     {childAgeOptions.map((opt) => (
@@ -296,54 +295,6 @@ export default function ParentSettingsPage() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Notifications */}
-        <Card className="rounded-3xl border border-border/60 bg-card shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-foreground">
-              Notifications
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Choose what you&apos;d like to be notified about. You can change this anytime.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-foreground">
-                  Email alerts for new providers
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Get updates when new childcare options open up near your preferred locations.
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-foreground">
-                  Inquiry responses
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Be notified when providers reply, confirm tour times, or ask follow-up questions.
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-foreground">
-                  Review reminders
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  We&apos;ll gently remind you to leave a review after you&apos;ve visited or
-                  enrolled with a provider.
-                </p>
-              </div>
-              <Switch />
-            </div>
-          </CardContent>
-        </Card>
 
         <div className="flex justify-end">
           <Button
