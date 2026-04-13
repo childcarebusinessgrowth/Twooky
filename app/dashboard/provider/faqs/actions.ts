@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 async function revalidateProviderPublicProfileForFaqs(profileId: string) {
   const admin = getSupabaseAdminClient()
@@ -41,11 +42,12 @@ export async function addProviderFaq(
   if (!trimmedAnswer) {
     return { error: "Answer is required." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { data: existing } = await supabase
     .from("provider_faqs")
     .select("sort_order")
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -55,7 +57,7 @@ export async function addProviderFaq(
   const { data: row, error } = await supabase
     .from("provider_faqs")
     .insert({
-      provider_profile_id: user.id,
+      provider_profile_id: providerProfileId,
       question: trimmedQuestion,
       answer: trimmedAnswer,
       sort_order: sortOrder,
@@ -69,7 +71,7 @@ export async function addProviderFaq(
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  await revalidateProviderPublicProfileForFaqs(user.id)
+  await revalidateProviderPublicProfileForFaqs(providerProfileId)
   return { id: row.id }
 }
 
@@ -99,12 +101,13 @@ export async function updateProviderFaq(
   if (!trimmedAnswer) {
     return { error: "Answer is required." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { error } = await supabase
     .from("provider_faqs")
     .update({ question: trimmedQuestion, answer: trimmedAnswer })
     .eq("id", id)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (error) {
     return { error: error.message }
@@ -112,7 +115,7 @@ export async function updateProviderFaq(
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  await revalidateProviderPublicProfileForFaqs(user.id)
+  await revalidateProviderPublicProfileForFaqs(providerProfileId)
   return { ok: true }
 }
 
@@ -128,12 +131,13 @@ export async function deleteProviderFaq(id: string): Promise<DeleteProviderFaqRe
   if (authError || !user) {
     return { error: "You must be signed in to delete FAQs." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { error } = await supabase
     .from("provider_faqs")
     .delete()
     .eq("id", id)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (error) {
     return { error: error.message }
@@ -141,7 +145,7 @@ export async function deleteProviderFaq(id: string): Promise<DeleteProviderFaqRe
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  await revalidateProviderPublicProfileForFaqs(user.id)
+  await revalidateProviderPublicProfileForFaqs(providerProfileId)
   return { ok: true }
 }
 
@@ -161,13 +165,14 @@ export async function reorderProviderFaqs(ids: string[]): Promise<ReorderProvide
   if (ids.length === 0) {
     return { ok: true }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   for (let i = 0; i < ids.length; i++) {
     const { error } = await supabase
       .from("provider_faqs")
       .update({ sort_order: i })
       .eq("id", ids[i])
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
 
     if (error) {
       return { error: error.message }
@@ -176,6 +181,6 @@ export async function reorderProviderFaqs(ids: string[]): Promise<ReorderProvide
 
   revalidatePath("/dashboard/provider/faqs")
   revalidatePath("/dashboard/provider")
-  await revalidateProviderPublicProfileForFaqs(user.id)
+  await revalidateProviderPublicProfileForFaqs(providerProfileId)
   return { ok: true }
 }

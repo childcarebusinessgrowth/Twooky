@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/accordion"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import {
@@ -66,10 +67,11 @@ export default function FaqsPage() {
     setError(null)
     try {
       const supabase = getSupabaseClient()
+      const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
       const { data, error: fetchError } = await supabase
         .from("provider_faqs")
         .select("id, question, answer, sort_order")
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .order("sort_order", { ascending: true })
 
       if (fetchError) {

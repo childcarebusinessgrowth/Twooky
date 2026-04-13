@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { notifyParentOfFirstProviderReply } from "@/lib/email/parentFirstReplyNotification"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -104,9 +105,10 @@ export async function POST(
       )
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
     void notifyParentOfFirstProviderReply({
       inquiryId,
-      providerProfileId: user.id,
+      providerProfileId,
     })
 
     return NextResponse.json({ id: replyId }, { status: 201 })

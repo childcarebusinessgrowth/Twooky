@@ -131,6 +131,7 @@ function buildInquiryEmailParts(params: {
 type ProviderProfileEmailRow = {
   business_name: string | null
   notify_new_inquiries: boolean
+  owner_profile_id: string | null
 }
 
 /**
@@ -141,19 +142,22 @@ async function loadProviderProfileForInquiryEmail(
   admin: ReturnType<typeof getSupabaseAdminClient>,
   providerProfileId: string
 ): Promise<{ data: ProviderProfileEmailRow | null; error: { message: string } | null }> {
-  const full = await admin
-    .from("provider_profiles")
-    .select("business_name, notify_new_inquiries")
+  const fullRaw = await admin
+    .from("provider_profiles" as never)
+    .select("business_name, notify_new_inquiries, owner_profile_id")
     .eq("profile_id", providerProfileId)
     .maybeSingle()
+  const full = fullRaw as unknown as { data: Record<string, unknown> | null; error: { message: string } | null }
 
   if (!full.error) {
     const row = full.data
     if (!row) return { data: null, error: null }
+    const notifyPref = row.notify_new_inquiries
     return {
       data: {
-        business_name: row.business_name,
-        notify_new_inquiries: row.notify_new_inquiries ?? true,
+        business_name: typeof row.business_name === "string" ? row.business_name : null,
+        notify_new_inquiries: typeof notifyPref === "boolean" ? notifyPref : true,
+        owner_profile_id: typeof row.owner_profile_id === "string" ? row.owner_profile_id : null,
       },
       error: null,
     }
@@ -164,17 +168,22 @@ async function loadProviderProfileForInquiryEmail(
     console.warn(
       "[email] provider_profiles.notify_new_inquiries missing; using business_name only and defaulting notifications to on. Apply supabase/migrations/*provider_notification_prefs*.sql on your database.",
     )
-    const minimal = await admin
-      .from("provider_profiles")
-      .select("business_name")
+    const minimalRaw = await admin
+      .from("provider_profiles" as never)
+      .select("business_name, owner_profile_id")
       .eq("profile_id", providerProfileId)
       .maybeSingle()
+    const minimal = minimalRaw as unknown as {
+      data: Record<string, unknown> | null
+      error: { message: string } | null
+    }
     if (minimal.error) return { data: null, error: minimal.error }
     if (!minimal.data) return { data: null, error: null }
     return {
       data: {
-        business_name: minimal.data.business_name,
+        business_name: typeof minimal.data.business_name === "string" ? minimal.data.business_name : null,
         notify_new_inquiries: true,
+        owner_profile_id: typeof minimal.data.owner_profile_id === "string" ? minimal.data.owner_profile_id : null,
       },
       error: null,
     }
@@ -199,16 +208,13 @@ export async function notifyProviderNewInquiry(params: NotifyProviderNewInquiryP
   try {
     const admin = getSupabaseAdminClient()
 
-    const [{ data: profileRow, error: profileErr }, ppRes] = await Promise.all([
-      admin.from("profiles").select("email").eq("id", providerProfileId).maybeSingle(),
-      loadProviderProfileForInquiryEmail(admin, providerProfileId),
-    ])
+    const ppRes = await loadProviderProfileForInquiryEmail(admin, providerProfileId)
 
     const ppRow = ppRes.data
     const ppErr = ppRes.error
 
-    if (profileErr || ppErr) {
-      console.error("[email] Provider lookup failed:", profileErr ?? ppErr)
+    if (ppErr) {
+      console.error("[email] Provider lookup failed:", ppErr)
       return
     }
 
@@ -225,9 +231,19 @@ export async function notifyProviderNewInquiry(params: NotifyProviderNewInquiryP
       return
     }
 
+    const recipientProfileId = ppRow.owner_profile_id ?? providerProfileId
+    const { data: profileRow, error: profileErr } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("id", recipientProfileId)
+      .maybeSingle()
+    if (profileErr) {
+      console.error("[email] Provider profile lookup failed:", profileErr)
+      return
+    }
     let to = profileRow?.email?.trim() ?? ""
     if (!to) {
-      const { data: authUserData, error: authUserErr } = await admin.auth.admin.getUserById(providerProfileId)
+      const { data: authUserData, error: authUserErr } = await admin.auth.admin.getUserById(recipientProfileId)
       if (authUserErr) {
         console.error("[email] Could not load auth user for provider email fallback:", authUserErr)
       }
@@ -236,7 +252,7 @@ export async function notifyProviderNewInquiry(params: NotifyProviderNewInquiryP
     if (!to) {
       console.warn(
         "[email] No provider email on profiles or in Auth; skipping inquiry notification.",
-        { providerProfileId },
+        { providerProfileId, recipientProfileId },
       )
       return
     }

@@ -25,6 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/components/AuthProvider"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { useToast } from "@/hooks/use-toast"
 import {
   uploadProviderPhoto,
@@ -64,7 +65,7 @@ function PhotoCard({
 }) {
   return (
     <Card className="group overflow-hidden border-border/50">
-      <div className="relative aspect-[4/3]">
+      <div className="relative aspect-4/3">
         <Image
           src={photo.url}
           alt={photo.caption ?? "Facility photo"}
@@ -135,22 +136,29 @@ export default function PhotosPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null)
   const [listingStatus, setListingStatus] = useState<string | null>(null)
+  const [providerProfileId, setProviderProfileId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setProviderProfileId(null)
+      return
+    }
     const supabase = getSupabaseClient()
-    supabase
-      .from("provider_profiles")
-      .select("listing_status")
-      .eq("profile_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setListingStatus(data?.listing_status ?? null)
-      })
+    resolveOwnedProviderProfileId(supabase, user.id).then((resolvedId) => {
+      setProviderProfileId(resolvedId)
+      supabase
+        .from("provider_profiles")
+        .select("listing_status")
+        .eq("profile_id", resolvedId)
+        .maybeSingle()
+        .then(({ data }) => {
+          setListingStatus(data?.listing_status ?? null)
+        })
+    })
   }, [user])
 
   const fetchPhotos = useCallback(async () => {
-    if (!user) {
+    if (!providerProfileId) {
       setPhotos([])
       setLoading(false)
       return
@@ -162,7 +170,7 @@ export default function PhotosPage() {
       const { data, error: fetchError } = await supabase
         .from("provider_photos")
         .select("id, storage_path, caption, is_primary")
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .order("is_primary", { ascending: false })
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true })
@@ -186,7 +194,7 @@ export default function PhotosPage() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [providerProfileId])
 
   useEffect(() => {
     fetchPhotos()
@@ -503,7 +511,7 @@ export default function PhotosPage() {
           {photos.length < MAX_PHOTOS_PER_PROVIDER && (
             <DialogTrigger asChild>
               <Card className="border-dashed border-2 border-border hover:border-primary/50 cursor-pointer transition-colors">
-                <CardContent className="flex flex-col items-center justify-center aspect-[4/3] text-muted-foreground">
+                <CardContent className="flex flex-col items-center justify-center aspect-4/3 text-muted-foreground">
                   <Upload className="h-8 w-8 mb-2" />
                   <p className="text-sm font-medium">Add Photo</p>
                 </CardContent>

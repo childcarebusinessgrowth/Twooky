@@ -9,6 +9,7 @@ import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getProviderOverviewData, type RecentInquiryRow } from "@/lib/provider-dashboard"
 import { ProviderOnboardingWelcome } from "@/components/provider/ProviderOnboardingWelcome"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -41,11 +42,12 @@ export default async function ProviderDashboardPage() {
   let listingStatus: string | null = null
   let isNewProvider = false
   if (user) {
-    overview = await getProviderOverviewData(supabase, user.id)
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    overview = await getProviderOverviewData(supabase, providerProfileId)
     const { data: profileRow } = await supabase
       .from("provider_profiles")
       .select("listing_status, onboarding_tour_shown_at")
-      .eq("profile_id", user.id)
+      .eq("profile_id", providerProfileId)
       .maybeSingle()
     listingStatus = profileRow?.listing_status ?? null
     isNewProvider =
@@ -55,7 +57,7 @@ export default async function ProviderDashboardPage() {
     const { data: rows } = await supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
       .order("is_primary", { ascending: false })
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true })
@@ -183,7 +185,7 @@ export default async function ProviderDashboardPage() {
                 <Link
                   key={photo.id}
                   href="/dashboard/provider/photos"
-                  className="relative aspect-[4/3] rounded-lg overflow-hidden border border-border/50 hover:opacity-90 transition-opacity"
+                  className="relative aspect-4/3 rounded-lg overflow-hidden border border-border/50 hover:opacity-90 transition-opacity"
                 >
                   <Image
                     src={photo.url}

@@ -3,6 +3,7 @@ import {
   getInquiriesByProviderProfileId,
   getGuestInquiriesByProviderProfileId,
 } from "@/lib/parent-engagement"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { ProviderInquiriesClient } from "./ProviderInquiriesClient"
 
 type PageProps = {
@@ -22,9 +23,10 @@ export default async function ProviderInquiriesPage({ searchParams }: PageProps)
   let guestInquiries: Awaited<ReturnType<typeof getGuestInquiriesByProviderProfileId>> = []
 
   if (user) {
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
     const [inquiriesRes, guestRes] = await Promise.all([
-      getInquiriesByProviderProfileId(supabase, user.id),
-      getGuestInquiriesByProviderProfileId(supabase, user.id),
+      getInquiriesByProviderProfileId(supabase, providerProfileId),
+      getGuestInquiriesByProviderProfileId(supabase, providerProfileId),
     ])
     inquiries = inquiriesRes
     guestInquiries = guestRes

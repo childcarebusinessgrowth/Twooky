@@ -36,6 +36,7 @@ import {
   MAX_FILE_SIZE_BYTES,
 } from "@/lib/provider-documents-constants"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 const DOCUMENT_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"] as const
 
@@ -161,14 +162,15 @@ export default function ManageListingPage() {
   const [photoCount, setPhotoCount] = useState<number>(0)
   const [documentType, setDocumentType] = useState<string>("Business License")
   const [documentFiles, setDocumentFiles] = useState<File[]>([])
+  const [providerProfileId, setProviderProfileId] = useState<string | null>(null)
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
-  async function fetchPhotoCount(userId: string) {
+  async function fetchPhotoCount(profileId: string) {
     const supabase = getSupabaseClient()
     const { count } = await supabase
       .from("provider_photos")
       .select("id", { count: "exact", head: true })
-      .eq("provider_profile_id", userId)
+      .eq("provider_profile_id", profileId)
     setPhotoCount(count ?? 0)
   }
 
@@ -178,12 +180,15 @@ export default function ManageListingPage() {
     async function loadProviderProfile() {
       if (!user) {
         if (isMounted) {
+          setProviderProfileId(null)
           setIsLoadingProfile(false)
         }
         return
       }
 
       const supabase = getSupabaseClient()
+      const resolvedProviderProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+      setProviderProfileId(resolvedProviderProfileId)
 
       const selectWithStatus =
         "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
@@ -195,10 +200,10 @@ export default function ManageListingPage() {
           supabase
             .from("provider_profiles")
             .select(selectWithStatus)
-            .eq("profile_id", user.id)
+            .eq("profile_id", resolvedProviderProfileId)
             .maybeSingle(),
           Promise.all([
-            fetchPhotoCount(user.id),
+            fetchPhotoCount(resolvedProviderProfileId),
             supabase
               .from("currencies")
               .select("id, code, name, symbol")
@@ -224,7 +229,7 @@ export default function ManageListingPage() {
             const fallback = await supabase
               .from("provider_profiles")
               .select(selectWithoutStatus)
-              .eq("profile_id", user.id)
+              .eq("profile_id", resolvedProviderProfileId)
               .maybeSingle()
             if (!fallback.error && fallback.data) {
               data = { ...fallback.data, listing_status: "draft" } as typeof profileResult.data
@@ -423,11 +428,11 @@ export default function ManageListingPage() {
   }, [draftSnapshot])
 
   useEffect(() => {
-    if (!user) return
-    const onFocus = () => void fetchPhotoCount(user.id)
+    if (!providerProfileId) return
+    const onFocus = () => void fetchPhotoCount(providerProfileId)
     window.addEventListener("focus", onFocus)
     return () => window.removeEventListener("focus", onFocus)
-  }, [user])
+  }, [providerProfileId])
 
   const isDraftListing = listingStatus === "draft"
   const isPendingListing = listingStatus === "pending"
@@ -527,7 +532,7 @@ export default function ManageListingPage() {
   }
 
   const handleSave = async () => {
-    if (!user) {
+    if (!user || !providerProfileId) {
       setSaveError("You must be signed in to save listing changes.")
       return
     }
@@ -655,9 +660,10 @@ export default function ManageListingPage() {
         address,
       )
       const supabase = getSupabaseClient()
-      const { error } = await supabase.from("provider_profiles").upsert(
+      const { error } = await supabase.from("provider_profiles" as never).upsert(
         {
-          profile_id: user.id,
+          profile_id: providerProfileId,
+          owner_profile_id: user.id,
           ...(isDraftListing ? { listing_status: "pending" } : {}),
           provider_slug: deriveProviderSlug(trimmedBusinessName),
           business_name: trimmedBusinessName,
@@ -679,7 +685,7 @@ export default function ManageListingPage() {
           monthly_tuition_to: tuitionTo ?? null,
           currency_id: currencyId || null,
           total_capacity: capacity ?? null,
-        },
+        } as never,
         { onConflict: "profile_id" },
       )
 

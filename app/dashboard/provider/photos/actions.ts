@@ -5,6 +5,7 @@ import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-direc
 import { randomUUID } from "crypto"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { MAX_PHOTOS_PER_PROVIDER } from "./constants"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
@@ -70,10 +71,11 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
   if (authError || !user) {
     return { error: "You must be signed in to upload photos." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   // Ensure provider_profiles row exists (e.g. user may not have saved listing yet)
-  const { error: profileError } = await supabase.from("provider_profiles").upsert(
-    { profile_id: user.id },
+  const { error: profileError } = await supabase.from("provider_profiles" as never).upsert(
+    { profile_id: providerProfileId, owner_profile_id: user.id } as never,
     { onConflict: "profile_id" }
   )
   if (profileError) {
@@ -98,7 +100,7 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
   const { count, error: countError } = await supabase
     .from("provider_photos")
     .select("id", { count: "exact", head: true })
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (countError) {
     return { error: countError.message }
@@ -114,7 +116,7 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
     const admin = getSupabaseAdminClient()
 
     const safeName = sanitizeFilename(file.name || "image")
-    const storagePath = `${user.id}/${randomUUID()}-${safeName}`
+    const storagePath = `${providerProfileId}/${randomUUID()}-${safeName}`
 
     const { error: uploadError } = await admin.storage
       .from(PROVIDER_PHOTOS_BUCKET)
@@ -131,7 +133,7 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
     const { data: existing } = await supabase
       .from("provider_photos")
       .select("id")
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
       .limit(1)
       .maybeSingle()
 
@@ -140,7 +142,7 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
     const { data: row, error: insertError } = await supabase
       .from("provider_photos")
       .insert({
-        provider_profile_id: user.id,
+        provider_profile_id: providerProfileId,
         storage_path: storagePath,
         caption,
         is_primary: isPrimary,
@@ -160,7 +162,7 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
 
     revalidatePath("/dashboard/provider/photos")
     revalidatePath("/dashboard/provider")
-    await revalidatePublicDirectoryAfterListingPhotosChange(user.id)
+    await revalidatePublicDirectoryAfterListingPhotosChange(providerProfileId)
     return { id: row.id, storagePath: row.storage_path }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed."
@@ -183,12 +185,13 @@ export async function updateProviderPhotoCaption(
   if (authError || !user) {
     return { error: "You must be signed in to update photos." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { error } = await supabase
     .from("provider_photos")
     .update({ caption: caption.trim() || null })
     .eq("id", photoId)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (error) {
     return { error: error.message }
@@ -211,12 +214,13 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
   if (authError || !user) {
     return { error: "You must be signed in to update photos." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { data: targetPhoto, error: targetPhotoError } = await supabase
     .from("provider_photos")
     .select("id")
     .eq("id", photoId)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
     .maybeSingle()
 
   if (targetPhotoError) {
@@ -229,7 +233,7 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
   const { data: currentPrimary, error: currentPrimaryError } = await supabase
     .from("provider_photos")
     .select("id")
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
     .eq("is_primary", true)
     .maybeSingle()
 
@@ -244,7 +248,7 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
   const { error: unsetError } = await supabase
     .from("provider_photos")
     .update({ is_primary: false })
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (unsetError) {
     return { error: unsetError.message }
@@ -254,7 +258,7 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
     .from("provider_photos")
     .update({ is_primary: true })
     .eq("id", photoId)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (setError) {
     if (currentPrimary?.id) {
@@ -262,14 +266,14 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
         .from("provider_photos")
         .update({ is_primary: true })
         .eq("id", currentPrimary.id)
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
     }
     return { error: setError.message }
   }
 
   revalidatePath("/dashboard/provider/photos")
   revalidatePath("/dashboard/provider")
-  await revalidatePublicDirectoryAfterListingPhotosChange(user.id)
+  await revalidatePublicDirectoryAfterListingPhotosChange(providerProfileId)
   return { ok: true }
 }
 
@@ -285,12 +289,13 @@ export async function deleteProviderPhoto(photoId: string): Promise<DeleteProvid
   if (authError || !user) {
     return { error: "You must be signed in to delete photos." }
   }
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   const { data: row, error: selectError } = await supabase
     .from("provider_photos")
     .select("storage_path")
     .eq("id", photoId)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
     .single()
 
   if (selectError || !row) {
@@ -301,7 +306,7 @@ export async function deleteProviderPhoto(photoId: string): Promise<DeleteProvid
     .from("provider_photos")
     .delete()
     .eq("id", photoId)
-    .eq("provider_profile_id", user.id)
+    .eq("provider_profile_id", providerProfileId)
 
   if (deleteError) {
     return { error: deleteError.message }
@@ -316,6 +321,6 @@ export async function deleteProviderPhoto(photoId: string): Promise<DeleteProvid
 
   revalidatePath("/dashboard/provider/photos")
   revalidatePath("/dashboard/provider")
-  await revalidatePublicDirectoryAfterListingPhotosChange(user.id)
+  await revalidatePublicDirectoryAfterListingPhotosChange(providerProfileId)
   return { ok: true }
 }

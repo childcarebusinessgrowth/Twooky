@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Textarea } from "@/components/ui/textarea"
 import type { AdminClaimRow } from "./actions"
 import { approveClaim, rejectClaim } from "./actions"
 
@@ -24,19 +25,37 @@ export function ClaimCard({ claim }: { claim: AdminClaimRow }) {
   const router = useRouter()
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
+  const [rejectReason, setRejectReason] = useState("")
+  const [actionError, setActionError] = useState<string | null>(null)
 
   async function handleApprove() {
+    setActionError(null)
     setIsApproving(true)
     const result = await approveClaim(claim.id)
     setIsApproving(false)
-    if (result.success) router.refresh()
+    if (result.success) {
+      router.refresh()
+      return
+    }
+    setActionError(result.error)
   }
 
   async function handleReject() {
+    const reason = rejectReason.trim()
+    if (!reason) {
+      setActionError("A rejection reason is required.")
+      return
+    }
+    setActionError(null)
     setIsRejecting(true)
-    const result = await rejectClaim(claim.id)
+    const result = await rejectClaim(claim.id, reason)
     setIsRejecting(false)
-    if (result.success) router.refresh()
+    if (result.success) {
+      setRejectReason("")
+      router.refresh()
+      return
+    }
+    setActionError(result.error)
   }
 
   const submittedAt = new Date(claim.submitted_at).toLocaleDateString("en-US", {
@@ -156,12 +175,21 @@ export function ClaimCard({ claim }: { claim: AdminClaimRow }) {
                   This will reject the claim request from {claim.claimant_name} for {claim.business_name}.
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Reason for rejection</p>
+                <Textarea
+                  value={rejectReason}
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  placeholder="Explain why this claim was rejected."
+                  rows={4}
+                />
+              </div>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={() => void handleReject()}
-                  disabled={isRejecting}
+                  disabled={isRejecting || !rejectReason.trim()}
                 >
                   Reject Claim
                 </AlertDialogAction>
@@ -169,6 +197,7 @@ export function ClaimCard({ claim }: { claim: AdminClaimRow }) {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+        {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
       </CardContent>
     </Card>
   )
