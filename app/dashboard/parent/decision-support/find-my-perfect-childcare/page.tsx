@@ -34,31 +34,38 @@ async function getLocationQuizOptions(): Promise<{
   cities: CityOption[]
 }> {
   const supabase = getSupabaseAdminClient()
-  const [{ data: countries }, { data: cities }] = await Promise.all([
+  const [{ data: countries }, { data: citiesRaw }] = await Promise.all([
     supabase
       .from("countries")
-      .select("code, name")
+      .select("id, code, name")
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("cities")
-      .select("name, countries!inner(code, is_active)")
+      .select("name, country_id")
       .eq("is_active", true)
-      .eq("countries.is_active", true)
       .order("name", { ascending: true }),
   ])
 
+  const countryCodeById = new Map<string, string>()
+
   const normalizedCountries = (countries ?? [])
-    .map((row) => ({
-      code: String(row.code ?? "").trim().toUpperCase(),
-      name: String(row.name ?? "").trim(),
-    }))
+    .map((row) => {
+      const code = String(row.code ?? "").trim().toUpperCase()
+      if (row.id && code) {
+        countryCodeById.set(String(row.id), code)
+      }
+      return {
+        code,
+        name: String(row.name ?? "").trim(),
+      }
+    })
     .filter((row) => row.code && row.name)
 
-  const normalizedCities = (cities ?? [])
+  const normalizedCities = (citiesRaw ?? [])
     .map((row) => {
-      const countryCode = String(row.countries?.code ?? "").trim().toUpperCase()
+      const countryCode = countryCodeById.get(String(row.country_id ?? "")) ?? ""
       return {
         name: String(row.name ?? "").trim(),
         countryCode,

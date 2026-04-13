@@ -15,6 +15,31 @@ export interface CityMonthlyCostGuide {
   estimatedMonthlyFee: number | null
 }
 
+type CostGuideRow = {
+  city_id: string | null
+  city_name: string | null
+  city_slug: string | null
+  country_id: string | null
+  country_code: string | null
+  country_name: string | null
+  provider_count: number | null
+  providers_with_pricing_count: number | null
+  median_daily_fee: number | null
+  estimated_monthly_fee: number | null
+}
+
+type LegacyCostGuideRow = {
+  city_id: string | null
+  city_name: string | null
+  city_slug: string | null
+  country_id: string | null
+  country_code: string | null
+  country_name: string | null
+  provider_count: number | null
+  providers_with_tuition_count: number | null
+  median_monthly_tuition: number | null
+}
+
 async function loadCityMonthlyCostGuides(): Promise<CityMonthlyCostGuide[]> {
   try {
     const supabase = getSupabaseAdminClient()
@@ -27,7 +52,8 @@ async function loadCityMonthlyCostGuides(): Promise<CityMonthlyCostGuide[]> {
       .order("city_name", { ascending: true })
 
     if (!error) {
-      return (data ?? []).map((row) => ({
+      const rows = (data ?? []) as CostGuideRow[]
+      return rows.map((row) => ({
         cityId: row.city_id as string,
         cityName: row.city_name as string,
         citySlug: row.city_slug as string,
@@ -57,7 +83,8 @@ async function loadCityMonthlyCostGuides(): Promise<CityMonthlyCostGuide[]> {
         return []
       }
 
-      return (legacy.data ?? []).map((row) => {
+      const legacyRows = (legacy.data ?? []) as LegacyCostGuideRow[]
+      return legacyRows.map((row) => {
         const medianMonthly = row.median_monthly_tuition == null
           ? null
           : Number(row.median_monthly_tuition)
