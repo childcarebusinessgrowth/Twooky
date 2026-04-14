@@ -130,6 +130,28 @@ function formatDateOnly(s: string | null): string {
   return new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
 }
 
+const CHILD_AGE_RANGE_LABELS: Record<string, string> = {
+  infant: "0-12 months",
+  toddler: "1-2 years",
+  preschool: "3-4 years",
+  prek: "4-5 years",
+  school: "5+ years",
+  schoolage: "5+ years",
+  school_age: "5+ years",
+}
+
+function formatChildAgeGroup(value: string | null | undefined): string | null {
+  if (!value || typeof value !== "string") return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const rangeOnlyMatch = trimmed.match(/\(([^)]+)\)/)
+  if (rangeOnlyMatch?.[1]) return rangeOnlyMatch[1].trim()
+
+  return CHILD_AGE_RANGE_LABELS[trimmed.toLowerCase()] ?? trimmed
+}
+
 function getLeadStatusLabel(status: string): string {
   switch (status) {
     case "new":
@@ -249,7 +271,7 @@ export function ProviderInquiriesClient({
           date: i.updated_at,
           leadStatus: leadStatusOverrides[i.id] ?? i.lead_status ?? "new",
           source: i.source ?? null,
-          childAge: i.child_age_group ?? null,
+          childAge: formatChildAgeGroup(i.child_age_group),
         })),
         ...localGuestInquiries.map((g) => ({
           type: "guest" as const,
@@ -268,7 +290,7 @@ export function ProviderInquiriesClient({
           date: f.created_at,
           leadStatus: f.lead_status ?? "new",
           source: "favorite" as const,
-          childAge: f.child_age_group ?? null,
+          childAge: formatChildAgeGroup(f.child_age_group),
           phone: f.parent_phone ?? null,
           location:
             [f.parent_city_name, f.parent_country_name].filter((value) => Boolean(value)).join(", ") || null,
@@ -799,7 +821,7 @@ export function ProviderInquiriesClient({
                 {selectedThread?.child_age_group && (
                   <div className="flex items-center gap-1.5 text-xs">
                     <Baby className="h-3.5 w-3.5" />
-                    <span>Child age: {selectedThread.child_age_group}</span>
+                    <span>Child age: {formatChildAgeGroup(selectedThread.child_age_group)}</span>
                   </div>
                 )}
                 {inquiryMeta?.inquirySubject && <div>{inquiryMeta.inquirySubject}</div>}
@@ -997,7 +1019,9 @@ export function ProviderInquiriesClient({
                     <div className="flex items-center gap-2 text-sm">
                       <Baby className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Child age:</span>
-                      <span className="font-medium">{selectedFavorite.child_age_group ?? "Not provided"}</span>
+                      <span className="font-medium">
+                        {formatChildAgeGroup(selectedFavorite.child_age_group) ?? "Not provided"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
