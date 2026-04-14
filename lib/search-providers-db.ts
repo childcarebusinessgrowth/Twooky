@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
+import { haversineDistanceKm } from "./search-providers"
 import { CACHE_TAGS } from "@/lib/cache-tags"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import type { GooglePlaceDetailsSummary } from "./google-place-reviews"
@@ -27,10 +28,16 @@ import {
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
 
+const PROVIDER_PROFILE_SELECT_WITH_COORDS_AND_GOOGLE_CACHE =
+  "profile_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+
 const PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE =
   "profile_id, provider_slug, business_name, city, address, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const PROVIDER_PROFILE_SELECT_LEGACY =
+  "profile_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+
+const PROVIDER_PROFILE_SELECT_MINIMAL_LEGACY =
   "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const HOME_FEATURED_SELECT_WITH_GOOGLE_CACHE =
@@ -144,9 +151,19 @@ export async function getActiveProvidersFromDb(
 ): Promise<ActiveProviderRow[]> {
   let { data: profiles, error: profilesError } = await supabase
     .from("provider_profiles")
-    .select(PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE)
+    .select(PROVIDER_PROFILE_SELECT_WITH_COORDS_AND_GOOGLE_CACHE)
     .eq("listing_status", "active")
     .not("provider_slug", "is", null)
+
+  if (profilesError && isMissingColumnError(profilesError.message)) {
+    const retry = await supabase
+      .from("provider_profiles")
+      .select(PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE)
+      .eq("listing_status", "active")
+      .not("provider_slug", "is", null)
+    profiles = (retry.data ?? null) as typeof profiles
+    profilesError = retry.error
+  }
 
   if (profilesError && isMissingColumnError(profilesError.message)) {
     const retry = await supabase
@@ -154,7 +171,17 @@ export async function getActiveProvidersFromDb(
       .select(PROVIDER_PROFILE_SELECT_LEGACY)
       .eq("listing_status", "active")
       .not("provider_slug", "is", null)
-    profiles = retry.data?.map((row) => withGoogleCacheFallbackFields(row)) ?? null
+    profiles = (retry.data?.map((row) => withGoogleCacheFallbackFields(row)) ?? null) as typeof profiles
+    profilesError = retry.error
+  }
+
+  if (profilesError && isMissingColumnError(profilesError.message)) {
+    const retry = await supabase
+      .from("provider_profiles")
+      .select(PROVIDER_PROFILE_SELECT_MINIMAL_LEGACY)
+      .eq("listing_status", "active")
+      .not("provider_slug", "is", null)
+    profiles = (retry.data?.map((row) => withGoogleCacheFallbackFields(row)) ?? null) as typeof profiles
     profilesError = retry.error
   }
 
@@ -307,7 +334,7 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v6-program-types"],
+  ["directory-active-providers-v7-program-types"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 
@@ -495,10 +522,22 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
 
 function matchesLocation(row: ActiveProviderRow, locationText?: string): boolean {
   if (!locationText?.trim()) return true
-  const q = locationText.toLowerCase()
-  const city = (row.city ?? "").toLowerCase()
-  const address = (row.address ?? "").toLowerCase()
-  return city.includes(q) || address.includes(q)
+  const q = normalizeGeoText(locationText)
+  if (!q) return true
+
+  const city = normalizeGeoText(row.city ?? "")
+  const address = normalizeGeoText(row.address ?? "")
+  const name = normalizeGeoText(row.business_name ?? "")
+  const haystack = [city, address, name].filter(Boolean).join(" ")
+
+  if (!haystack) return false
+  if (city.includes(q) || q.includes(city)) return true
+  if (address.includes(q) || name.includes(q)) return true
+  if (haystack.includes(q)) return true
+
+  const qWords = q.split(" ").filter((word) => word.length >= 2)
+  if (qWords.length === 0) return false
+  return qWords.every((word) => haystack.includes(word))
 }
 
 function matchesQuery(row: ActiveProviderRow, queryText?: string): boolean {
@@ -509,6 +548,7 @@ function matchesQuery(row: ActiveProviderRow, queryText?: string): boolean {
   const city = (row.city ?? "").toLowerCase()
   const address = (row.address ?? "").toLowerCase()
   const types = (row.provider_types ?? []).join(" ").toLowerCase()
+  const programTypes = row.program_types.map((value) => value.name).join(" ").toLowerCase()
   const curriculum = (Array.isArray(row.curriculum_type) ? row.curriculum_type.join(" ") : row.curriculum_type ?? "").toLowerCase()
   const lang = (row.languages_spoken ?? "").toLowerCase()
   return (
@@ -517,16 +557,61 @@ function matchesQuery(row: ActiveProviderRow, queryText?: string): boolean {
     city.includes(q) ||
     address.includes(q) ||
     types.includes(q) ||
+    programTypes.includes(q) ||
     curriculum.includes(q) ||
     lang.includes(q)
   )
+}
+
+function normalizeGeoText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function matchesRadius(
+  row: ActiveProviderRow,
+  centerLat?: number,
+  centerLng?: number,
+  radiusKm?: number
+): boolean {
+  if (
+    centerLat === undefined ||
+    centerLng === undefined ||
+    radiusKm === undefined ||
+    radiusKm <= 0
+  ) {
+    return true
+  }
+
+  const lat = row.latitude
+  const lng = row.longitude
+  if (lat === null || lng === null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return false
+  }
+
+  return haversineDistanceKm(centerLat, centerLng, lat, lng) <= radiusKm
 }
 
 function matchesAgeTags(row: ActiveProviderRow, ageTags?: string[]): boolean {
   if (!ageTags?.length) return true
   const served = row.age_groups_served ?? []
   if (!served.length) return false
-  return ageTags.some((tag) => served.some((s) => s.toLowerCase() === tag.toLowerCase()))
+  const normalizeAgeValue = (value: string) => {
+    const normalized = value.trim().toLowerCase()
+    if (
+      normalized === "schoolage" ||
+      normalized === "school age" ||
+      normalized === "school-age"
+    ) {
+      return "school_age"
+    }
+    return normalized
+  }
+  const servedNormalized = served.map(normalizeAgeValue)
+  return ageTags.some((tag) => servedNormalized.includes(normalizeAgeValue(tag)))
 }
 
 function matchesProviderTypes(row: ActiveProviderRow, types?: string[]): boolean {
@@ -620,6 +705,9 @@ export function filterActiveProviders(
   const {
     locationText,
     queryText,
+    centerLat,
+    centerLng,
+    radiusKm,
     ageTags,
     programTypes,
     providerTypes,
@@ -632,7 +720,21 @@ export function filterActiveProviders(
   } = criteria
 
   return rows.filter((row) => {
-    if (!matchesLocation(row, locationText)) return false
+    const hasGeoRadius =
+      centerLat !== undefined &&
+      centerLng !== undefined &&
+      radiusKm !== undefined &&
+      radiusKm > 0
+
+    if (hasGeoRadius) {
+      const matchesGeoRadius = matchesRadius(row, centerLat, centerLng, radiusKm)
+      if (!matchesGeoRadius) {
+        if (!locationText || !matchesLocation(row, locationText)) return false
+      }
+    } else if (!matchesLocation(row, locationText)) {
+      return false
+    }
+
     if (!matchesQuery(row, queryText)) return false
     if (!matchesAgeTags(row, ageTags)) return false
     if (!matchesProgramTypes(row, programTypes)) return false

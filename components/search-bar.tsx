@@ -134,7 +134,8 @@ function SearchBarContent({
 
   const handleSearch = () => {
     const params = new URLSearchParams()
-    if (location) params.set("location", location)
+    const normalizedLocation = location.trim()
+    if (normalizedLocation) params.set("location", normalizedLocation)
     if (ageGroup) params.set("age", ageGroup)
     if (defaultProviderType && defaultProviderType !== "all") {
       params.set("providerType", defaultProviderType)

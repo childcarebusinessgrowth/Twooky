@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 
 type Option = { value: string; label: string; id?: string; slug?: string | null }
 
@@ -37,8 +36,11 @@ export async function GET() {
 
     const ageGroupOptions: Option[] = (ageGroups ?? [])
       .map((row) => {
-        const tag = normalizeAgeTag(row.tag)
-        return { value: tag, label: normalizeAgeRangeLabel(row.age_range) }
+        return {
+          value: row.age_range.trim(),
+          label: row.age_range.trim(),
+          id: normalizeAgeTag(row.tag),
+        }
       })
 
     const programTypeOptions: Option[] = (programTypes ?? []).map((row) => ({

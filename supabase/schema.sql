@@ -598,7 +598,13 @@
   alter table if exists public.provider_profiles
     add column if not exists featured boolean not null default false;
   alter table if exists public.provider_profiles
+    add column if not exists plan_id text not null default 'sprout';
+  alter table if exists public.provider_profiles
     add column if not exists is_admin_managed boolean not null default false;
+
+  update public.provider_profiles
+  set plan_id = 'sprout'
+  where plan_id is null;
 
   alter table if exists public.provider_profiles
     add column if not exists country_id uuid references public.countries(id) on delete restrict;
@@ -614,6 +620,21 @@
       alter table public.provider_profiles
         add constraint provider_profiles_listing_status_allowed
         check (listing_status in ('active', 'pending', 'inactive'));
+    end if;
+  end $$;
+
+  do $$
+  begin
+    if not exists (
+      select 1 from pg_constraint
+      where conname = 'provider_profiles_plan_id_check'
+    ) then
+      alter table public.provider_profiles
+        add constraint provider_profiles_plan_id_check
+        check (
+          plan_id is null
+          or plan_id in ('sprout', 'grow', 'thrive', 'kinderpathPro')
+        );
     end if;
   end $$;
 
@@ -1944,6 +1965,9 @@
 
   create index if not exists provider_profiles_featured_status_created_idx
     on public.provider_profiles (featured, listing_status, created_at desc);
+
+  create index if not exists provider_profiles_plan_id_idx
+    on public.provider_profiles (plan_id);
 
   create index if not exists provider_photos_profile_primary_sort_created_idx
     on public.provider_photos (provider_profile_id, is_primary, sort_order, created_at);

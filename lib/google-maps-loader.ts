@@ -10,6 +10,7 @@ export type GoogleMapInstance = {
 export type GoogleMarkerInstance = {
   getPosition: () => { lat: () => number; lng: () => number } | null
   addListener: (eventName: string, handler: () => void) => void
+  setMap: (map: GoogleMapInstance | null) => void
 }
 
 export type GoogleInfoWindowInstance = {

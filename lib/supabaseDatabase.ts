@@ -503,6 +503,7 @@ export interface Database {
           total_capacity: number | null
           listing_status: string
           featured: boolean
+          plan_id: string
           early_learning_excellence_badge: boolean
           verified_provider_badge: boolean
           verified_provider_badge_color: string
@@ -559,6 +560,7 @@ export interface Database {
           total_capacity?: number | null
           listing_status?: string
           featured?: boolean
+          plan_id?: string
           early_learning_excellence_badge?: boolean
           verified_provider_badge?: boolean
           verified_provider_badge_color?: string
@@ -615,6 +617,7 @@ export interface Database {
           total_capacity?: number | null
           listing_status?: string
           featured?: boolean
+          plan_id?: string
           early_learning_excellence_badge?: boolean
           verified_provider_badge?: boolean
           verified_provider_badge_color?: string

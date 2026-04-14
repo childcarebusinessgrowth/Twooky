@@ -1,6 +1,6 @@
 import { providers, type Provider } from "./mock-data"
 
-export type AgeTag = "infant" | "toddler" | "preschool" | "prek" | "schoolage"
+export type AgeTag = string
 
 export interface SearchCriteria {
   locationText?: string
@@ -25,12 +25,15 @@ export interface SearchCriteria {
 }
 
 const EARTH_RADIUS_KM = 6371
+export const DEFAULT_COORDINATE_SEARCH_RADIUS_KM = 25
+const COORDINATE_LOCATION_TEXT_REGEX =
+  /^(-?\d{1,3}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)$/
 
 function toRadians(deg: number) {
   return (deg * Math.PI) / 180
 }
 
-function haversineDistanceKm(
+export function haversineDistanceKm(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -46,6 +49,28 @@ function haversineDistanceKm(
       Math.sin(dLng / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return EARTH_RADIUS_KM * c
+}
+
+export function parseCoordinateLocationText(locationText?: string):
+  | { lat: number; lng: number }
+  | undefined {
+  if (!locationText) return undefined
+  const trimmed = locationText.trim()
+  if (!trimmed) return undefined
+
+  const match = trimmed.match(COORDINATE_LOCATION_TEXT_REGEX)
+  if (!match) return undefined
+
+  const lat = Number(match[1])
+  const lng = Number(match[2])
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return undefined
+
+  return { lat, lng }
+}
+
+export function isCoordinateLocationText(locationText?: string): boolean {
+  return parseCoordinateLocationText(locationText) !== undefined
 }
 
 const KNOWN_LOCATIONS: Array<{
@@ -86,6 +111,9 @@ export function resolveLocationToCoords(locationText?: string):
   if (!locationText) return undefined
   const trimmed = locationText.trim()
   if (!trimmed) return undefined
+
+  const directCoordinates = parseCoordinateLocationText(trimmed)
+  if (directCoordinates) return directCoordinates
 
   const match = KNOWN_LOCATIONS.find((loc) => loc.match(trimmed))
   if (match) {

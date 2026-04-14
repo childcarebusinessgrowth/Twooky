@@ -1,6 +1,9 @@
 import { unstable_cache } from "next/cache"
 import { type Provider } from "@/lib/mock-data"
 import {
+  DEFAULT_COORDINATE_SEARCH_RADIUS_KM,
+  haversineDistanceKm,
+  isCoordinateLocationText,
   resolveLocationToCoords,
   type AgeTag,
   type SearchCriteria,
@@ -40,14 +43,6 @@ export type SearchPageQueryParams = {
 
 const MAX_SERIALIZED_SEARCH_RESULTS = 150
 
-const AGE_TAGS: ReadonlySet<AgeTag> = new Set([
-  "infant",
-  "toddler",
-  "preschool",
-  "prek",
-  "schoolage",
-])
-
 const AVAILABILITY_VALUES: ReadonlySet<Provider["availability"]> = new Set([
   "openings",
   "waitlist",
@@ -62,10 +57,38 @@ function parseCsv(value?: string): string[] {
     .filter(Boolean)
 }
 
-function parseAgeTags(value?: string): AgeTag[] {
-  return parseCsv(value)
-    .map((item) => (item === "school_age" ? "schoolage" : item))
-    .filter((item): item is AgeTag => AGE_TAGS.has(item as AgeTag))
+function normalizeAgeFilterValue(value: string): string {
+  return normalizeAgeRangeLabel(value).trim().toLowerCase()
+}
+
+function resolveAgeTags(
+  values: string[] | undefined,
+  options: SearchFilterOptions,
+): AgeTag[] {
+  if (!values?.length) return []
+
+  const tagByNormalizedValue = new Map<string, AgeTag>()
+  for (const option of options.ageGroups ?? []) {
+    const normalizedValue = normalizeAgeFilterValue(option.value)
+    const normalizedLabel = normalizeAgeFilterValue(option.label)
+    const normalizedTag = normalizeAgeFilterValue(option.tag ?? option.value)
+    const tag = normalizedTag as AgeTag
+    if (normalizedValue) tagByNormalizedValue.set(normalizedValue, tag)
+    if (normalizedLabel) tagByNormalizedValue.set(normalizedLabel, tag)
+    tagByNormalizedValue.set(tag, tag)
+  }
+
+  const seen = new Set<AgeTag>()
+  const resolved: AgeTag[] = []
+  for (const value of values) {
+    const normalized = normalizeAgeFilterValue(value)
+    if (!normalized) continue
+    const tag = tagByNormalizedValue.get(normalized) ?? (normalized as AgeTag)
+    if (!tag || seen.has(tag)) continue
+    seen.add(tag)
+    resolved.push(tag)
+  }
+  return resolved
 }
 
 function parseAvailability(value?: string): Provider["availability"][] {
@@ -78,6 +101,18 @@ function parseOptionalNumber(value?: string): number | undefined {
   if (!value) return undefined
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function getRowDistanceKm(
+  row: { latitude?: number | null; longitude?: number | null },
+  center?: { lat: number; lng: number },
+): number | null {
+  if (!center) return null
+  const lat = row.latitude
+  const lng = row.longitude
+  if (lat === null || lng === null || lat === undefined || lng === undefined) return null
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return haversineDistanceKm(center.lat, center.lng, lat, lng)
 }
 
 function parseProgramTypes(
@@ -154,9 +189,11 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
 
     return {
       ageGroups: (ageGroups ?? []).map((row) => {
+        const value = row.age_range.trim()
         return {
-          value: row.tag === "school_age" ? "schoolage" : row.tag,
-          label: normalizeAgeRangeLabel(row.age_range),
+          value,
+          label: value,
+          tag: row.tag === "school_age" ? "schoolage" : row.tag,
         }
       }),
       programTypes: (programTypes ?? []).map((row) => ({ value: row.name, label: row.name })),
@@ -182,7 +219,7 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
 
 const loadSearchFilterOptionsCached = unstable_cache(
   () => loadSearchFilterOptions(),
-  ["search-filter-options"],
+  ["search-filter-options-v2-db-age-ranges"],
   { revalidate: 300, tags: [CACHE_TAGS.directoryFilters] },
 )
 
@@ -221,8 +258,8 @@ export async function getSearchPageData(options: {
   const locationText = forcedLocationText ?? resolveLocationTextFromQuery({ location, city })
   const resolvedProviderType = forcedProviderType ?? providerType ?? type
   const coords = resolveLocationToCoords(locationText)
-  const parsedAgeTags = parseAgeTags(ageGroups) ?? []
-  const fallbackAge = parseAgeTags(age) ?? []
+  const parsedRadiusKm = parseOptionalNumber(radius)
+  const isCoordinateSearch = isCoordinateLocationText(locationText)
   const parsedAvailability = parseAvailability(availability)
   const parsedFeatures = parseCsv(features)
 
@@ -238,13 +275,17 @@ export async function getSearchPageData(options: {
     program,
     filterOptions.programTypesBySlug ?? {},
   )
+  const parsedAgeTags = resolveAgeTags(parseCsv(ageGroups), filterOptions)
+  const fallbackAge = resolveAgeTags(parseCsv(age), filterOptions)
 
   const criteria: SearchCriteria = {
-    locationText,
+    locationText: isCoordinateSearch ? undefined : locationText,
     queryText: q?.trim() || undefined,
     centerLat: coords?.lat,
     centerLng: coords?.lng,
-    radiusKm: parseOptionalNumber(radius),
+    radiusKm:
+      parsedRadiusKm ??
+      (isCoordinateSearch && coords ? DEFAULT_COORDINATE_SEARCH_RADIUS_KM : undefined),
     ageTags: parsedAgeTags.length > 0 ? parsedAgeTags : fallbackAge.length > 0 ? fallbackAge : undefined,
     programTypes: parsedProgramTypes,
     providerTypes: resolvedProviderType && resolvedProviderType !== "all" ? [resolvedProviderType] : undefined,
@@ -274,8 +315,36 @@ export async function getSearchPageData(options: {
     return true
   })
 
-  const filteredRows = filterActiveProviders(forcedRows, criteria)
+  let filteredRows = filterActiveProviders(forcedRows, criteria)
+
+  if (filteredRows.length === 0 && isCoordinateSearch && coords) {
+    const broaderRadiusCriteria: SearchCriteria = {
+      ...criteria,
+      radiusKm: Math.max(criteria.radiusKm ?? DEFAULT_COORDINATE_SEARCH_RADIUS_KM, 100),
+    }
+    filteredRows = filterActiveProviders(forcedRows, broaderRadiusCriteria)
+  }
+
+  if (filteredRows.length === 0 && isCoordinateSearch) {
+    filteredRows = filterActiveProviders(forcedRows, {
+      ...criteria,
+      centerLat: undefined,
+      centerLng: undefined,
+      radiusKm: undefined,
+    })
+  }
+
   const rankedRows = [...filteredRows].sort((a, b) => {
+    if (coords) {
+      const distanceA = getRowDistanceKm(a, coords)
+      const distanceB = getRowDistanceKm(b, coords)
+      if (distanceA !== null && distanceB !== null && distanceA !== distanceB) {
+        return distanceA - distanceB
+      }
+      if (distanceA !== null && distanceB === null) return -1
+      if (distanceA === null && distanceB !== null) return 1
+    }
+
     const featuredDiff = Number(b.featured) - Number(a.featured)
     if (featuredDiff !== 0) return featuredDiff
 

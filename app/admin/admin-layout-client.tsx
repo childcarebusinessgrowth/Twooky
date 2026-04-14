@@ -19,6 +19,7 @@ import {
   ArrowRight,
   CheckCircle,
   Star,
+  CreditCard,
   Flag,
   Handshake,
   Shield,
@@ -69,6 +70,7 @@ function getSidebarItems(pendingClaimsCount: number, canManageTeam: boolean): (S
   const items: (SidebarLinkItem | SidebarGroupItem)[] = [
     { kind: "link", label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { kind: "link", label: "Listings", href: "/admin/listings", icon: Building2 },
+    { kind: "link", label: "Provider Plans", href: "/admin/provider-plans", icon: CreditCard },
     { kind: "link", label: "Parents", href: "/admin/parents", icon: UsersRound },
     { kind: "link", label: "Blogs", href: "/admin/blogs", icon: Newspaper },
     {

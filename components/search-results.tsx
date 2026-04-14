@@ -1,11 +1,17 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { resolveLocationTextFromSearchParams } from "@/lib/search-location-query"
 import { useRouter, useSearchParams } from "next/navigation"
 import { MapPin, SlidersHorizontal } from "lucide-react"
 import { SearchBarDynamic } from "@/components/search-bar-dynamic"
-import { FilterSidebar, type FilterState, type SearchFilterOptions } from "@/components/filter-sidebar"
+import {
+  DAILY_FEE_MAX,
+  DAILY_FEE_MIN,
+  FilterSidebar,
+  type FilterState,
+  type SearchFilterOptions,
+} from "@/components/filter-sidebar"
 import { ProviderCard, type ProviderCardData } from "@/components/provider-card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +31,10 @@ const AGE_TAG_TO_LABEL: Record<string, string> = {
   preschool: "Preschool (3-4 years)",
   prek: "Pre-K (4-5 years)",
   schoolage: "School Age (5+)",
+}
+
+function normalizeAgeKey(value: string): string {
+  return value.trim().toLowerCase()
 }
 
 type SearchResultsProps = {
@@ -73,14 +83,27 @@ export function SearchResults({
     if (!searchParams) return chips
 
     const sp = searchParams
+    const ageLabelByValue = new Map<string, string>()
+    for (const option of filterOptions?.ageGroups ?? []) {
+      const normalizedValue = normalizeAgeKey(option.value)
+      const normalizedLabel = normalizeAgeKey(option.label)
+      const normalizedTag =
+        typeof option.tag === "string" ? normalizeAgeKey(option.tag) : ""
+      if (normalizedValue) ageLabelByValue.set(normalizedValue, option.label)
+      if (normalizedLabel) ageLabelByValue.set(normalizedLabel, option.label)
+      if (normalizedTag) {
+        ageLabelByValue.set(normalizedTag === "school_age" ? "schoolage" : normalizedTag, option.label)
+      }
+    }
 
     const age = sp.get("age")
     if (age) {
+      const normalizedAge = normalizeAgeKey(age)
       chips.push({
         key: `age:${age}`,
         param: "age",
         value: age,
-        label: AGE_TAG_TO_LABEL[age] ?? "Age",
+        label: ageLabelByValue.get(normalizedAge) ?? AGE_TAG_TO_LABEL[normalizedAge] ?? age,
       })
     }
 
@@ -93,7 +116,10 @@ export function SearchResults({
           key: `ageGroups:${trimmed}`,
           param: "ageGroups",
           value: trimmed,
-          label: AGE_TAG_TO_LABEL[trimmed] ?? trimmed,
+          label:
+            ageLabelByValue.get(normalizeAgeKey(trimmed)) ??
+            AGE_TAG_TO_LABEL[normalizeAgeKey(trimmed)] ??
+            trimmed,
         })
       })
     }
@@ -261,25 +287,17 @@ export function SearchResults({
   const handleFilterChange = useCallback(
     (filters: FilterState) => {
       const sp = new URLSearchParams(searchParams?.toString() ?? "")
+      const isDefaultTuitionRange =
+        filters.tuitionRange[0] === DAILY_FEE_MIN &&
+        filters.tuitionRange[1] === DAILY_FEE_MAX
 
-      const ageLabelToTag: Record<string, string> = {
-        "Infant (0-12 months)": "infant",
-        "Toddler (1-2 years)": "toddler",
-        "Preschool (3-4 years)": "preschool",
-        "Pre-K (4-5 years)": "prek",
-        "School Age (5+)": "schoolage",
-      }
-      const ageTags = filters.ageGroups
-        .map((label) => ageLabelToTag[label])
-        .filter(Boolean)
-
-      if (ageTags.length > 0) {
-        sp.set("ageGroups", ageTags.join(","))
+      if (filters.ageGroups.length > 0) {
+        sp.set("ageGroups", filters.ageGroups.join(","))
       } else {
         sp.delete("ageGroups")
       }
 
-      if (filters.tuitionRange && filters.tuitionRange.length === 2) {
+      if (!isDefaultTuitionRange && filters.tuitionRange && filters.tuitionRange.length === 2) {
         sp.set("minFee", String(filters.tuitionRange[0]))
         sp.set("maxFee", String(filters.tuitionRange[1]))
       } else {
@@ -337,6 +355,10 @@ export function SearchResults({
     [providers, visibleCount],
   )
   const isAllLoaded = visibleCount >= providers.length
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [providers])
 
   return (
     <div className="min-h-screen bg-background">

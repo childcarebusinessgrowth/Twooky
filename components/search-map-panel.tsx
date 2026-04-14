@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 import type { ProviderCardData } from "@/components/provider-card"
-import { getCurrentPosition } from "@/lib/location-client"
 import {
   loadGoogleMapsApi,
   type GoogleInfoWindowInstance,
@@ -27,14 +26,15 @@ type ProviderMapPoint = {
   longitude: number
 }
 
-async function geocodeSearchAddress(
-  maps: GoogleMapsNamespace,
-  address: string,
-): Promise<
+type SearchAreaResult =
   | { kind: "viewport"; viewport: GoogleLatLngBoundsInstance }
   | { kind: "center"; center: { lat: number; lng: number } }
   | null
-> {
+
+async function geocodeSearchAddress(
+  maps: GoogleMapsNamespace,
+  address: string,
+): Promise<SearchAreaResult> {
   const geocoder = new maps.Geocoder()
   return new Promise((resolve) => {
     geocoder.geocode({ address }, (results, status) => {
@@ -77,6 +77,18 @@ function hasValidCoordinates(latitude: unknown, longitude: unknown): boolean {
   return true
 }
 
+function parseCoordinateSearchLocation(value?: string): { lat: number; lng: number } | null {
+  if (!value) return null
+  const [rawLat, rawLng] = value.split(",")
+  if (!rawLat || !rawLng) return null
+
+  const lat = toCoordinate(rawLat.trim())
+  const lng = toCoordinate(rawLng.trim())
+  if (!hasValidCoordinates(lat, lng)) return null
+
+  return { lat: lat as number, lng: lng as number }
+}
+
 function toMapPoint(provider: ProviderCardData): ProviderMapPoint | null {
   const lat = toCoordinate(provider.latitude)
   const lng = toCoordinate(provider.longitude)
@@ -117,35 +129,130 @@ async function resolveProviderMapPoints(
   maps: GoogleMapsNamespace,
   providers: ProviderCardData[],
   geocodeCache: Map<string, { lat: number; lng: number } | null>,
-): Promise<ProviderMapPoint[]> {
+  onBatchResolved: (points: ProviderMapPoint[]) => void,
+): Promise<void> {
   const MAX_GEOCODE_LOOKUPS = 40
-  const points: ProviderMapPoint[] = []
+  const GEOCODE_CONCURRENCY = 4
+  const cachedPoints: ProviderMapPoint[] = []
+  const providersByAddress = new Map<string, ProviderCardData[]>()
   let geocodeLookups = 0
 
   for (const provider of providers) {
     const directPoint = toMapPoint(provider)
     if (directPoint) {
-      points.push(directPoint)
+      cachedPoints.push(directPoint)
+      continue
+    }
+
+    const address = (provider.address || provider.location || "").trim()
+    if (!address) continue
+
+    const cachedCoords = geocodeCache.get(address)
+    if (cachedCoords !== undefined) {
+      if (cachedCoords && hasValidCoordinates(cachedCoords.lat, cachedCoords.lng)) {
+        cachedPoints.push({ provider, latitude: cachedCoords.lat, longitude: cachedCoords.lng })
+      }
+      continue
+    }
+
+    const existingProviders = providersByAddress.get(address)
+    if (existingProviders) {
+      existingProviders.push(provider)
       continue
     }
 
     if (geocodeLookups >= MAX_GEOCODE_LOOKUPS) continue
-    const address = (provider.address || provider.location || "").trim()
-    if (!address) continue
-
-    let coords = geocodeCache.get(address)
-    if (coords === undefined) {
-      geocodeLookups += 1
-      coords = await geocodeProviderAddress(maps, address)
-      geocodeCache.set(address, coords)
-    }
-
-    if (coords && hasValidCoordinates(coords.lat, coords.lng)) {
-      points.push({ provider, latitude: coords.lat, longitude: coords.lng })
-    }
+    geocodeLookups += 1
+    providersByAddress.set(address, [provider])
   }
 
-  return points
+  if (cachedPoints.length > 0) {
+    onBatchResolved(cachedPoints)
+  }
+
+  const pendingAddresses = Array.from(providersByAddress.entries())
+  for (let index = 0; index < pendingAddresses.length; index += GEOCODE_CONCURRENCY) {
+    const chunk = pendingAddresses.slice(index, index + GEOCODE_CONCURRENCY)
+    const resolvedPointsGroups = await Promise.all(
+      chunk.map(async ([address, providersForAddress]) => {
+        const coords = await geocodeProviderAddress(maps, address)
+        geocodeCache.set(address, coords)
+        if (!coords || !hasValidCoordinates(coords.lat, coords.lng)) return []
+        return providersForAddress.map((provider) => ({
+          provider,
+          latitude: coords.lat,
+          longitude: coords.lng,
+        }))
+      }),
+    )
+
+    const batchPoints = resolvedPointsGroups.flat()
+    if (batchPoints.length > 0) {
+      onBatchResolved(batchPoints)
+    }
+  }
+}
+
+function partitionProviderMapPoints(providers: ProviderCardData[]): {
+  directPoints: ProviderMapPoint[]
+  missingCoordinateProviders: ProviderCardData[]
+} {
+  const directPoints: ProviderMapPoint[] = []
+  const missingCoordinateProviders: ProviderCardData[] = []
+
+  for (const provider of providers) {
+    const directPoint = toMapPoint(provider)
+    if (directPoint) {
+      directPoints.push(directPoint)
+      continue
+    }
+    missingCoordinateProviders.push(provider)
+  }
+
+  return { directPoints, missingCoordinateProviders }
+}
+
+function addMarkersToMap(
+  maps: GoogleMapsNamespace,
+  map: GoogleMapInstance,
+  infoWindow: GoogleInfoWindowInstance,
+  points: ProviderMapPoint[],
+  markerByProviderId: Map<string, GoogleMarkerInstance>,
+  bounds: GoogleLatLngBoundsInstance,
+) {
+  points.forEach(({ provider, latitude, longitude }) => {
+    const providerId = String(provider.id)
+    if (markerByProviderId.has(providerId)) return
+
+    const marker = new maps.Marker({
+      map,
+      position: {
+        lat: latitude,
+        lng: longitude,
+      },
+      title: provider.name,
+      icon: {
+        url: createProviderPinDataUri(),
+        scaledSize: new maps.Size(42, 54),
+        anchor: new maps.Point(21, 51),
+      },
+    })
+
+    markerByProviderId.set(providerId, marker)
+    bounds.extend({ lat: latitude, lng: longitude })
+
+    const locationText = provider.address || provider.location
+    marker.addListener("click", () => {
+      infoWindow.setContent(
+        `<div style="padding:8px 10px;max-width:220px;">
+          <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(provider.name)}</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">${escapeHtml(locationText)}</div>
+          <a href="/providers/${escapeHtml(provider.slug)}" style="font-size:12px;color:#203e68;text-decoration:none;font-weight:600;">View details</a>
+        </div>`,
+      )
+      infoWindow.open({ map, anchor: marker })
+    })
+  })
 }
 
 function fallbackCenterFromProviders(providers: ProviderMapPoint[]): { lat: number; lng: number } {
@@ -184,6 +291,11 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;")
 }
 
+function clearMarkers(markerByProviderId: Map<string, GoogleMarkerInstance>) {
+  markerByProviderId.forEach((marker) => marker.setMap(null))
+  markerByProviderId.clear()
+}
+
 export function SearchMapPanel({
   providers,
   className = "",
@@ -197,26 +309,8 @@ export function SearchMapPanel({
   const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map())
   const [isLoadingMap, setIsLoadingMap] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
-  const [userCenter, setUserCenter] = useState<{ lat: number; lng: number } | null>(null)
 
   const defaultCenter = useMemo(() => fallbackCenterFromRawProviders(providers), [providers])
-
-  useEffect(() => {
-    let isMounted = true
-    void getCurrentPosition({ timeout: 5000 })
-      .then((coords) => {
-        if (isMounted) {
-          setUserCenter(coords)
-        }
-      })
-      .catch(() => {
-        // Optional enhancement only; failures here should not block map rendering.
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
 
   useEffect(() => {
     if (!mapsApiKey) {
@@ -236,17 +330,17 @@ export function SearchMapPanel({
         if (isCancelled || !mapContainerRef.current) return
 
         const trimmedSearch = searchLocation?.trim() ?? ""
-        const geoResult =
-          trimmedSearch.length > 0
-            ? await geocodeSearchAddress(maps, trimmedSearch)
-            : null
-
-        const usedSearchArea = geoResult?.kind === "viewport" || geoResult?.kind === "center"
-
-        const center =
-          geoResult?.kind === "center"
-            ? geoResult.center
-            : userCenter ?? defaultCenter
+        const coordinateSearchCenter = parseCoordinateSearchLocation(trimmedSearch)
+        const geoResultPromise = coordinateSearchCenter
+          ? Promise.resolve<SearchAreaResult>({
+              kind: "center",
+              center: coordinateSearchCenter,
+            })
+          : trimmedSearch.length > 0
+            ? geocodeSearchAddress(maps, trimmedSearch)
+            : Promise.resolve<SearchAreaResult>(null)
+        const { directPoints, missingCoordinateProviders } = partitionProviderMapPoints(providers)
+        const center = defaultCenter
 
         const map = new maps.Map(mapContainerRef.current, {
           center,
@@ -258,70 +352,83 @@ export function SearchMapPanel({
         })
         mapRef.current = map
 
+        const infoWindow = new maps.InfoWindow()
+        infoWindowRef.current = infoWindow
+        clearMarkers(markerByProviderIdRef.current)
+        const bounds = new maps.LatLngBounds()
+
+        addMarkersToMap(
+          maps,
+          map,
+          infoWindow,
+          directPoints,
+          markerByProviderIdRef.current,
+          bounds,
+        )
+
+        const geoResult = await geoResultPromise
+        if (isCancelled) return
+
+        const usedSearchArea = geoResult?.kind === "viewport" || geoResult?.kind === "center"
+
         if (geoResult?.kind === "viewport") {
           map.fitBounds(geoResult.viewport, 80)
         } else if (geoResult?.kind === "center") {
           map.setCenter(geoResult.center)
           map.setZoom(12)
-        }
-
-        const infoWindow = new maps.InfoWindow()
-        infoWindowRef.current = infoWindow
-        markerByProviderIdRef.current.clear()
-
-        const resolvedMapProviders = await resolveProviderMapPoints(
-          maps,
-          providers,
-          geocodeCacheRef.current,
-        )
-        const bounds = new maps.LatLngBounds()
-
-        resolvedMapProviders.forEach(({ provider, latitude, longitude }) => {
-          const marker = new maps.Marker({
-            map,
-            position: {
-              lat: latitude,
-              lng: longitude,
-            },
-            title: provider.name,
-            icon: {
-              url: createProviderPinDataUri(),
-              scaledSize: new maps.Size(42, 54),
-              anchor: new maps.Point(21, 51),
-            },
-          })
-
-          const providerId = String(provider.id)
-          markerByProviderIdRef.current.set(providerId, marker)
-          bounds.extend({ lat: latitude, lng: longitude })
-
-          const locationText = provider.address || provider.location
-          marker.addListener("click", () => {
-            infoWindow.setContent(
-              `<div style="padding:8px 10px;max-width:220px;">
-                <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(provider.name)}</div>
-                <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">${escapeHtml(locationText)}</div>
-                <a href="/providers/${escapeHtml(provider.slug)}" style="font-size:12px;color:#203e68;text-decoration:none;font-weight:600;">View details</a>
-              </div>`,
-            )
-            infoWindow.open({ map, anchor: marker })
-          })
-        })
-
-        if (resolvedMapProviders.length > 1) {
+        } else if (directPoints.length > 1) {
           // Prioritize the actual provider marker spread so nearby matches do not visually collapse
           // into a single pin when a broad location viewport (e.g. "London") is used.
           map.fitBounds(bounds, 80)
-        } else if (resolvedMapProviders.length === 1) {
+        } else if (directPoints.length === 1) {
           map.setCenter({
-            lat: resolvedMapProviders[0].latitude,
-            lng: resolvedMapProviders[0].longitude,
+            lat: directPoints[0].latitude,
+            lng: directPoints[0].longitude,
           })
           map.setZoom(13)
         } else if (!usedSearchArea) {
           map.setCenter(center)
           map.setZoom(10)
         }
+
+        if (!isCancelled) {
+          setIsLoadingMap(false)
+        }
+
+        if (missingCoordinateProviders.length === 0) return
+        let hasAdjustedToResolvedPoints = directPoints.length > 0 || usedSearchArea
+
+        void resolveProviderMapPoints(
+          maps,
+          missingCoordinateProviders,
+          geocodeCacheRef.current,
+          (resolvedBatch) => {
+            if (isCancelled || resolvedBatch.length === 0) return
+
+            addMarkersToMap(
+              maps,
+              map,
+              infoWindow,
+              resolvedBatch,
+              markerByProviderIdRef.current,
+              bounds,
+            )
+
+            if (hasAdjustedToResolvedPoints) return
+
+            hasAdjustedToResolvedPoints = true
+            if (markerByProviderIdRef.current.size > 1) {
+              map.fitBounds(bounds, 80)
+              return
+            }
+
+            const firstPoint = resolvedBatch[0]
+            if (firstPoint) {
+              map.setCenter({ lat: firstPoint.latitude, lng: firstPoint.longitude })
+              map.setZoom(13)
+            }
+          },
+        )
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to initialize map. Please try again."
@@ -337,8 +444,9 @@ export function SearchMapPanel({
 
     return () => {
       isCancelled = true
+      clearMarkers(markerByProviderIdRef.current)
     }
-  }, [defaultCenter, mapsApiKey, providers, searchLocation, userCenter])
+  }, [defaultCenter, mapsApiKey, providers, searchLocation])
 
   return (
     <section className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm ${className}`}>

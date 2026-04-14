@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 
-export type FilterOption = { value: string; label: string }
+export type FilterOption = { value: string; label: string; tag?: string }
 
 export type SearchFilterOptions = {
   ageGroups: FilterOption[]
@@ -44,8 +44,8 @@ export interface FilterState {
   minRating: number | null
 }
 
-const DAILY_FEE_MIN = 20
-const DAILY_FEE_MAX = 300
+export const DAILY_FEE_MIN = 20
+export const DAILY_FEE_MAX = 300
 const DAILY_FEE_STEP = 10
 
 const STATIC_AGE_GROUPS: FilterOption[] = [
@@ -154,6 +154,7 @@ export function FilterSidebar({ onFilterChange, filterOptions, className = "" }:
     filters.features.length +
     filters.curriculumTypes.length +
     filters.availability.length +
+    (filters.tuitionRange[0] !== DAILY_FEE_MIN || filters.tuitionRange[1] !== DAILY_FEE_MAX ? 1 : 0) +
     (filters.minRating ? 1 : 0)
 
   return (
