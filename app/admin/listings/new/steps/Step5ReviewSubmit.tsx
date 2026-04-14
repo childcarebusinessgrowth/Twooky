@@ -8,7 +8,10 @@ import { PROVIDER_TYPES } from "@/lib/provider-types"
 import { AMENITIES } from "@/lib/listing-options"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import type { FaqItem, PhotoItem } from "../types"
-import type { AdminProviderAgeGroupOption } from "../actions"
+import type {
+  AdminProviderAgeGroupOption,
+  AdminProviderProgramTypeOption,
+} from "../actions"
 
 type Step5ReviewSubmitProps = {
   businessName: string
@@ -20,6 +23,7 @@ type Step5ReviewSubmitProps = {
   listingStatus: string
   featured: boolean
   providerTypes: string[]
+  selectedProgramTypeIds: string[]
   ageGroupsServed: string[]
   selectedCurriculumTypes: string[]
   selectedLanguages: string[]
@@ -43,6 +47,7 @@ type Step5ReviewSubmitProps = {
   photoItems: PhotoItem[]
   curriculumOptions: { id: string; name: string }[]
   ageGroups: AdminProviderAgeGroupOption[]
+  programTypes: AdminProviderProgramTypeOption[]
 }
 
 function formatValue(value: string | undefined, fallback = ",") {
@@ -59,6 +64,7 @@ export function Step5ReviewSubmit({
   listingStatus,
   featured,
   providerTypes,
+  selectedProgramTypeIds,
   ageGroupsServed,
   selectedCurriculumTypes,
   selectedLanguages,
@@ -82,9 +88,13 @@ export function Step5ReviewSubmit({
   photoItems,
   curriculumOptions,
   ageGroups,
+  programTypes,
 }: Step5ReviewSubmitProps) {
   const providerTypeLabels = providerTypes
     .map((id) => PROVIDER_TYPES.find((t) => t.id === id)?.label)
+    .filter(Boolean)
+  const programTypeLabels = selectedProgramTypeIds
+    .map((id) => programTypes.find((type) => type.id === id)?.name)
     .filter(Boolean)
   const ageGroupLabels = ageGroupsServed
     .map((tag) => ageGroups.find((g) => g.tag === tag)?.age_range)
@@ -158,6 +168,12 @@ export function Step5ReviewSubmit({
               {ageGroupLabels.join(", ")}
             </div>
           )}
+          {programTypeLabels.length > 0 && (
+            <div>
+              <span className="text-muted-foreground">Program types: </span>
+              {programTypeLabels.join(", ")}
+            </div>
+          )}
           {selectedCurriculumTypes.length > 0 && (
             <div>
               <span className="text-muted-foreground">Curriculum: </span>
@@ -179,6 +195,7 @@ export function Step5ReviewSubmit({
             </div>
           )}
           {!providerTypeLabels.length &&
+            !programTypeLabels.length &&
             !ageGroupLabels.length &&
             selectedCurriculumTypes.length === 0 &&
             selectedLanguages.length === 0 &&

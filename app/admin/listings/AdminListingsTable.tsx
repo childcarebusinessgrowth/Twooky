@@ -425,7 +425,7 @@ export function AdminListingsTable({
                   </Select>
                 </div>
               </div>
-              <div className="mt-auto flex flex-col gap-2 border-t pt-4 px-8">
+              <div className="mt-auto flex flex-col gap-2 border-t pt-4 pb-8 px-8">
                 <Button onClick={applyFilters} disabled={isPending}>
                   Apply
                 </Button>

@@ -10,6 +10,7 @@ import type {
   AdminProviderCurriculumOption,
   AdminProviderCurrencyOption,
   AdminProviderLanguageOption,
+  AdminProviderProgramTypeOption,
 } from "./actions"
 import { createAdminProvider } from "./actions"
 import { WIZARD_STEPS, type WizardStepId } from "./types"
@@ -32,6 +33,7 @@ export function AdminCreateProviderForm({
   curriculum,
   currencies,
   ageGroups,
+  programTypes,
 }: {
   countries: AdminProviderCountryOption[]
   cities: AdminProviderCityOption[]
@@ -39,6 +41,7 @@ export function AdminCreateProviderForm({
   curriculum: AdminProviderCurriculumOption[]
   currencies: AdminProviderCurrencyOption[]
   ageGroups: AdminProviderAgeGroupOption[]
+  programTypes: AdminProviderProgramTypeOption[]
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -72,6 +75,7 @@ export function AdminCreateProviderForm({
   const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>([])
   const [photoItems, setPhotoItems] = useState<Array<{ key: string; file: File; caption: string }>>([])
   const [providerTypes, setProviderTypes] = useState<string[]>([])
+  const [selectedProgramTypeIds, setSelectedProgramTypeIds] = useState<string[]>([])
   const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>([])
   const [selectedCurriculumTypes, setSelectedCurriculumTypes] = useState<string[]>([])
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
@@ -204,6 +208,7 @@ export function AdminCreateProviderForm({
     formData.set("photoCaptionsJson", JSON.stringify(photoItems.map((p) => p.caption)))
     formData.set("primaryPhotoIndex", String(primaryPhotoIndex))
     for (const type of providerTypes) formData.append("providerTypes", type)
+    for (const programTypeId of selectedProgramTypeIds) formData.append("programTypeIds", programTypeId)
     for (const group of ageGroupsServed) formData.append("ageGroupsServed", group)
     for (const amenity of amenities) formData.append("amenities", amenity)
     for (const url of virtualTourUrls) {
@@ -265,6 +270,8 @@ export function AdminCreateProviderForm({
           <Step3ProgramDetails
             providerTypes={providerTypes}
             setProviderTypes={setProviderTypes}
+            selectedProgramTypeIds={selectedProgramTypeIds}
+            setSelectedProgramTypeIds={setSelectedProgramTypeIds}
             ageGroupsServed={ageGroupsServed}
             setAgeGroupsServed={setAgeGroupsServed}
             selectedCurriculumTypes={selectedCurriculumTypes}
@@ -276,6 +283,7 @@ export function AdminCreateProviderForm({
             curriculum={curriculum}
             languages={languages}
             ageGroups={ageGroups}
+            programTypes={programTypes}
           />
         )}
         {currentStep === 4 && (
@@ -334,6 +342,7 @@ export function AdminCreateProviderForm({
             listingStatus={listingStatus}
             featured={featured}
             providerTypes={providerTypes}
+            selectedProgramTypeIds={selectedProgramTypeIds}
             ageGroupsServed={ageGroupsServed}
             selectedCurriculumTypes={selectedCurriculumTypes}
             selectedLanguages={selectedLanguages}
@@ -357,6 +366,7 @@ export function AdminCreateProviderForm({
             photoItems={photoItems}
             curriculumOptions={curriculum}
             ageGroups={ageGroups}
+            programTypes={programTypes}
           />
         )}
       </div>

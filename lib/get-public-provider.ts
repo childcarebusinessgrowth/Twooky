@@ -5,13 +5,17 @@ import {
   readCachedGooglePlaceSummary,
   type ProviderGoogleCacheRow,
 } from "@/lib/google-place-cache"
-import { ageGroupsToProgramLabels } from "@/lib/age-groups-to-program-labels"
+import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 import { formatDailyFeeRange } from "@/lib/currency"
 import {
   getReviewsByProviderProfileId,
   type PublicReviewRow,
 } from "@/lib/parent-engagement"
 import { buildProviderCardImageUrl } from "@/lib/provider-card-image"
+import {
+  getProviderProgramTypesByProfileIds,
+  type ProviderProgramType,
+} from "@/lib/provider-program-types"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -31,7 +35,7 @@ export type PublicProviderView = {
   rating: number
   reviewCount: number
   providerTypes: string[]
-  programTypes: string[]
+  programTypes: ProviderProgramType[]
   description: string
   ageGroups: string[]
   hours: string
@@ -69,9 +73,72 @@ const AVAILABILITY_LABELS: Record<PublicAvailabilityStatus, string> = {
   full: "Full",
 }
 
+type AgeGroupRow = {
+  tag: string
+  age_range: string
+  sort_order?: number | null
+}
+
 function normalizeAvailabilityStatus(value: unknown): PublicAvailabilityStatus {
   if (value === "waitlist" || value === "full") return value
   return "openings"
+}
+
+function ageUnitToMonths(amount: number, unit: string): number {
+  if (unit === "y") return amount * 12
+  if (unit === "w") return amount / 4.345
+  return amount
+}
+
+function getAgeRangeFallbackSortValue(label: string): number {
+  const normalized = label.trim().toLowerCase()
+  if (!normalized) return Number.MAX_SAFE_INTEGER
+
+  const compactRangeMatch = normalized.match(/^(\d+(?:\.\d+)?)(w|m|y)?-(\d+(?:\.\d+)?)(w|m|y)?\+?$/)
+  if (compactRangeMatch) {
+    const amount = Number(compactRangeMatch[1])
+    const unit = compactRangeMatch[2] ?? compactRangeMatch[4]
+    if (unit) return ageUnitToMonths(amount, unit)
+  }
+
+  const openEndedMatch = normalized.match(/^(\d+(?:\.\d+)?)(w|m|y)\+$/)
+  if (openEndedMatch) {
+    return ageUnitToMonths(Number(openEndedMatch[1]), openEndedMatch[2])
+  }
+
+  const match = normalized.match(/(\d+(?:\.\d+)?)(w|m|y)\b/)
+  if (!match) return Number.MAX_SAFE_INTEGER
+
+  return ageUnitToMonths(Number(match[1]), match[2])
+}
+
+function buildSortedAgeRanges(
+  servedTags: string[] | null | undefined,
+  ageGroupRows: AgeGroupRow[]
+): string[] {
+  if (!servedTags?.length) return []
+
+  const ageGroupByTag = new Map<string, AgeGroupRow>()
+  for (const row of ageGroupRows) {
+    ageGroupByTag.set(row.tag, row)
+    if (row.tag === "school_age") {
+      ageGroupByTag.set("schoolage", row)
+    }
+  }
+
+  return [...servedTags]
+    .map((tag, index) => {
+      const row = ageGroupByTag.get(tag)
+      const label = normalizeAgeRangeLabel(row?.age_range ?? tag)
+      return {
+        index,
+        label,
+        sortValue: getAgeRangeFallbackSortValue(label),
+        dbSortOrder: row?.sort_order ?? Number.MAX_SAFE_INTEGER,
+      }
+    })
+    .sort((a, b) => a.sortValue - b.sortValue || a.dbSortOrder - b.dbSortOrder || a.index - b.index)
+    .map((item) => item.label)
 }
 
 const PLACEHOLDER_IMAGE =
@@ -128,7 +195,7 @@ export async function getActivePublicProviderBySlug(
 
   const profileId = profile.profile_id
 
-  const [photosResult, reviews, faqsResult, ageGroupsResult] = await Promise.all([
+  const [photosResult, reviews, faqsResult, ageGroupsResult, programTypesByProfile] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
@@ -144,8 +211,9 @@ export async function getActivePublicProviderBySlug(
       .order("sort_order", { ascending: true }),
     supabase
       .from("age_groups")
-      .select("tag, age_range")
+      .select("tag, age_range, sort_order")
       .eq("is_active", true),
+    getProviderProgramTypesByProfileIds(supabase, [profileId]),
   ])
 
   const cachedGoogle = profile as ProviderGoogleCacheRow
@@ -241,19 +309,17 @@ export async function getActivePublicProviderBySlug(
     question: row.question,
     answer: row.answer,
   }))
-  const ageRangeByTag = new Map<string, string>(
-    (ageGroupsResult.data ?? []).map((row) => [row.tag, row.age_range] as const)
+  const ageRanges = buildSortedAgeRanges(
+    profile.age_groups_served ?? [],
+    (ageGroupsResult.data ?? []) as AgeGroupRow[]
   )
-  if (ageRangeByTag.has("school_age")) {
-    ageRangeByTag.set("schoolage", ageRangeByTag.get("school_age") as string)
-  }
-  const ageRanges = (profile.age_groups_served ?? []).map((tag: string) => ageRangeByTag.get(tag) ?? tag)
   const availabilityStatus = normalizeAvailabilityStatus(profile.availability_status)
   const availableSpotsCount = profile.available_spots_count ?? null
   const availabilityLabel =
     availabilityStatus === "openings" && availableSpotsCount != null && availableSpotsCount > 0
       ? `Spots Available (${availableSpotsCount})`
       : AVAILABILITY_LABELS[availabilityStatus]
+  const programTypes = programTypesByProfile[profileId] ?? []
   const ownerProfileId = (profile as { owner_profile_id?: string | null }).owner_profile_id ?? null
   const isClaimed = typeof ownerProfileId === "string" && ownerProfileId.trim().length > 0
 
@@ -271,7 +337,7 @@ export async function getActivePublicProviderBySlug(
     rating: displayRating,
     reviewCount: displayReviewCount,
     providerTypes: profile.provider_types ?? [],
-    programTypes: ageGroupsToProgramLabels(profile.age_groups_served ?? null),
+    programTypes,
     description: profile.description ?? "",
     ageGroups: ageRanges,
     hours,

@@ -1,8 +1,9 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import { fetchAuthRole, isTransientAuthRoleResponse } from "@/lib/authRoleClient"
 import { isTreatedAsSignedOutAuthError } from "@/lib/supabaseAuthErrors"
 
 type AuthContextValue = {
@@ -40,34 +41,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true
     let unsubscribe: (() => void) | undefined
+    let removeFocusListeners: (() => void) | undefined
 
-    async function initAuth() {
+    async function clearLocalSession() {
+      const supabase = getSupabaseClient()
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {
+        /* ignore - storage may already be inconsistent */
+      })
+
+      if (!isMounted) return
+
+      setUser(null)
+      setAuthError(null)
+    }
+
+    async function validateResolvedRole() {
+      try {
+        const { response, payload } = await fetchAuthRole()
+
+        if (!isMounted) return
+
+        if (response.ok) {
+          setAuthError(null)
+          return
+        }
+
+        if (response.status === 401 || (response.status === 409 && payload.unresolvedRole)) {
+          await clearLocalSession()
+          return
+        }
+
+        if (isTransientAuthRoleResponse(response)) {
+          console.warn("Current account role check temporarily unavailable", response.status)
+          return
+        }
+
+        console.error("Error validating current account role", payload.error ?? response.statusText)
+        setAuthError(payload.error ?? "Unable to validate account access.")
+      } catch (error) {
+        console.error("Current account role validation failed", error)
+        if (isMounted) {
+          setAuthError("Authentication service is currently unavailable.")
+        }
+      }
+    }
+
+    async function syncAuthenticatedUser() {
       try {
         const supabase = getSupabaseClient()
-
         const {
           data: { user: authenticatedUser },
           error: userError,
         } = await supabase.auth.getUser()
+
         if (!isMounted) return
 
         if (userError) {
           if (isTreatedAsSignedOutAuthError(userError)) {
-            setUser(null)
-            setAuthError(null)
-            await supabase.auth.signOut({ scope: "local" }).catch(() => {
-              /* ignore — storage may already be inconsistent */
-            })
+            await clearLocalSession()
           } else {
             console.error("Error validating Supabase user", userError)
             // Default to signed-out UI when validation fails to avoid stale dashboard links.
             setUser(null)
             setAuthError(userError.message)
           }
-        } else {
-          setUser(authenticatedUser ?? null)
-          setAuthError(null)
+          return
         }
+
+        setUser(authenticatedUser ?? null)
+        setAuthError(null)
+
+        if (authenticatedUser) {
+          await validateResolvedRole()
+        }
+      } catch (error) {
+        console.error("Supabase initialization error", error)
+        if (isMounted) {
+          setAuthError("Authentication service is currently unavailable.")
+        }
+      }
+    }
+
+    async function initAuth() {
+      try {
+        const supabase = getSupabaseClient()
+        await syncAuthenticatedUser()
 
         const {
           data: { subscription },
@@ -75,9 +133,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!isMounted) return
           setUser(session?.user ?? null)
           setAuthError(null)
+          if (session?.user) {
+            void validateResolvedRole()
+          }
         })
 
         unsubscribe = () => subscription.unsubscribe()
+
+        const handleFocus = () => {
+          void syncAuthenticatedUser()
+        }
+
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === "visible") {
+            void syncAuthenticatedUser()
+          }
+        }
+
+        window.addEventListener("focus", handleFocus)
+        document.addEventListener("visibilitychange", handleVisibilityChange)
+        removeFocusListeners = () => {
+          window.removeEventListener("focus", handleFocus)
+          document.removeEventListener("visibilitychange", handleVisibilityChange)
+        }
       } catch (error) {
         console.error("Supabase initialization error", error)
         if (isMounted) {
@@ -95,10 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false
       if (unsubscribe) unsubscribe()
+      if (removeFocusListeners) removeFocusListeners()
     }
   }, [])
 
-  const signInWithEmail: AuthContextValue["signInWithEmail"] = async (email, password) => {
+  const signInWithEmail: AuthContextValue["signInWithEmail"] = useCallback(async (email, password) => {
     try {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -114,51 +193,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Supabase sign-in initialization error", error)
       return { error: "Unable to sign in right now. Please try again later." }
     }
-  }
+  }, [])
 
-  const signUpWithEmail: AuthContextValue["signUpWithEmail"] = async (email, password, role, profile) => {
-    try {
-      const supabase = getSupabaseClient()
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          role,
-          fullName: profile.fullName,
-          businessName: profile.businessName,
-          phone: profile.phone,
-          countryName: profile.countryName,
-          cityName: profile.cityName,
-          childAgeGroup: profile.childAgeGroup,
-          countryId: profile.countryId,
-          cityId: profile.cityId,
-          customCityName: profile.customCityName,
-        }),
-      })
+  const signUpWithEmail: AuthContextValue["signUpWithEmail"] = useCallback(
+    async (email, password, role, profile) => {
+      try {
+        const supabase = getSupabaseClient()
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            role,
+            fullName: profile.fullName,
+            businessName: profile.businessName,
+            phone: profile.phone,
+            countryName: profile.countryName,
+            cityName: profile.cityName,
+            childAgeGroup: profile.childAgeGroup,
+            countryId: profile.countryId,
+            cityId: profile.cityId,
+            customCityName: profile.customCityName,
+          }),
+        })
 
-      const payload = (await response.json()) as { error?: string }
-      if (!response.ok) {
-        return { error: payload.error ?? "Unable to create account right now. Please try again later." }
+        const payload = (await response.json()) as { error?: string }
+        if (!response.ok) {
+          return { error: payload.error ?? "Unable to create account right now. Please try again later." }
+        }
+
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+        if (signInError) {
+          console.error("Supabase post-signup sign-in error", signInError)
+          return { error: signInError.message }
+        }
+
+        return {}
+      } catch (error) {
+        console.error("Supabase sign-up initialization error", error)
+        return { error: "Unable to sign up right now. Please try again later." }
       }
+    },
+    [],
+  )
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) {
-        console.error("Supabase post-signup sign-in error", signInError)
-        return { error: signInError.message }
-      }
-
-      return {}
-    } catch (error) {
-      console.error("Supabase sign-up initialization error", error)
-      return { error: "Unable to sign up right now. Please try again later." }
-    }
-  }
-
-  const signOutLocal: AuthContextValue["signOutLocal"] = async () => {
+  const signOutLocal: AuthContextValue["signOutLocal"] = useCallback(async () => {
     try {
       const supabase = getSupabaseClient()
       await supabase.auth.signOut({ scope: "local" })
@@ -169,9 +251,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       setAuthError(null)
     }
-  }
+  }, [])
 
-  const signOut: AuthContextValue["signOut"] = async () => {
+  const signOut: AuthContextValue["signOut"] = useCallback(async () => {
     try {
       const supabase = getSupabaseClient()
 
@@ -208,20 +290,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signOutLocal()
       return {}
     }
-  }
+  }, [signOutLocal])
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      authError,
+      signInWithEmail,
+      signUpWithEmail,
+      signOut,
+      signOutLocal,
+    }),
+    [authError, loading, signInWithEmail, signOut, signOutLocal, signUpWithEmail, user],
+  )
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        authError,
-        signInWithEmail,
-        signUpWithEmail,
-        signOut,
-        signOutLocal,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

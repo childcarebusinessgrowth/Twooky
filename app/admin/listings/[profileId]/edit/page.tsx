@@ -71,6 +71,7 @@ export default async function AdminEditListingPage({ params }: PageProps) {
             curriculum={options.curriculum}
             currencies={options.currencies}
             ageGroups={options.ageGroups}
+            programTypes={options.programTypes}
           />
         </CardContent>
       </Card>

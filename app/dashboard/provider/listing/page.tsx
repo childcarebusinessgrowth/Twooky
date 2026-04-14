@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PROVIDER_TYPES, type ProviderTypeId } from "@/lib/provider-types"
-import { AGE_GROUPS, AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
+import { AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { parseYouTubeUrl } from "@/lib/youtube"
@@ -37,6 +37,7 @@ import {
 } from "@/lib/provider-documents-constants"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { syncProviderProgramTypes } from "@/lib/provider-program-types"
 
 const DOCUMENT_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"] as const
 
@@ -53,6 +54,7 @@ type ListingDraftSnapshot = {
   email: string
   website: string
   providerTypes: ProviderTypeId[]
+  programTypeIds: string[]
   ageGroupsServed: string[]
   curriculumTypes: string[]
   languagesSpoken: string
@@ -64,6 +66,17 @@ type ListingDraftSnapshot = {
   currencyId: string
   totalCapacity: string
   listingStatus: string
+}
+
+type AgeGroupOption = {
+  id: string
+  label: string
+}
+
+type ProgramTypeOption = {
+  id: string
+  label: string
+  slug: string | null
 }
 
 function saveDraftToStorage(snapshot: ListingDraftSnapshot) {
@@ -97,6 +110,14 @@ function parseOptionalInteger(value: string): number | null {
   if (!trimmed) return null
   const parsed = Number.parseInt(trimmed, 10)
   return Number.isNaN(parsed) ? null : parsed
+}
+
+function normalizeAgeGroupTag(value: string): string {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === "schoolage" || normalized === "school age" || normalized === "school") {
+    return "school_age"
+  }
+  return normalized
 }
 
 async function resolveGooglePlaceId(
@@ -147,7 +168,10 @@ export default function ManageListingPage() {
   const [email, setEmail] = useState("")
   const [website, setWebsite] = useState("")
   const [providerTypes, setProviderTypes] = useState<ProviderTypeId[]>(["nursery", "preschool"])
-  const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>(["infant", "toddler", "preschool", "prek"])
+  const [selectedProgramTypeIds, setSelectedProgramTypeIds] = useState<string[]>([])
+  const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>([])
+  const [availableAgeGroups, setAvailableAgeGroups] = useState<AgeGroupOption[]>([])
+  const [availableProgramTypes, setAvailableProgramTypes] = useState<ProgramTypeOption[]>([])
   const [curriculumTypes, setCurriculumTypes] = useState<string[]>(["play-based"])
   const [languagesSpoken, setLanguagesSpoken] = useState("english-spanish")
   const [amenities, setAmenities] = useState<string[]>(["meals_included", "outdoor_play_area", "nap_room", "security_cameras", "parent_app"])
@@ -177,6 +201,59 @@ export default function ManageListingPage() {
   useEffect(() => {
     let isMounted = true
 
+    async function loadListingOptions() {
+      try {
+        const response = await fetch("/api/search/options", { cache: "no-store" })
+        if (!response.ok) {
+          throw new Error(`Failed to load listing options: ${response.status}`)
+        }
+
+        const payload = (await response.json()) as {
+          ageGroups?: Array<{ value?: string; label?: string }>
+          programTypes?: Array<{ id?: string; label?: string; slug?: string | null }>
+        }
+
+        if (!isMounted) return
+
+        const nextOptions = new Map<string, AgeGroupOption>()
+        for (const option of payload.ageGroups ?? []) {
+          if (typeof option?.value !== "string" || typeof option?.label !== "string") continue
+          const id = normalizeAgeGroupTag(option.value)
+          const label = option.label.trim()
+          if (!id || !label || nextOptions.has(id)) continue
+          nextOptions.set(id, { id, label })
+        }
+
+        const nextProgramTypes = new Map<string, ProgramTypeOption>()
+        for (const option of payload.programTypes ?? []) {
+          if (typeof option?.id !== "string" || typeof option?.label !== "string") continue
+          const id = option.id.trim()
+          const label = option.label.trim()
+          if (!id || !label || nextProgramTypes.has(id)) continue
+          nextProgramTypes.set(id, {
+            id,
+            label,
+            slug: typeof option.slug === "string" ? option.slug : null,
+          })
+        }
+
+        setAvailableAgeGroups(Array.from(nextOptions.values()))
+        setAvailableProgramTypes(Array.from(nextProgramTypes.values()))
+      } catch (error) {
+        console.error("[Manage Listing] Failed to load listing options", error)
+      }
+    }
+
+    void loadListingOptions()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
     async function loadProviderProfile() {
       if (!user) {
         if (isMounted) {
@@ -196,28 +273,26 @@ export default function ManageListingPage() {
         "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id"
 
       try {
-        const [profileResult, currenciesResult] = await Promise.all([
+        const [profileResult, , currenciesRes, providerProgramTypesResult] = await Promise.all([
           supabase
             .from("provider_profiles")
             .select(selectWithStatus)
             .eq("profile_id", resolvedProviderProfileId)
             .maybeSingle(),
-          Promise.all([
-            fetchPhotoCount(resolvedProviderProfileId),
-            supabase
-              .from("currencies")
-              .select("id, code, name, symbol")
-              .eq("is_active", true)
-              .order("sort_order", { ascending: true })
-              .order("code", { ascending: true }),
-          ]),
+          fetchPhotoCount(resolvedProviderProfileId),
+          supabase
+            .from("currencies")
+            .select("id, code, name, symbol")
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true })
+            .order("code", { ascending: true }),
+          supabase
+            .from("provider_profile_program_types")
+            .select("program_type_id")
+            .eq("provider_profile_id", resolvedProviderProfileId),
         ])
 
         let { data, error } = profileResult
-        const [, currenciesRes] = currenciesResult as [
-          void,
-          { data: Array<{ id: string; code: string; name: string; symbol: string }> | null },
-        ]
         if (currenciesRes?.data && isMounted) {
           setCurrencies(currenciesRes.data)
         }
@@ -279,8 +354,15 @@ export default function ManageListingPage() {
         if (data?.provider_types && data.provider_types.length > 0) {
           setProviderTypes(data.provider_types as ProviderTypeId[])
         }
+        if (providerProgramTypesResult.data?.length) {
+          setSelectedProgramTypeIds(
+            providerProgramTypesResult.data
+              .map((row) => row.program_type_id)
+              .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+          )
+        }
         if (data?.age_groups_served && data.age_groups_served.length > 0) {
-          setAgeGroupsServed(data.age_groups_served)
+          setAgeGroupsServed(data.age_groups_served.map(normalizeAgeGroupTag))
         }
         if (data?.curriculum_type && Array.isArray(data.curriculum_type) && data.curriculum_type.length > 0) {
           setCurriculumTypes(data.curriculum_type)
@@ -311,7 +393,10 @@ export default function ManageListingPage() {
             if ((stored.address ?? "").trim() && stored.address !== DEFAULT_ADDRESS) setAddress(stored.address ?? DEFAULT_ADDRESS)
             if (stored.virtualTourUrls?.length) setVirtualTourUrls(stored.virtualTourUrls)
             if (stored.providerTypes?.length) setProviderTypes(stored.providerTypes)
-            if (stored.ageGroupsServed?.length) setAgeGroupsServed(stored.ageGroupsServed)
+            if (stored.programTypeIds?.length) setSelectedProgramTypeIds(stored.programTypeIds)
+            if (stored.ageGroupsServed?.length) {
+              setAgeGroupsServed(stored.ageGroupsServed.map(normalizeAgeGroupTag))
+            }
             if (stored.curriculumTypes?.length) setCurriculumTypes(stored.curriculumTypes)
             if (stored.languagesSpoken != null && stored.languagesSpoken.trim()) setLanguagesSpoken(stored.languagesSpoken)
             if (stored.amenities?.length) setAmenities(stored.amenities)
@@ -363,6 +448,7 @@ export default function ManageListingPage() {
       email,
       website,
       providerTypes,
+      programTypeIds: selectedProgramTypeIds,
       ageGroupsServed,
       curriculumTypes,
       languagesSpoken,
@@ -384,6 +470,7 @@ export default function ManageListingPage() {
       email,
       website,
       providerTypes,
+      selectedProgramTypeIds,
       ageGroupsServed,
       curriculumTypes,
       languagesSpoken,
@@ -448,6 +535,7 @@ export default function ManageListingPage() {
       !!website.trim(),
       !!address.trim() && address !== DEFAULT_ADDRESS,
       providerTypes.length > 0,
+      selectedProgramTypeIds.length > 0,
       ageGroupsServed.length > 0,
       curriculumTypes.length > 0,
       !!languagesSpoken.trim(),
@@ -469,6 +557,7 @@ export default function ManageListingPage() {
     website,
     address,
     providerTypes.length,
+    selectedProgramTypeIds.length,
     ageGroupsServed.length,
     curriculumTypes.length,
     languagesSpoken,
@@ -498,6 +587,7 @@ export default function ManageListingPage() {
       website: string
       address: string
       providerTypes: ProviderTypeId[]
+      programTypeIds: string[]
       ageGroupsServed: string[]
       curriculumTypes: string[]
       languagesSpoken: string
@@ -517,6 +607,7 @@ export default function ManageListingPage() {
     if (!values.website.trim()) missing.push("Website")
     if (!values.address.trim()) missing.push("Address")
     if (values.providerTypes.length === 0) missing.push("Provider Types")
+    if (values.programTypeIds.length === 0) missing.push("Program Types")
     if (values.ageGroupsServed.length === 0) missing.push("Age Groups Served")
     if (values.curriculumTypes.length === 0) missing.push("Curriculum Type")
     if (!values.languagesSpoken.trim()) missing.push("Languages Spoken")
@@ -544,6 +635,10 @@ export default function ManageListingPage() {
     const trimmedBusinessName = businessName.trim()
     if (!trimmedBusinessName) {
       setSaveError("Business name is required.")
+      return
+    }
+    if (selectedProgramTypeIds.length === 0) {
+      setSaveError("Select at least one program type.")
       return
     }
 
@@ -580,6 +675,7 @@ export default function ManageListingPage() {
           website,
           address,
           providerTypes,
+          programTypeIds: selectedProgramTypeIds,
           ageGroupsServed,
           curriculumTypes,
           languagesSpoken,
@@ -660,6 +756,13 @@ export default function ManageListingPage() {
         address,
       )
       const supabase = getSupabaseClient()
+      const normalizedAgeGroupsServed = Array.from(
+        new Set(ageGroupsServed.map(normalizeAgeGroupTag).filter(Boolean)),
+      )
+      const normalizedProgramTypeIds = Array.from(
+        new Set(selectedProgramTypeIds.map((value) => value.trim()).filter(Boolean)),
+      )
+
       const { error } = await supabase.from("provider_profiles" as never).upsert(
         {
           profile_id: providerProfileId,
@@ -675,7 +778,7 @@ export default function ManageListingPage() {
           google_place_id: resolvedGooglePlaceId,
           address: address.trim() || null,
           provider_types: providerTypes.length > 0 ? providerTypes : null,
-          age_groups_served: ageGroupsServed.length > 0 ? ageGroupsServed : null,
+          age_groups_served: normalizedAgeGroupsServed.length > 0 ? normalizedAgeGroupsServed : null,
           curriculum_type: curriculumTypes.length > 0 ? curriculumTypes : null,
           languages_spoken: languagesSpoken || null,
           amenities: amenities.length > 0 ? amenities : null,
@@ -696,6 +799,16 @@ export default function ManageListingPage() {
             ? `Save failed: ${error.message}`
             : "Unable to save changes right now. Please try again."
         )
+        return
+      }
+
+      const syncProgramTypesResult = await syncProviderProgramTypes(
+        supabase,
+        providerProfileId,
+        normalizedProgramTypeIds,
+      )
+      if (syncProgramTypesResult.error) {
+        setSaveError(syncProgramTypesResult.error)
         return
       }
 
@@ -1143,9 +1256,42 @@ export default function ManageListingPage() {
             <Separator />
 
             <Field>
+              <FieldLabel>Program Types</FieldLabel>
+              <FieldDescription>
+                Choose the programs you actually offer from the directory program types.
+              </FieldDescription>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {availableProgramTypes.map((programType) => {
+                  const selected = selectedProgramTypeIds.includes(programType.id)
+                  return (
+                    <Badge
+                      key={programType.id}
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                      onClick={() =>
+                        setSelectedProgramTypeIds((prev) =>
+                          selected
+                            ? prev.filter((id) => id !== programType.id)
+                            : [...prev, programType.id],
+                        )
+                      }
+                    >
+                      {programType.label}
+                    </Badge>
+                  )
+                })}
+                {availableProgramTypes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No active program types are available.</p>
+                ) : null}
+              </div>
+            </Field>
+
+            <Separator />
+
+            <Field>
               <FieldLabel>Age Groups Served</FieldLabel>
               <div className="flex flex-wrap gap-2 pt-2">
-                {AGE_GROUPS.map((age) => {
+                {availableAgeGroups.map((age) => {
                   const selected = ageGroupsServed.includes(age.id)
                   return (
                     <Badge
@@ -1162,6 +1308,9 @@ export default function ManageListingPage() {
                     </Badge>
                   )
                 })}
+                {availableAgeGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No active age groups are available.</p>
+                ) : null}
               </div>
             </Field>
 

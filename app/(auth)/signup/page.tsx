@@ -30,6 +30,19 @@ import type { CountryOption, CityOption } from "@/lib/location-directory"
 
 type AccountType = "select" | "parent" | "provider"
 
+type AgeGroupOption = {
+  value: string
+  label: string
+}
+
+function normalizeAgeGroupValue(value: string): string {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === "schoolage" || normalized === "school age" || normalized === "school") {
+    return "school_age"
+  }
+  return normalized
+}
+
 function SignupPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -40,6 +53,7 @@ function SignupPageContent() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [childAgeGroup, setChildAgeGroup] = useState<string>("")
+  const [ageGroupOptions, setAgeGroupOptions] = useState<AgeGroupOption[]>([])
   const [fullName, setFullName] = useState("")
   const [businessName, setBusinessName] = useState("")
   const [phone, setPhone] = useState("")
@@ -55,6 +69,47 @@ function SignupPageContent() {
   const [locationLoadError, setLocationLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { signUpWithEmail, authError } = useAuth()
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadAgeGroups() {
+      if (step !== "parent") return
+
+      try {
+        const response = await fetch("/api/search/options", { cache: "no-store" })
+        const data = (await response.json().catch(() => ({}))) as {
+          ageGroups?: Array<{ value?: string; label?: string }>
+        }
+
+        if (!response.ok) {
+          if (isMounted) setAgeGroupOptions([])
+          return
+        }
+
+        const nextOptions = new Map<string, AgeGroupOption>()
+        for (const option of data.ageGroups ?? []) {
+          if (typeof option?.value !== "string" || typeof option?.label !== "string") continue
+          const value = normalizeAgeGroupValue(option.value)
+          const label = option.label.trim()
+          if (!value || !label || nextOptions.has(value)) continue
+          nextOptions.set(value, { value, label })
+        }
+
+        if (isMounted) {
+          setAgeGroupOptions(Array.from(nextOptions.values()))
+        }
+      } catch {
+        if (isMounted) setAgeGroupOptions([])
+      }
+    }
+
+    void loadAgeGroups()
+
+    return () => {
+      isMounted = false
+    }
+  }, [step])
 
   useEffect(() => {
     async function loadCountries() {
@@ -237,7 +292,7 @@ function SignupPageContent() {
       phone: step === "provider" ? phone.trim() : undefined,
       countryName: resolvedCountryName,
       cityName: resolvedCityName,
-      childAgeGroup: step === "parent" ? childAgeGroup : undefined,
+      childAgeGroup: step === "parent" ? normalizeAgeGroupValue(childAgeGroup) : undefined,
       ...providerLocation,
     })
 
@@ -635,14 +690,14 @@ function SignupPageContent() {
                         onValueChange={(value) => setChildAgeGroup(value)}
                       >
                         <SelectTrigger className="pl-10">
-                          <SelectValue placeholder="Select age range" />
+                          <SelectValue placeholder={ageGroupOptions.length > 0 ? "Select age range" : "Loading age ranges..."} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="infant">0-12 months</SelectItem>
-                          <SelectItem value="toddler">1-2 years</SelectItem>
-                          <SelectItem value="preschool">3-4 years</SelectItem>
-                          <SelectItem value="prek">4-5 years</SelectItem>
-                          <SelectItem value="school">5+ years</SelectItem>
+                          {ageGroupOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

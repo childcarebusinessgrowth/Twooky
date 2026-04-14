@@ -33,6 +33,7 @@ function row(p: Partial<ActiveProviderRow> & { profile_id: string }): ActiveProv
     verified_provider_badge_color: p.verified_provider_badge_color ?? "emerald",
     saved_by_parent_count: p.saved_by_parent_count ?? 0,
     country_code: p.country_code ?? null,
+    program_types: p.program_types ?? [],
   }
 }
 

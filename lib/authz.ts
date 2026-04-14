@@ -53,18 +53,19 @@ export async function resolveRoleForUser(supabase: SupabaseClient, user: User): 
     return { role: data.role, source: "profile" }
   }
 
-  // Fallback to auth metadata when profile role isn't currently resolvable.
-  const metadataRole = user.app_metadata?.role ?? user.user_metadata?.role
-  if (isAppRole(metadataRole)) {
-    return {
-      role: metadataRole,
-      source: "metadata",
-      reason: error ? "profile_query_error" : "profile_role_missing_or_invalid",
-      profileErrorMessage: error?.message,
-    }
-  }
-
   if (error) {
+    // Preserve metadata fallback for transient query failures so valid users do not
+    // get stranded when the profile lookup has a temporary issue.
+    const metadataRole = user.app_metadata?.role ?? user.user_metadata?.role
+    if (isAppRole(metadataRole)) {
+      return {
+        role: metadataRole,
+        source: "metadata",
+        reason: "profile_query_error",
+        profileErrorMessage: error.message,
+      }
+    }
+
     return {
       role: null,
       source: null,
@@ -76,7 +77,7 @@ export async function resolveRoleForUser(supabase: SupabaseClient, user: User): 
   return {
     role: null,
     source: null,
-    reason: "missing_role",
+    reason: "profile_role_missing_or_invalid",
   }
 }
 

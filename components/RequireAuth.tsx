@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchAuthRole, isTransientAuthRoleResponse } from "@/lib/authRoleClient"
 import { getDefaultRouteForRole, isAppRole } from "@/lib/authz"
 
 type RequireAuthProps = {
@@ -28,18 +29,29 @@ export function RequireAuth({ children, redirectTo = "/login", fallback, allowed
 
   useEffect(() => {
     let cancelled = false
+    let shouldKeepLoading = false
     setIsCheckingAccess(true)
     setIsAuthorized(false)
 
     void (async () => {
       try {
-        const response = await fetch("/api/auth/role", { cache: "no-store" })
-        const payload = (await response.json().catch(() => ({}))) as { role?: unknown; unresolvedRole?: boolean }
+        const { response, payload } = await fetchAuthRole()
 
         if (cancelled) return
 
         if (!response.ok) {
-          await signOutLocal()
+          if (response.status === 401 || (response.status === 409 && payload.unresolvedRole)) {
+            await signOutLocal()
+          } else if (isTransientAuthRoleResponse(response)) {
+            shouldKeepLoading = true
+            window.setTimeout(() => {
+              if (!cancelled) {
+                router.refresh()
+              }
+            }, 300)
+            return
+          }
+
           const queryParams = new URLSearchParams()
           if (payload.unresolvedRole) {
             queryParams.set("error", "role_unresolved")
@@ -69,7 +81,7 @@ export function RequireAuth({ children, redirectTo = "/login", fallback, allowed
         if (cancelled) return
         router.replace(redirectTo)
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !shouldKeepLoading) {
           setIsCheckingAccess(false)
         }
       }

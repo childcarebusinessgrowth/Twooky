@@ -11,6 +11,7 @@ import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { startPerfTimer } from "@/lib/perf-metrics"
+import { syncProviderProgramTypes } from "@/lib/provider-program-types"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
@@ -27,6 +28,7 @@ export type AdminProviderLanguageOption = { id: string; name: string }
 export type AdminProviderCurriculumOption = { id: string; name: string }
 export type AdminProviderCurrencyOption = { id: string; code: string; name: string; symbol: string }
 export type AdminProviderAgeGroupOption = { id: string; tag: string; age_range: string }
+export type AdminProviderProgramTypeOption = { id: string; name: string; slug: string | null }
 
 export type CreateAdminProviderResult =
   | { ok: true; profileId: string; slug: string }
@@ -152,6 +154,33 @@ async function hasPrimaryPhotoForProvider(profileId: string): Promise<boolean> {
   return (count ?? 0) > 0
 }
 
+async function resolveActiveProgramTypeIds(
+  inputIds: string[]
+): Promise<{ ids: string[]; error?: string }> {
+  const uniqueIds = Array.from(new Set(inputIds.map((value) => value.trim()).filter(Boolean)))
+  if (uniqueIds.length === 0) {
+    return { ids: [] }
+  }
+
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("program_types")
+    .select("id")
+    .in("id", uniqueIds)
+    .eq("is_active", true)
+
+  if (error) {
+    return { ids: [], error: error.message }
+  }
+
+  const resolvedIds = (data ?? []).map((row) => row.id)
+  if (resolvedIds.length !== uniqueIds.length) {
+    return { ids: [], error: "One or more selected program types are invalid." }
+  }
+
+  return { ids: uniqueIds }
+}
+
 export async function getAdminProviderCreateOptions(): Promise<{
   countries: AdminProviderCountryOption[]
   cities: AdminProviderCityOption[]
@@ -159,6 +188,7 @@ export async function getAdminProviderCreateOptions(): Promise<{
   curriculum: AdminProviderCurriculumOption[]
   currencies: AdminProviderCurrencyOption[]
   ageGroups: AdminProviderAgeGroupOption[]
+  programTypes: AdminProviderProgramTypeOption[]
 }> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
@@ -170,6 +200,7 @@ export async function getAdminProviderCreateOptions(): Promise<{
     { data: curriculum },
     { data: currencies, error: currenciesError },
     { data: ageGroups },
+    { data: programTypes },
   ] = await Promise.all([
     supabase
       .from("countries")
@@ -207,6 +238,12 @@ export async function getAdminProviderCreateOptions(): Promise<{
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("age_range", { ascending: true }),
+    supabase
+      .from("program_types")
+      .select("id, name, slug")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
   ])
 
   if (currenciesError) {
@@ -228,6 +265,11 @@ export async function getAdminProviderCreateOptions(): Promise<{
       id: row.id,
       tag: row.tag,
       age_range: row.age_range,
+    })),
+    programTypes: (programTypes ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug ?? null,
     })),
   }
 }
@@ -277,6 +319,10 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
     .getAll("ageGroupsServed")
     .map((v) => (typeof v === "string" ? v.trim() : ""))
     .filter(Boolean)
+  const programTypeIds = formData
+    .getAll("programTypeIds")
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean)
   const amenities = formData
     .getAll("amenities")
     .map((v) => (typeof v === "string" ? v.trim() : ""))
@@ -295,6 +341,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   if (!description) return { ok: false, error: "Description is required." }
   if (!address) return { ok: false, error: "Address is required." }
   if (!city && !cityId) return { ok: false, error: "Directory city is required." }
+  if (programTypeIds.length === 0) return { ok: false, error: "Select at least one program type." }
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
   }
@@ -377,6 +424,10 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   let resolvedCityId: string | null = null
   let resolvedCityName = city
   let resolvedCurrencyId: string | null = null
+  const { ids: resolvedProgramTypeIds, error: programTypeError } =
+    await resolveActiveProgramTypeIds(programTypeIds)
+
+  if (programTypeError) return { ok: false, error: programTypeError }
 
   const [{ data: currencyRow, error: currencyError }, { data: countryRow, error: countryError }, { data: cityRow, error: cityError }] =
     await Promise.all([
@@ -489,6 +540,16 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       return { ok: false, error: insertProfileError.message }
     }
     perf.mark("inserted_provider_profile")
+
+    const syncProgramTypesResult = await syncProviderProgramTypes(
+      supabase,
+      profileId,
+      resolvedProgramTypeIds
+    )
+    if (syncProgramTypesResult.error) {
+      throw new Error(syncProgramTypesResult.error)
+    }
+    perf.mark("synced_provider_program_types", { count: resolvedProgramTypeIds.length })
 
     if (photos.length > 0) {
       await ensureProviderPhotosBucket()
@@ -620,6 +681,10 @@ export async function updateAdminProvider(
     .getAll("ageGroupsServed")
     .map((v) => (typeof v === "string" ? v.trim() : ""))
     .filter(Boolean)
+  const programTypeIds = formData
+    .getAll("programTypeIds")
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean)
   const amenities = formData
     .getAll("amenities")
     .map((v) => (typeof v === "string" ? v.trim() : ""))
@@ -638,6 +703,7 @@ export async function updateAdminProvider(
   if (!description) return { ok: false, error: "Description is required." }
   if (!address) return { ok: false, error: "Address is required." }
   if (!city && !cityId) return { ok: false, error: "Directory city is required." }
+  if (programTypeIds.length === 0) return { ok: false, error: "Select at least one program type." }
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
   }
@@ -720,6 +786,10 @@ export async function updateAdminProvider(
   let resolvedCityId: string | null = null
   let resolvedCityName = city
   let resolvedCurrencyId: string | null = null
+  const { ids: resolvedProgramTypeIds, error: programTypeError } =
+    await resolveActiveProgramTypeIds(programTypeIds)
+
+  if (programTypeError) return { ok: false, error: programTypeError }
 
   const [{ data: currencyRow, error: currencyError }, { data: countryRow, error: countryError }, { data: cityRow, error: cityError }] =
     await Promise.all([
@@ -835,6 +905,16 @@ export async function updateAdminProvider(
     return { ok: false, error: updateProfileError.message }
   }
   perf.mark("updated_provider_profile")
+
+  const syncProgramTypesResult = await syncProviderProgramTypes(
+    supabase,
+    profileId,
+    resolvedProgramTypeIds
+  )
+  if (syncProgramTypesResult.error) {
+    return { ok: false, error: syncProgramTypesResult.error }
+  }
+  perf.mark("synced_provider_program_types", { count: resolvedProgramTypeIds.length })
 
   if (listingStatus === "active" && previousStatus !== "active") {
     await supabase.from("provider_notifications").insert({

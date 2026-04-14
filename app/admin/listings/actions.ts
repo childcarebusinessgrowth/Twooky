@@ -7,6 +7,10 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertAdminPermission } from "@/lib/authzServer"
 import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
 import { startPerfTimer } from "@/lib/perf-metrics"
+import {
+  getProviderProgramTypesByProfileIds,
+  type ProviderProgramType,
+} from "@/lib/provider-program-types"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const PROVIDER_DOCUMENTS_BUCKET = "provider-documents"
@@ -342,6 +346,7 @@ export type AdminListingDetail = {
     verified_provider_badge_color: string | null
     created_at: string
   }
+  programTypes: ProviderProgramType[]
   photos: AdminListingDetailPhoto[]
   faqs: AdminListingDetailFaq[]
   documents: AdminListingDetailDocument[]
@@ -385,7 +390,7 @@ export async function getAdminListingDetail(
       : Promise.resolve({ data: null }),
   ])
 
-  const [{ data: photoRows }, { data: faqRows }, { data: docRows }] = await Promise.all([
+  const [{ data: photoRows }, { data: faqRows }, { data: docRows }, programTypesByProfile] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption, is_primary, sort_order")
@@ -403,6 +408,7 @@ export async function getAdminListingDetail(
       .select("id, document_type, storage_path, file_size")
       .eq("provider_profile_id", profileId)
       .order("uploaded_at", { ascending: true }),
+    getProviderProgramTypesByProfileIds(supabase, [profileId]),
   ])
 
   const docPaths = (docRows ?? []).map((d) => d.storage_path)
@@ -452,6 +458,7 @@ export async function getAdminListingDetail(
       verified_provider_badge: profile.verified_provider_badge ?? false,
       verified_provider_badge_color: normalizeVerifiedBadgeColor(profile.verified_provider_badge_color),
     },
+    programTypes: programTypesByProfile[profileId] ?? [],
     photos,
     faqs,
     documents,

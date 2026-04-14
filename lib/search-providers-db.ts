@@ -15,7 +15,6 @@ import {
 import type { VisitorGeo } from "./visitor-geo"
 import { buildProviderCardImageUrl } from "./provider-card-image"
 import {
-  ageGroupsToProgramLabels,
   formatAgeGroupLabel,
 } from "@/lib/age-groups-to-program-labels"
 import {
@@ -23,6 +22,10 @@ import {
   readCachedGooglePlaceSummary,
   type ProviderGoogleCacheRow,
 } from "@/lib/google-place-cache"
+import {
+  getProviderProgramTypesByProfileIds,
+  type ProviderProgramType,
+} from "@/lib/provider-program-types"
 
 const PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE =
   "profile_id, provider_slug, business_name, city, address, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
@@ -95,6 +98,7 @@ export type ActiveProviderRow = {
   google_cached_photo_storage_path: string | null
   /** First Places API photo ref when no primary/cached upload; used with `/api/place-photo`. */
   google_photo_reference: string | null
+  program_types: ProviderProgramType[]
 }
 
 export type ProviderCardDataFromDb = {
@@ -158,7 +162,7 @@ export async function getActiveProvidersFromDb(
 
   const profileIds = profiles.map((p) => p.profile_id)
 
-  const [photosResult, reviewsResult, favoritesResult] = await Promise.all([
+  const [photosResult, reviewsResult, favoritesResult, programTypesByProfile] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("provider_profile_id, storage_path, is_primary, sort_order, created_at")
@@ -174,6 +178,7 @@ export async function getActiveProvidersFromDb(
       .from("parent_favorites")
       .select("provider_profile_id, parent_profile_id")
       .in("provider_profile_id", profileIds),
+    getProviderProgramTypesByProfileIds(supabase, profileIds),
   ])
 
   const primaryPhotoByProfile: Record<string, string> = {}
@@ -287,6 +292,7 @@ export async function getActiveProvidersFromDb(
       country_code: countryCode,
       google_cached_photo_storage_path: googleCachedPhotoPathByProfile[p.profile_id] ?? null,
       google_photo_reference: googlePhotoRef,
+      program_types: programTypesByProfile[p.profile_id] ?? [],
     }
   })
 }
@@ -301,7 +307,7 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v5-google-cache"],
+  ["directory-active-providers-v6-program-types"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 
@@ -370,7 +376,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
 
       const profileIds = profileRows.map((row) => row.profile_id)
 
-      const [{ data: photos }, reviewsResult, favoritesResult] = await Promise.all([
+      const [{ data: photos }, reviewsResult, favoritesResult, programTypesByProfile] = await Promise.all([
         supabase
           .from("provider_photos")
           .select("provider_profile_id, storage_path, is_primary, sort_order, created_at")
@@ -386,6 +392,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           .from("parent_favorites")
           .select("provider_profile_id, parent_profile_id")
           .in("provider_profile_id", profileIds),
+        getProviderProgramTypesByProfileIds(supabase, profileIds),
       ])
 
       const photoByProfileId: Record<string, string> = {}
@@ -467,7 +474,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           location: [row.city, row.address].filter(Boolean).join(", ") || ",",
           priceRange: formatDailyFeeRange(row.daily_fee_from, row.daily_fee_to, symbol),
           providerTypes: toProviderTypeIds(row.provider_types),
-          programTypes: ageGroupsToProgramLabels(row.age_groups_served),
+          programTypes: (programTypesByProfile[row.profile_id] ?? []).map((programType) => programType.name),
           shortDescription: (row.description ?? "").slice(0, 200),
           image,
           latitude: typeof lat === "number" && Number.isFinite(lat) ? lat : Number.NaN,
@@ -481,7 +488,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         }
       })
     },
-    ["home-featured-providers-v7-google-cache", String(limit)],
+    ["home-featured-providers-v8-program-types", String(limit)],
     { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
   )()
 }
@@ -531,8 +538,8 @@ function matchesProviderTypes(row: ActiveProviderRow, types?: string[]): boolean
 
 function matchesProgramTypes(row: ActiveProviderRow, programTypes?: string[]): boolean {
   if (!programTypes?.length) return true
-  const rowProgramTypes = ageGroupsToProgramLabels(row.age_groups_served).map((value) =>
-    value.toLowerCase(),
+  const rowProgramTypes = row.program_types.map((value) =>
+    value.name.toLowerCase()
   )
   if (!rowProgramTypes.length) return false
   return programTypes.some((programType) => {
@@ -541,6 +548,14 @@ function matchesProgramTypes(row: ActiveProviderRow, programTypes?: string[]): b
       (candidate) => candidate === normalized || candidate.includes(normalized) || normalized.includes(candidate),
     )
   })
+}
+
+function hasProgramTypeSlug(row: ActiveProviderRow, programSlug: string): boolean {
+  const normalizedProgramSlug = programSlug.trim().toLowerCase()
+  if (!normalizedProgramSlug) return false
+  return row.program_types.some(
+    (programType) => (programType.slug ?? "").trim().toLowerCase() === normalizedProgramSlug
+  )
 }
 
 function matchesCurriculum(row: ActiveProviderRow, curriculumTypes?: string[]): boolean {
@@ -645,7 +660,7 @@ export type RecommendedProviderForDashboard = {
 }
 
 /**
- * Fetch featured providers for a program type, filtered by age groups served.
+ * Fetch featured providers for a program type, filtered by saved provider program types.
  * Used on program detail pages for the "Featured Providers" section.
  */
 export async function getFeaturedProvidersForProgram(
@@ -655,25 +670,15 @@ export async function getFeaturedProvidersForProgram(
 ): Promise<ProviderCardDataFromDb[]> {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
 
-  const [programType, ageGroupsById, activeRows] = await Promise.all([
+  const [programType, activeRows] = await Promise.all([
     getProgramTypeBySlug(programSlug),
-    getAgeGroupsById(),
     getActiveProvidersFromDbCached(),
   ])
 
   if (!programType) return []
 
-  let ageTags: string[] | undefined
-  const ageGroupIds = programType.age_group_ids ?? []
-
-  if (ageGroupIds.length > 0 && ageGroupsById.size > 0) {
-    ageTags = ageGroupIds
-      .map((id) => ageGroupsById.get(id)?.tag)
-      .filter((tag): tag is string => !!tag)
-      .filter(Boolean)
-  }
-
-  const selected = selectFeaturedProviders(activeRows, { visitorGeo, limit, ageTags })
+  const matchingRows = activeRows.filter((row) => hasProgramTypeSlug(row, programSlug))
+  const selected = selectFeaturedProviders(matchingRows, { visitorGeo, limit })
   return selected.map((row) => activeProviderRowToCardData(row, baseUrl))
 }
 
@@ -836,7 +841,7 @@ export function activeProviderRowToCardData(
     row.google_photo_reference,
     baseUrl
   )
-  const programTypes = ageGroupsToProgramLabels(row.age_groups_served)
+  const programTypes = row.program_types.map((programType) => programType.name)
 
   return {
     id: row.profile_id,

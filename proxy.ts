@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { getDefaultRouteForRole, getProfileRoleForUser, getRequiredRoleForPath } from "@/lib/authz"
+import { getDefaultRouteForRole, getRequiredRoleForPath, resolveRoleForUser } from "@/lib/authz"
 import { isTreatedAsSignedOutAuthError } from "@/lib/supabaseAuthErrors"
 import type { Database } from "@/lib/supabaseDatabase"
 
@@ -150,8 +150,22 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  const role = await getProfileRoleForUser(supabase, effectiveUser)
+  const roleResolution = await resolveRoleForUser(supabase, effectiveUser)
+  const role = roleResolution.role
+
   if (!role) {
+    if (roleResolution.reason === "profile_role_missing_or_invalid") {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {
+        /* ignore - cookies may already be invalid */
+      })
+
+      if (requiredRole) {
+        return withCookies(response, buildLoginRedirect(request))
+      }
+
+      return response
+    }
+
     // If the user is authenticated but role resolution fails in proxy (e.g. restrictive RLS),
     // do not redirect back to login and create a dead-end loop.
     return response

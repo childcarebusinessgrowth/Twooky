@@ -10,11 +10,14 @@ import type {
   AdminProviderAgeGroupOption,
   AdminProviderCurriculumOption,
   AdminProviderLanguageOption,
+  AdminProviderProgramTypeOption,
 } from "../actions"
 
 type Step3ProgramDetailsProps = {
   providerTypes: string[]
   setProviderTypes: (v: string[]) => void
+  selectedProgramTypeIds: string[]
+  setSelectedProgramTypeIds: (v: string[]) => void
   ageGroupsServed: string[]
   setAgeGroupsServed: (v: string[]) => void
   selectedCurriculumTypes: string[]
@@ -24,6 +27,7 @@ type Step3ProgramDetailsProps = {
   amenities: string[]
   setAmenities: (v: string[]) => void
   ageGroups: AdminProviderAgeGroupOption[]
+  programTypes: AdminProviderProgramTypeOption[]
   curriculum: AdminProviderCurriculumOption[]
   languages: AdminProviderLanguageOption[]
 }
@@ -31,6 +35,8 @@ type Step3ProgramDetailsProps = {
 export function Step3ProgramDetails({
   providerTypes,
   setProviderTypes,
+  selectedProgramTypeIds,
+  setSelectedProgramTypeIds,
   ageGroupsServed,
   setAgeGroupsServed,
   selectedCurriculumTypes,
@@ -40,6 +46,7 @@ export function Step3ProgramDetails({
   amenities,
   setAmenities,
   ageGroups,
+  programTypes,
   curriculum,
   languages,
 }: Step3ProgramDetailsProps) {
@@ -71,6 +78,33 @@ export function Step3ProgramDetails({
                   }
                 />
                 <span className="text-sm font-medium">{type.label}</span>
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Program Types</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {programTypes.map((programType) => (
+              <label key={programType.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
+                <Checkbox
+                  checked={selectedProgramTypeIds.includes(programType.id)}
+                  onCheckedChange={(checked) =>
+                    setSelectedProgramTypeIds(
+                      checked
+                        ? selectedProgramTypeIds.includes(programType.id)
+                          ? selectedProgramTypeIds
+                          : [...selectedProgramTypeIds, programType.id]
+                        : selectedProgramTypeIds.filter((id) => id !== programType.id),
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">{programType.name}</span>
               </label>
             ))}
           </div>

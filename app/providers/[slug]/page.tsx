@@ -39,7 +39,6 @@ import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excell
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { AuthProviderClient } from "@/components/auth-provider-client"
 import { ProviderProgramOwnerStrip } from "@/components/provider-program-owner-strip"
-import { programLabelToProgramPageSlug } from "@/lib/program-types"
 import { cn } from "@/lib/utils"
 import {
   buildFaqPageSchema,
@@ -199,12 +198,15 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       </div>
                     )}
                     {p.programTypes.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        {p.programTypes.map((type) => (
-                          <Badge key={type} variant="secondary">
-                            {type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                          </Badge>
-                        ))}
+                      <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+                        <GraduationCap className="h-4 w-4" />
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.programTypes.map((programType) => (
+                            <Badge key={programType.id} variant="secondary" className="text-xs font-medium">
+                              {programType.name}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -362,42 +364,49 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 ) : (
                   <div className="grid gap-4">
                     {p.programTypes.map((program, index) => {
-                      const programSlug = programLabelToProgramPageSlug(program)
+                      const cardContent = (
+                        <Card className="transition-colors hover:border-primary/40 hover:bg-muted/20">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h3 className="font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                                  {program.name}
+                                </h3>
+                                <p className="text-muted-foreground text-sm mb-3">
+                                  A comprehensive {program.name.toLowerCase()} program designed for early childhood development
+                                  with age-appropriate activities and experienced educators.
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-4 w-4" />
+                                    Ages {p.ageGroups[index % p.ageGroups.length] || ","}
+                                  </span>
+                                </div>
+                              </div>
+                              <span
+                                className={cn(
+                                  buttonVariants({ variant: "outline", size: "sm" }),
+                                  "pointer-events-none shrink-0"
+                                )}
+                              >
+                                Learn More
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+
+                      if (!program.slug) {
+                        return <div key={program.id}>{cardContent}</div>
+                      }
+
                       return (
                         <Link
-                          key={program}
-                          href={`/programs/${programSlug}`}
+                          key={program.id}
+                          href={`/programs/${program.slug}`}
                           className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
-                          <Card className="transition-colors hover:border-primary/40 hover:bg-muted/20">
-                            <CardContent className="p-6">
-                              <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <h3 className="font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
-                                    {program}
-                                  </h3>
-                                  <p className="text-muted-foreground text-sm mb-3">
-                                    A comprehensive {program.toLowerCase()} program designed for early childhood development
-                                    with age-appropriate activities and experienced educators.
-                                  </p>
-                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Users className="h-4 w-4" />
-                                      Ages {p.ageGroups[index % p.ageGroups.length] || ","}
-                                    </span>
-                                  </div>
-                                </div>
-                                <span
-                                  className={cn(
-                                    buttonVariants({ variant: "outline", size: "sm" }),
-                                    "pointer-events-none shrink-0"
-                                  )}
-                                >
-                                  Learn More
-                                </span>
-                              </div>
-                            </CardContent>
-                          </Card>
+                          {cardContent}
                         </Link>
                       )
                     })}

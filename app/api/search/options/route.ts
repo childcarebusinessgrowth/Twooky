@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 
-type Option = { value: string; label: string }
+type Option = { value: string; label: string; id?: string; slug?: string | null }
 
 function normalizeAgeTag(tag: string): string {
   return tag === "school_age" ? "schoolage" : tag
@@ -22,7 +22,7 @@ export async function GET() {
           .order("age_range", { ascending: true }),
         supabase
           .from("program_types")
-          .select("id, name")
+          .select("id, name, slug")
           .eq("is_active", true)
           .order("sort_order", { ascending: true })
           .order("name", { ascending: true }),
@@ -42,8 +42,10 @@ export async function GET() {
       })
 
     const programTypeOptions: Option[] = (programTypes ?? []).map((row) => ({
+      id: row.id,
       value: row.name,
       label: row.name,
+      slug: row.slug ?? null,
     }))
 
     return NextResponse.json(

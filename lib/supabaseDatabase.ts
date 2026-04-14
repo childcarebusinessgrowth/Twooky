@@ -783,6 +783,39 @@ export interface Database {
         }
         Relationships: []
       }
+      provider_profile_program_types: {
+        Row: {
+          provider_profile_id: string
+          program_type_id: string
+          created_at: string
+        }
+        Insert: {
+          provider_profile_id: string
+          program_type_id: string
+          created_at?: string
+        }
+        Update: {
+          provider_profile_id?: string
+          program_type_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_profile_program_types_program_type_id_fkey"
+            columns: ["program_type_id"]
+            isOneToOne: false
+            referencedRelation: "program_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_profile_program_types_provider_profile_id_fkey"
+            columns: ["provider_profile_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       provider_profile_views: {
         Row: {
           id: string

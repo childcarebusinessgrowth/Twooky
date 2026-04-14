@@ -261,6 +261,23 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
         <Section title="Program" icon={GraduationCap}>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Program types
+            </p>
+            <div className="mt-1.5">
+              <div className="flex flex-wrap gap-1.5">
+                {data.programTypes.map((programType) => (
+                  <Badge key={programType.id} variant="secondary" className="font-normal">
+                    {programType.name}
+                  </Badge>
+                ))}
+              </div>
+              {data.programTypes.length === 0 && (
+                <span className="text-muted-foreground">,</span>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Provider types
             </p>
             <div className="mt-1.5">
