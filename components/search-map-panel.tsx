@@ -21,6 +21,12 @@ type SearchMapPanelProps = {
   searchLocation?: string
 }
 
+type ProviderMapPoint = {
+  provider: ProviderCardData
+  latitude: number
+  longitude: number
+}
+
 async function geocodeSearchAddress(
   maps: GoogleMapsNamespace,
   address: string,
@@ -53,21 +59,97 @@ async function geocodeSearchAddress(
   })
 }
 
-function isFiniteNumber(value: number | undefined): value is number {
-  return typeof value === "number" && Number.isFinite(value)
+function toCoordinate(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
 }
 
-function hasValidCoordinates(latitude: number | undefined, longitude: number | undefined): boolean {
-  if (!isFiniteNumber(latitude) || !isFiniteNumber(longitude)) return false
-  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false
-  if (latitude === 0 && longitude === 0) return false
+function hasValidCoordinates(latitude: unknown, longitude: unknown): boolean {
+  const lat = toCoordinate(latitude)
+  const lng = toCoordinate(longitude)
+  if (lat === null || lng === null) return false
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false
+  if (lat === 0 && lng === 0) return false
   return true
 }
 
-function fallbackCenterFromProviders(providers: ProviderCardData[]): { lat: number; lng: number } {
-  const withCoords = providers.filter(
-    (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
-  )
+function toMapPoint(provider: ProviderCardData): ProviderMapPoint | null {
+  const lat = toCoordinate(provider.latitude)
+  const lng = toCoordinate(provider.longitude)
+  if (lat === null || lng === null) return null
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
+  if (lat === 0 && lng === 0) return null
+  return { provider, latitude: lat, longitude: lng }
+}
+
+async function geocodeProviderAddress(
+  maps: GoogleMapsNamespace,
+  address: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const geocoder = new maps.Geocoder()
+  return new Promise((resolve) => {
+    geocoder.geocode({ address }, (results, status) => {
+      if (status !== "OK" || !results?.length) {
+        resolve(null)
+        return
+      }
+      const location = results[0].geometry?.location
+      if (!location) {
+        resolve(null)
+        return
+      }
+      const lat = location.lat()
+      const lng = location.lng()
+      if (!hasValidCoordinates(lat, lng)) {
+        resolve(null)
+        return
+      }
+      resolve({ lat, lng })
+    })
+  })
+}
+
+async function resolveProviderMapPoints(
+  maps: GoogleMapsNamespace,
+  providers: ProviderCardData[],
+  geocodeCache: Map<string, { lat: number; lng: number } | null>,
+): Promise<ProviderMapPoint[]> {
+  const MAX_GEOCODE_LOOKUPS = 40
+  const points: ProviderMapPoint[] = []
+  let geocodeLookups = 0
+
+  for (const provider of providers) {
+    const directPoint = toMapPoint(provider)
+    if (directPoint) {
+      points.push(directPoint)
+      continue
+    }
+
+    if (geocodeLookups >= MAX_GEOCODE_LOOKUPS) continue
+    const address = (provider.address || provider.location || "").trim()
+    if (!address) continue
+
+    let coords = geocodeCache.get(address)
+    if (coords === undefined) {
+      geocodeLookups += 1
+      coords = await geocodeProviderAddress(maps, address)
+      geocodeCache.set(address, coords)
+    }
+
+    if (coords && hasValidCoordinates(coords.lat, coords.lng)) {
+      points.push({ provider, latitude: coords.lat, longitude: coords.lng })
+    }
+  }
+
+  return points
+}
+
+function fallbackCenterFromProviders(providers: ProviderMapPoint[]): { lat: number; lng: number } {
+  const withCoords = providers
   if (withCoords.length === 0) {
     return { lat: 39.8283, lng: -98.5795 }
   }
@@ -84,6 +166,13 @@ function fallbackCenterFromProviders(providers: ProviderCardData[]): { lat: numb
     lat: sums.lat / withCoords.length,
     lng: sums.lng / withCoords.length,
   }
+}
+
+function fallbackCenterFromRawProviders(providers: ProviderCardData[]): { lat: number; lng: number } {
+  const withCoords = providers
+    .map((provider) => toMapPoint(provider))
+    .filter((point): point is ProviderMapPoint => point != null)
+  return fallbackCenterFromProviders(withCoords)
 }
 
 function escapeHtml(value: string): string {
@@ -105,19 +194,12 @@ export function SearchMapPanel({
   const mapRef = useRef<GoogleMapInstance | null>(null)
   const infoWindowRef = useRef<GoogleInfoWindowInstance | null>(null)
   const markerByProviderIdRef = useRef<Map<string, GoogleMarkerInstance>>(new Map())
+  const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map())
   const [isLoadingMap, setIsLoadingMap] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const [userCenter, setUserCenter] = useState<{ lat: number; lng: number } | null>(null)
 
-  const mapProviders = useMemo(
-    () =>
-      providers.filter(
-        (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
-      ),
-    [providers],
-  )
-
-  const defaultCenter = useMemo(() => fallbackCenterFromProviders(mapProviders), [mapProviders])
+  const defaultCenter = useMemo(() => fallbackCenterFromRawProviders(providers), [providers])
 
   useEffect(() => {
     let isMounted = true
@@ -187,14 +269,19 @@ export function SearchMapPanel({
         infoWindowRef.current = infoWindow
         markerByProviderIdRef.current.clear()
 
+        const resolvedMapProviders = await resolveProviderMapPoints(
+          maps,
+          providers,
+          geocodeCacheRef.current,
+        )
         const bounds = new maps.LatLngBounds()
 
-        mapProviders.forEach((provider) => {
+        resolvedMapProviders.forEach(({ provider, latitude, longitude }) => {
           const marker = new maps.Marker({
             map,
             position: {
-              lat: provider.latitude,
-              lng: provider.longitude,
+              lat: latitude,
+              lng: longitude,
             },
             title: provider.name,
             icon: {
@@ -206,7 +293,7 @@ export function SearchMapPanel({
 
           const providerId = String(provider.id)
           markerByProviderIdRef.current.set(providerId, marker)
-          bounds.extend({ lat: provider.latitude, lng: provider.longitude })
+          bounds.extend({ lat: latitude, lng: longitude })
 
           const locationText = provider.address || provider.location
           marker.addListener("click", () => {
@@ -221,14 +308,14 @@ export function SearchMapPanel({
           })
         })
 
-        if (mapProviders.length > 1) {
+        if (resolvedMapProviders.length > 1) {
           // Prioritize the actual provider marker spread so nearby matches do not visually collapse
           // into a single pin when a broad location viewport (e.g. "London") is used.
           map.fitBounds(bounds, 80)
-        } else if (mapProviders.length === 1) {
+        } else if (resolvedMapProviders.length === 1) {
           map.setCenter({
-            lat: mapProviders[0].latitude,
-            lng: mapProviders[0].longitude,
+            lat: resolvedMapProviders[0].latitude,
+            lng: resolvedMapProviders[0].longitude,
           })
           map.setZoom(13)
         } else if (!usedSearchArea) {
@@ -251,7 +338,7 @@ export function SearchMapPanel({
     return () => {
       isCancelled = true
     }
-  }, [defaultCenter, mapProviders, mapsApiKey, searchLocation, userCenter])
+  }, [defaultCenter, mapsApiKey, providers, searchLocation, userCenter])
 
   return (
     <section className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm ${className}`}>

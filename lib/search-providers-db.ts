@@ -19,6 +19,7 @@ import {
   formatAgeGroupLabel,
 } from "@/lib/age-groups-to-program-labels"
 import {
+  hasFreshCachedGoogleReviews,
   readCachedGooglePlaceSummary,
   type ProviderGoogleCacheRow,
 } from "@/lib/google-place-cache"
@@ -125,6 +126,15 @@ function toProviderTypeIds(values: string[] | null): ProviderTypeId[] {
   return values.filter((value): value is ProviderTypeId => VALID_PROVIDER_TYPE_IDS.has(value as ProviderTypeId))
 }
 
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
+}
+
 export async function getActiveProvidersFromDb(
   supabase: SupabaseClient
 ): Promise<ActiveProviderRow[]> {
@@ -151,9 +161,11 @@ export async function getActiveProvidersFromDb(
   const [photosResult, reviewsResult, favoritesResult] = await Promise.all([
     supabase
       .from("provider_photos")
-      .select("provider_profile_id, storage_path")
+      .select("provider_profile_id, storage_path, is_primary, sort_order, created_at")
       .in("provider_profile_id", profileIds)
-      .eq("is_primary", true),
+      .order("is_primary", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
     supabase
       .from("parent_reviews")
       .select("provider_profile_id, rating")
@@ -165,8 +177,16 @@ export async function getActiveProvidersFromDb(
   ])
 
   const primaryPhotoByProfile: Record<string, string> = {}
+  const anyPhotoByProfile: Record<string, string> = {}
   ;(photosResult.data ?? []).forEach((row) => {
-    primaryPhotoByProfile[row.provider_profile_id] = row.storage_path
+    const providerId = row.provider_profile_id
+    if (!providerId || !row.storage_path) return
+    if (!anyPhotoByProfile[providerId]) {
+      anyPhotoByProfile[providerId] = row.storage_path
+    }
+    if (row.is_primary && !primaryPhotoByProfile[providerId]) {
+      primaryPhotoByProfile[providerId] = row.storage_path
+    }
   })
 
   const reviewStatsByProfile: Record<string, { count: number; sum: number }> = {}
@@ -200,7 +220,14 @@ export async function getActiveProvidersFromDb(
       null
     googleSummaryByProfile[profile.profile_id] = summary
     googleCachedPhotoPathByProfile[profile.profile_id] = cachedGooglePhotoPath
-    coordsByProfile[profile.profile_id] = null
+    const latitude = toFiniteNumber(
+      (profile as { latitude?: number | string | null }).latitude ?? summary?.latitude ?? null
+    )
+    const longitude = toFiniteNumber(
+      (profile as { longitude?: number | string | null }).longitude ?? summary?.longitude ?? null
+    )
+    coordsByProfile[profile.profile_id] =
+      latitude !== null && longitude !== null ? { lat: latitude, lng: longitude } : null
   })
 
   return profiles.map((p) => {
@@ -208,8 +235,14 @@ export async function getActiveProvidersFromDb(
     const platformCount = stats?.count ?? 0
     const platformAvgRating = stats && platformCount > 0 ? stats.sum / platformCount : null
     const googleSummary = googleSummaryByProfile[p.profile_id]
-    const count = googleSummary?.reviewCount ?? platformCount
-    const avgRating = googleSummary?.rating ?? platformAvgRating
+    const shouldUseGoogleSummary =
+      platformCount === 0 && hasFreshCachedGoogleReviews(p as ProviderGoogleCacheRow)
+    const count = shouldUseGoogleSummary
+      ? (googleSummary?.reviewCount ?? platformCount)
+      : platformCount
+    const avgRating = shouldUseGoogleSummary
+      ? (googleSummary?.rating ?? platformAvgRating)
+      : platformAvgRating
     const googlePhotoRef = googleSummary?.photoReference ?? null
 
     const countriesRel = (p as { countries?: { code?: string } | null }).countries
@@ -235,7 +268,8 @@ export async function getActiveProvidersFromDb(
       daily_fee_from: p.daily_fee_from,
       daily_fee_to: p.daily_fee_to,
       currencies: (p as { currencies?: { symbol?: string } | null }).currencies ?? null,
-      primary_photo_storage_path: primaryPhotoByProfile[p.profile_id] ?? null,
+      primary_photo_storage_path:
+        primaryPhotoByProfile[p.profile_id] ?? anyPhotoByProfile[p.profile_id] ?? null,
       review_count: count,
       avg_rating: avgRating,
       featured: (p as { featured?: boolean }).featured ?? false,
@@ -267,7 +301,7 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v4-google-cache"],
+  ["directory-active-providers-v5-google-cache"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 
@@ -339,9 +373,11 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       const [{ data: photos }, reviewsResult, favoritesResult] = await Promise.all([
         supabase
           .from("provider_photos")
-          .select("provider_profile_id, storage_path")
+          .select("provider_profile_id, storage_path, is_primary, sort_order, created_at")
           .in("provider_profile_id", profileIds)
-          .eq("is_primary", true),
+          .order("is_primary", { ascending: false })
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true }),
         supabase
           .from("parent_reviews")
           .select("provider_profile_id, rating")
@@ -353,8 +389,15 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       ])
 
       const photoByProfileId: Record<string, string> = {}
+      const anyPhotoByProfileId: Record<string, string> = {}
       ;(photos ?? []).forEach((row) => {
-        photoByProfileId[row.provider_profile_id] = row.storage_path
+        if (!row.provider_profile_id || !row.storage_path) return
+        if (!anyPhotoByProfileId[row.provider_profile_id]) {
+          anyPhotoByProfileId[row.provider_profile_id] = row.storage_path
+        }
+        if (row.is_primary && !photoByProfileId[row.provider_profile_id]) {
+          photoByProfileId[row.provider_profile_id] = row.storage_path
+        }
       })
 
       const reviewStatsByProfile: Record<string, { count: number; sum: number }> = {}
@@ -393,7 +436,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         const symbol = (row.currencies as { symbol?: string } | null)?.symbol ?? "$"
         const googleSummary = googleSummaryByProfile[row.profile_id]
         const image = buildProviderCardImageUrl(
-          photoByProfileId[row.profile_id] ?? null,
+          photoByProfileId[row.profile_id] ?? anyPhotoByProfileId[row.profile_id] ?? null,
           googleCachedPhotoPathByProfile[row.profile_id] ?? null,
           googleSummary?.photoReference ?? null,
           baseUrl
@@ -403,8 +446,14 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         const platformCount = stats?.count ?? 0
         const platformAvgRating =
           stats && platformCount > 0 ? stats.sum / platformCount : null
-        const reviewCount = googleSummary?.reviewCount ?? platformCount
-        const avgRating = googleSummary?.rating ?? platformAvgRating
+        const shouldUseGoogleSummary =
+          platformCount === 0 && hasFreshCachedGoogleReviews(row as ProviderGoogleCacheRow)
+        const reviewCount = shouldUseGoogleSummary
+          ? (googleSummary?.reviewCount ?? platformCount)
+          : platformCount
+        const avgRating = shouldUseGoogleSummary
+          ? (googleSummary?.rating ?? platformAvgRating)
+          : platformAvgRating
         const rating = avgRating ?? 0
         const lat = googleSummary?.latitude
         const lng = googleSummary?.longitude
@@ -421,8 +470,8 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           programTypes: ageGroupsToProgramLabels(row.age_groups_served),
           shortDescription: (row.description ?? "").slice(0, 200),
           image,
-          latitude: typeof lat === "number" && Number.isFinite(lat) ? lat : 0,
-          longitude: typeof lng === "number" && Number.isFinite(lng) ? lng : 0,
+          latitude: typeof lat === "number" && Number.isFinite(lat) ? lat : Number.NaN,
+          longitude: typeof lng === "number" && Number.isFinite(lng) ? lng : Number.NaN,
           address: row.address ?? "",
           featured: true,
           earlyLearningExcellenceBadge: row.early_learning_excellence_badge ?? false,
@@ -432,7 +481,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         }
       })
     },
-    ["home-featured-providers-v6-google-cache", String(limit)],
+    ["home-featured-providers-v7-google-cache", String(limit)],
     { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
   )()
 }
@@ -801,8 +850,8 @@ export function activeProviderRowToCardData(
     programTypes,
     shortDescription: (row.description ?? "").slice(0, 200),
     image,
-    latitude: row.latitude ?? 0,
-    longitude: row.longitude ?? 0,
+    latitude: row.latitude ?? Number.NaN,
+    longitude: row.longitude ?? Number.NaN,
     address: row.address ?? "",
     featured: row.featured ?? false,
     earlyLearningExcellenceBadge: row.early_learning_excellence_badge ?? false,

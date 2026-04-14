@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import {
+  hasFreshCachedGoogleReviews,
   readCachedGooglePlaceSummary,
   type ProviderGoogleCacheRow,
 } from "@/lib/google-place-cache"
@@ -10,6 +11,7 @@ import {
   getReviewsByProviderProfileId,
   type PublicReviewRow,
 } from "@/lib/parent-engagement"
+import { buildProviderCardImageUrl } from "@/lib/provider-card-image"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -76,7 +78,7 @@ const PLACEHOLDER_IMAGE =
   "https://images.pexels.com/photos/1648377/pexels-photo-1648377.jpeg?auto=compress&cs=tinysrgb&w=800"
 
 const PUBLIC_PROVIDER_SELECT_WITH_GOOGLE_CACHE =
-  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
 
 const PUBLIC_PROVIDER_SELECT_LEGACY =
   "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
@@ -111,6 +113,7 @@ export async function getActivePublicProviderBySlug(
     profile = retry.data
       ? {
           ...retry.data,
+          google_fallback_storage_path: null,
           google_photo_reference_cached: null,
           google_rating_cached: null,
           google_review_count_cached: null,
@@ -149,13 +152,22 @@ export async function getActivePublicProviderBySlug(
   const googleReviewSummary = readCachedGooglePlaceSummary(cachedGoogle)
 
   const photoRows = photosResult.data ?? []
+  const firstPhotoStoragePath = photoRows[0]?.storage_path ?? null
+  const googleFallbackStoragePath =
+    (profile as { google_fallback_storage_path?: string | null }).google_fallback_storage_path?.trim() || null
   const photos = photoRows.map((row) => ({
     id: row.id,
     url: `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${row.storage_path}`,
     caption: row.caption,
   }))
   const images = photos.map((p) => p.url)
-  const image = images[0] ?? PLACEHOLDER_IMAGE
+  const image =
+    buildProviderCardImageUrl(
+      firstPhotoStoragePath,
+      googleFallbackStoragePath,
+      googleReviewSummary?.photoReference ?? null,
+      baseUrl,
+    ) ?? PLACEHOLDER_IMAGE
 
   const virtualTourUrls =
     profile.virtual_tour_urls && profile.virtual_tour_urls.length > 0
@@ -215,9 +227,15 @@ export async function getActivePublicProviderBySlug(
     platformReviewCount > 0
       ? reviews.reduce((s, r) => s + r.rating, 0) / platformReviewCount
       : 0
-  const displayReviewCount = googleReviewSummary?.reviewCount ?? platformReviewCount
-  const displayRating = googleReviewSummary?.rating ?? platformRating
-  const googleReviewsUrl = googleReviewSummary?.reviewsUrl ?? null
+  const shouldUseGoogleSummary =
+    platformReviewCount === 0 && hasFreshCachedGoogleReviews(profile as ProviderGoogleCacheRow)
+  const displayReviewCount = shouldUseGoogleSummary
+    ? (googleReviewSummary?.reviewCount ?? platformReviewCount)
+    : platformReviewCount
+  const displayRating = shouldUseGoogleSummary
+    ? (googleReviewSummary?.rating ?? platformRating)
+    : platformRating
+  const googleReviewsUrl = shouldUseGoogleSummary ? (googleReviewSummary?.reviewsUrl ?? null) : null
 
   const faqs = (faqsResult.data ?? []).map((row) => ({
     question: row.question,

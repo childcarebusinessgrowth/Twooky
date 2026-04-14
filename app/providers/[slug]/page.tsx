@@ -41,6 +41,11 @@ import { AuthProviderClient } from "@/components/auth-provider-client"
 import { ProviderProgramOwnerStrip } from "@/components/provider-program-owner-strip"
 import { programLabelToProgramPageSlug } from "@/lib/program-types"
 import { cn } from "@/lib/utils"
+import {
+  buildFaqPageSchema,
+  buildLocalBusinessSchema,
+  stringifyJsonLd,
+} from "@/lib/schema"
 
 interface ProviderPageProps {
   params: Promise<{ slug: string }>
@@ -84,9 +89,35 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
 
   const p = provider
   const websiteHref = normalizeProviderWebsiteUrl(p.website)
+  const localBusinessSchema = buildLocalBusinessSchema({
+    slug: p.slug,
+    name: p.name,
+    description: p.description,
+    address: p.address,
+    phone: p.phone,
+    website: websiteHref ?? p.website,
+    hours: p.hours,
+    image: p.image,
+    displayRating: p.displayRating,
+    displayReviewCount: p.displayReviewCount,
+    reviews: p.reviews,
+  })
+  const faqSchema = buildFaqPageSchema(p.faqs)
+  const localBusinessJsonLd = stringifyJsonLd(localBusinessSchema)
+  const faqJsonLd = faqSchema ? stringifyJsonLd(faqSchema) : null
 
   return (
     <AuthProviderClient>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: localBusinessJsonLd }}
+      />
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: faqJsonLd }}
+        />
+      ) : null}
       <div className="min-h-screen bg-background">
         <ProviderProfileViewTracker slug={p.slug} />
       {/* Hero Image */}

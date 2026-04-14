@@ -12,7 +12,7 @@ import {
 import { ProviderCard } from "@/components/provider-card"
 import { SearchResults } from "@/components/search-results"
 import { SearchBarDynamic } from "@/components/search-bar-dynamic"
-import { providers, cities } from "@/lib/mock-data"
+import { cities } from "@/lib/mock-data"
 import {
   buildLocationHref,
   buildLocationProviderTypeHref,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/locations"
 import { getProviderTypeById, PROVIDER_TYPES, type ProviderTypeId } from "@/lib/provider-types"
 import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
+import { buildFaqPageSchema, stringifyJsonLd } from "@/lib/schema"
 
 interface LocationPageProps {
   params: Promise<{ segments: string[] }>
@@ -259,11 +260,25 @@ export default async function LocationPage({ params, searchParams }: LocationPag
   const city = cities.find((c) => c.slug === parsed.city)
   const displayName = city?.name ?? dbCity.name ?? parsed.city
   const state = city?.state
-  const cityProviders = providers.filter((p) => p.city.toLowerCase() === displayName.toLowerCase())
+  const faqSchema = buildFaqPageSchema(cityFaqs)
+  const faqJsonLd = faqSchema ? stringifyJsonLd(faqSchema) : null
+  const resolvedSearchParams = searchParams ? (await searchParams) ?? {} : {}
+  const { providers: cityProviders } = await getSearchPageData({
+    searchParams: resolvedSearchParams,
+    forcedCountryCode: parsed.country,
+    forcedCityName: dbCity.name,
+    forcedLocationText: dbCity.name,
+  })
   const countryCities = await getActiveCitiesByCountryCode(parsed.country)
 
   return (
     <div className="min-h-screen bg-background">
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: faqJsonLd }}
+        />
+      ) : null}
       <section className="bg-linear-to-b from-primary/5 to-background py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex items-center gap-2 text-muted-foreground mb-4">
@@ -278,7 +293,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
             {state ? `, ${state}` : ""}
           </h1>
           <p className="text-lg text-muted-foreground max-w-3xl mb-8">
-            Find and compare {city?.providerCount ?? 0}+ verified childcare providers in {displayName}. Read real
+            Find and compare {cityProviders.length}+ verified childcare providers in {displayName}. Read real
             parent reviews, compare programs, and connect with top-rated daycare centers near you.
           </p>
           <SearchBarDynamic className="max-w-3xl" />
@@ -331,16 +346,16 @@ export default async function LocationPage({ params, searchParams }: LocationPag
 
           {cityProviders.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cityProviders.map((provider) => (
+              {cityProviders.slice(0, 6).map((provider) => (
                 <ProviderCard key={provider.id} provider={provider} />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {providers.slice(0, 3).map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} />
-              ))}
-            </div>
+            <Card className="border-dashed">
+              <CardContent className="p-6 text-sm text-muted-foreground">
+                No active providers are currently listed for this city.
+              </CardContent>
+            </Card>
           )}
 
           <div className="mt-8 text-center md:hidden">

@@ -18,8 +18,17 @@ export default function ReviewsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <section className="border-b border-amber-200 bg-amber-50/70 py-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            Demo page: these are sample reviews for design preview. Provider-specific live reviews are shown on each
+            provider profile.
+          </p>
+        </div>
+      </section>
+
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/5 to-background py-12 md:py-16">
+      <section className="bg-linear-to-b from-primary/5 to-background py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="text-center max-w-2xl mx-auto">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4">

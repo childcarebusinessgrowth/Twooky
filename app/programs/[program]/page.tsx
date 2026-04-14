@@ -20,6 +20,7 @@ import {
   iconMap,
   slugToIcon,
 } from "@/lib/program-types"
+import { buildFaqPageSchema, stringifyJsonLd } from "@/lib/schema"
 
 export const revalidate = 120
 
@@ -64,6 +65,8 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
   const Icon = iconMap[iconName] ?? Baby
   const benefits = row.key_benefits ?? []
   const faqs = (row.faqs ?? []).map((f) => ({ question: f.question, answer: f.answer }))
+  const faqSchema = buildFaqPageSchema(faqs)
+  const faqJsonLd = faqSchema ? stringifyJsonLd(faqSchema) : null
 
   // Other program types for sidebar
   const [allRows, ageGroupsById] = await Promise.all([
@@ -79,6 +82,12 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: faqJsonLd }}
+        />
+      ) : null}
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-primary/5 to-background py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">

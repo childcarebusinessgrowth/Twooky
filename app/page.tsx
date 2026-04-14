@@ -72,7 +72,7 @@ export default async function HomePage() {
     .map((row) => programTypeToCardShape(row, ageGroupsById))
 
   return (
-    <div className="min-h-screen **:data-[slot=button]:rounded-full! [&_button]:rounded-full!">
+    <section className="min-h-screen **:data-[slot=button]:rounded-full! [&_button]:rounded-full!">
       {/* Hero Section */}
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-20">
@@ -261,6 +261,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-    </div>
+    </section>
   )
 }
