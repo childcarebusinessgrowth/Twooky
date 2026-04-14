@@ -762,3 +762,65 @@ export async function getGuestInquiriesByProviderProfileId(
     program_interest: row.program_interest ?? null,
   }))
 }
+
+/**
+ * Favorite-based lead preview rows for provider CRM.
+ */
+export type ProviderFavoriteLeadRow = {
+  id: string
+  parent_profile_id: string
+  provider_profile_id: string
+  created_at: string
+  lead_status: string
+  parent_display_name: string | null
+  parent_email: string | null
+  parent_phone: string | null
+  parent_country_name: string | null
+  parent_city_name: string | null
+  child_age_group: string | null
+  preferred_start_date: string | null
+}
+
+export async function getFavoriteLeadsByProviderProfileId(
+  supabase: TypedClient,
+  providerProfileId: string
+): Promise<ProviderFavoriteLeadRow[]> {
+  // Ownership is enforced in RPC; keep arg for call-site symmetry.
+  void providerProfileId
+  const { data: rows, error } = await supabase.rpc("get_provider_favorite_leads")
+  if (error || !rows || rows.length === 0) return []
+
+  type RpcRow = {
+    id: string
+    parent_profile_id: string | null
+    provider_profile_id: string | null
+    created_at: string
+    lead_status: string | null
+    parent_display_name?: string | null
+    parent_email?: string | null
+    parent_phone?: string | null
+    parent_country_name?: string | null
+    parent_city_name?: string | null
+    child_age_group?: string | null
+    preferred_start_date?: string | null
+  }
+
+  const filteredRows = (rows ?? []).filter(
+    (row): row is RpcRow => row != null && row.id != null && row.parent_profile_id != null && row.provider_profile_id != null
+  )
+
+  return filteredRows.map((row) => ({
+    id: row.id,
+    parent_profile_id: row.parent_profile_id,
+    provider_profile_id: row.provider_profile_id,
+    created_at: row.created_at,
+    lead_status: row.lead_status ?? "new",
+    parent_display_name: row.parent_display_name ?? null,
+    parent_email: row.parent_email ?? null,
+    parent_phone: row.parent_phone ?? null,
+    parent_country_name: row.parent_country_name ?? null,
+    parent_city_name: row.parent_city_name ?? null,
+    child_age_group: row.child_age_group ?? null,
+    preferred_start_date: row.preferred_start_date ?? null,
+  }))
+}

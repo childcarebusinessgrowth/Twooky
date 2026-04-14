@@ -4,7 +4,9 @@ import { resolveRoleForUser } from "@/lib/authz"
 import {
   getInquiriesByProviderProfileId,
   getGuestInquiriesByProviderProfileId,
+  getFavoriteLeadsByProviderProfileId,
 } from "@/lib/parent-engagement"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 function escapeCsv(value: string): string {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
@@ -46,10 +48,11 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const providerProfileId = user.id
-    const [inquiries, guestInquiries, guestData] = await Promise.all([
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const [inquiries, guestInquiries, favoriteLeads, guestData] = await Promise.all([
       getInquiriesByProviderProfileId(supabase, providerProfileId),
       getGuestInquiriesByProviderProfileId(supabase, providerProfileId),
+      getFavoriteLeadsByProviderProfileId(supabase, providerProfileId),
       supabase
         .from("guest_inquiries")
         .select("id, email, telephone, child_dob")
@@ -116,6 +119,28 @@ export async function GET() {
         escapeCsv(source),
         escapeCsv(status),
         "Guest",
+      ])
+    }
+
+    for (const f of favoriteLeads) {
+      const parentName = (f.parent_display_name ?? "Parent").trim()
+      const email = f.parent_email ?? ""
+      const phone = f.parent_phone ?? ""
+      const childAge = f.child_age_group ?? ""
+      const programInterest = "Saved profile"
+      const timestamp = f.created_at
+      const source = "favorite"
+      const status = f.lead_status ?? "new"
+      rows.push([
+        escapeCsv(parentName),
+        escapeCsv(email),
+        escapeCsv(phone),
+        escapeCsv(childAge),
+        escapeCsv(programInterest),
+        escapeCsv(timestamp),
+        escapeCsv(source),
+        escapeCsv(status),
+        "Favorite",
       ])
     }
 

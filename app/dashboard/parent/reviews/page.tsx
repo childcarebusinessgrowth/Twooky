@@ -16,7 +16,7 @@ export default async function ParentReviewsPage() {
 
   return (
     <RequireAuth>
-      <div className="space-y-6 lg:space-y-8">
+      <div className="mx-auto w-full max-w-4xl space-y-6 lg:space-y-8">
         <div className="space-y-1">
           <h1 className="text-xl lg:text-2xl font-semibold tracking-tight text-foreground">
             My reviews
@@ -27,7 +27,7 @@ export default async function ParentReviewsPage() {
           </p>
         </div>
 
-        <Card className="border-none border-l-4 border-l-secondary bg-secondary/5 rounded-3xl shadow-sm shadow-secondary/10">
+        <Card className="rounded-2xl border border-secondary/20 bg-secondary/5 shadow-sm shadow-secondary/10">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 lg:p-5">
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">

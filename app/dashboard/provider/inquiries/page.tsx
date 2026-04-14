@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import {
   getInquiriesByProviderProfileId,
   getGuestInquiriesByProviderProfileId,
+  getFavoriteLeadsByProviderProfileId,
 } from "@/lib/parent-engagement"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { ProviderInquiriesClient } from "./ProviderInquiriesClient"
@@ -21,15 +22,18 @@ export default async function ProviderInquiriesPage({ searchParams }: PageProps)
 
   let inquiries: Awaited<ReturnType<typeof getInquiriesByProviderProfileId>> = []
   let guestInquiries: Awaited<ReturnType<typeof getGuestInquiriesByProviderProfileId>> = []
+  let favoriteLeads: Awaited<ReturnType<typeof getFavoriteLeadsByProviderProfileId>> = []
 
   if (user) {
     const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
-    const [inquiriesRes, guestRes] = await Promise.all([
+    const [inquiriesRes, guestRes, favoriteRes] = await Promise.all([
       getInquiriesByProviderProfileId(supabase, providerProfileId),
       getGuestInquiriesByProviderProfileId(supabase, providerProfileId),
+      getFavoriteLeadsByProviderProfileId(supabase, providerProfileId),
     ])
     inquiries = inquiriesRes
     guestInquiries = guestRes
+    favoriteLeads = favoriteRes
   }
 
   return (
@@ -42,6 +46,7 @@ export default async function ProviderInquiriesPage({ searchParams }: PageProps)
       <ProviderInquiriesClient
         inquiries={inquiries}
         guestInquiries={guestInquiries}
+        favoriteLeads={favoriteLeads}
         initialOpenId={openId}
       />
     </div>

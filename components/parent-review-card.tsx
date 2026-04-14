@@ -19,7 +19,7 @@ function Stars({ value }: { value: number }) {
         <Star
           key={index}
           className={`h-3.5 w-3.5 ${
-            index < value ? "fill-secondary text-secondary" : "text-muted"
+            index < value ? "fill-amber-500 text-amber-500" : "text-muted-foreground/40"
           }`}
         />
       ))}
@@ -50,6 +50,7 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
     month: "long",
     day: "numeric",
   })
+  const wasEdited = review.updated_at !== review.created_at
 
   const handleSaveEdit = async () => {
     setError(null)
@@ -84,13 +85,10 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
   }
 
   return (
-    <Card className="border border-border/60 bg-card rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="flex flex-row items-start gap-4 pb-2">
-        <div className="h-16 w-20 shrink-0 overflow-hidden rounded-2xl bg-muted flex items-center justify-center text-muted-foreground text-xs">
-          Review
-        </div>
-        <div className="flex-1 space-y-1">
-          <CardTitle className="text-sm lg:text-base font-semibold text-foreground">
+    <Card className="rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <CardTitle className="text-base font-semibold text-foreground">
             {review.provider_slug ? (
               <Link href={providerHref} className="hover:underline">
                 {providerName}
@@ -99,19 +97,40 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
               providerName
             )}
           </CardTitle>
-          <CardDescription className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>·</span>
+          <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span>{dateStr}</span>
+            {wasEdited && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px]">Edited</span>}
           </CardDescription>
           {!editing && (
-            <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary/20 px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">
+            <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 dark:border-amber-300/30 dark:bg-amber-400/20 dark:text-amber-200">
               <Stars value={review.rating} />
               <span className="ml-1">{review.rating} out of 5</span>
             </div>
           )}
         </div>
+        {!editing && (
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full border-border/60"
+              onClick={() => setEditing(true)}
+            >
+              Edit review
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full text-xs text-muted-foreground hover:text-destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={loading}
+            >
+              Delete review
+            </Button>
+          </div>
+        )}
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 pt-0">
         {editing ? (
           <>
             <div className="flex items-center gap-1">
@@ -119,7 +138,7 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
                 <button
                   key={value}
                   type="button"
-                  className="p-0.5 focus:outline-none"
+                  className="rounded p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                   onClick={() => setRating(value)}
                   aria-label={`${value} stars`}
                 >
@@ -165,30 +184,7 @@ export function ParentReviewCard({ parentProfileId, review }: Props) {
             </div>
           </>
         ) : (
-          <>
-            <p className="text-xs lg:text-sm leading-relaxed text-muted-foreground">
-              {review.review_text}
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full border-border/60"
-                onClick={() => setEditing(true)}
-              >
-                Edit review
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="rounded-full text-xs text-muted-foreground hover:text-destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={loading}
-              >
-                Delete review
-              </Button>
-            </div>
-          </>
+          <p className="text-sm leading-relaxed text-foreground/90">{review.review_text}</p>
         )}
       </CardContent>
 

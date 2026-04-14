@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import {
   getInquiriesByProviderProfileId,
   getGuestInquiriesByProviderProfileId,
@@ -59,7 +60,7 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const providerProfileId = user.id
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
     const [inquiries, guestInquiries, reviews, { data: notificationRows }] = await Promise.all([
       getInquiriesByProviderProfileId(supabase, providerProfileId),
@@ -174,10 +175,12 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+
     const { error } = await supabase
       .from("provider_notifications")
       .update({ read_at: new Date().toISOString() })
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
       .in("id", ids)
 
     if (error) {

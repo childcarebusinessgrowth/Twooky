@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getReviewsByProviderProfileId } from "@/lib/parent-engagement"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { ProviderReviewsContent } from "./ProviderReviewsContent"
 
 export default async function ProviderReviewsPage() {
@@ -8,13 +9,16 @@ export default async function ProviderReviewsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const reviews = user
-    ? await getReviewsByProviderProfileId(supabase, user.id)
+  const providerProfileId = user
+    ? await resolveOwnedProviderProfileId(supabase, user.id)
+    : ""
+  const reviews = providerProfileId
+    ? await getReviewsByProviderProfileId(supabase, providerProfileId)
     : []
 
   return (
     <ProviderReviewsContent
-      providerProfileId={user?.id ?? ""}
+      providerProfileId={providerProfileId}
       reviews={reviews}
     />
   )

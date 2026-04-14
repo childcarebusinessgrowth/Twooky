@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import {
   getInquiriesByProviderProfileId,
   getReviewsByProviderProfileId,
@@ -44,14 +45,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ inquiries: [], guestInquiries: [], reviews: [] })
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+
     const [inquiries, guestRows, reviews] = await Promise.all([
-      getInquiriesByProviderProfileId(supabase, user.id),
+      getInquiriesByProviderProfileId(supabase, providerProfileId),
       supabase
         .from("guest_inquiries")
         .select("id, created_at, first_name, last_name, email")
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .order("created_at", { ascending: false }),
-      getReviewsByProviderProfileId(supabase, user.id),
+      getReviewsByProviderProfileId(supabase, providerProfileId),
     ])
 
     const guestInquiries: GuestInquirySearchRow[] = (guestRows.data ?? []).map((r) => ({

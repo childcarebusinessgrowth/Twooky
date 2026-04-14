@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 type RouteContext = { params: Promise<{ leadType: string; leadId: string }> }
 
-const VALID_LEAD_TYPES = ["inquiry", "guest-inquiry"] as const
+const VALID_LEAD_TYPES = ["inquiry", "guest-inquiry", "favorite"] as const
 
 function isValidLeadType(value: string): value is (typeof VALID_LEAD_TYPES)[number] {
   return VALID_LEAD_TYPES.includes(value as (typeof VALID_LEAD_TYPES)[number])
 }
 
-function toDbLeadType(leadType: string): "inquiry" | "guest_inquiry" {
-  return leadType === "guest-inquiry" ? "guest_inquiry" : "inquiry"
+function toDbLeadType(leadType: string): "inquiry" | "guest_inquiry" | "favorite" {
+  if (leadType === "guest-inquiry") return "guest_inquiry"
+  if (leadType === "favorite") return "favorite"
+  return "inquiry"
 }
 
 /**
@@ -40,27 +43,38 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     const dbLeadType = toDbLeadType(leadType)
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
     // Verify provider owns this lead
-    if (dbLeadType === "inquiry") {
+      if (dbLeadType === "inquiry") {
       const { data: inquiry } = await supabase
         .from("inquiries")
         .select("id")
         .eq("id", leadId)
-        .eq("provider_profile_id", user.id)
+          .eq("provider_profile_id", providerProfileId)
         .is("deleted_at", null)
         .maybeSingle()
       if (!inquiry) {
         return NextResponse.json({ error: "Lead not found." }, { status: 404 })
       }
-    } else {
+    } else if (dbLeadType === "guest_inquiry") {
       const { data: guest } = await supabase
         .from("guest_inquiries")
         .select("id")
         .eq("id", leadId)
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .maybeSingle()
       if (!guest) {
+        return NextResponse.json({ error: "Lead not found." }, { status: 404 })
+      }
+    } else {
+      const { data: favorite } = await supabase
+        .from("parent_favorites")
+        .select("id")
+        .eq("id", leadId)
+        .eq("provider_profile_id", providerProfileId)
+        .maybeSingle()
+      if (!favorite) {
         return NextResponse.json({ error: "Lead not found." }, { status: 404 })
       }
     }
@@ -70,7 +84,7 @@ export async function GET(_request: Request, context: RouteContext) {
       .select("id, note_text, created_at, created_by")
       .eq("lead_type", dbLeadType)
       .eq("lead_id", leadId)
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
       .order("created_at", { ascending: true })
 
     if (error) {
@@ -129,6 +143,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const dbLeadType = toDbLeadType(leadType)
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
     // Verify provider owns this lead
     if (dbLeadType === "inquiry") {
@@ -136,20 +151,30 @@ export async function POST(request: Request, context: RouteContext) {
         .from("inquiries")
         .select("id")
         .eq("id", leadId)
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .is("deleted_at", null)
         .maybeSingle()
       if (!inquiry) {
         return NextResponse.json({ error: "Lead not found." }, { status: 404 })
       }
-    } else {
+    } else if (dbLeadType === "guest_inquiry") {
       const { data: guest } = await supabase
         .from("guest_inquiries")
         .select("id")
         .eq("id", leadId)
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .maybeSingle()
       if (!guest) {
+        return NextResponse.json({ error: "Lead not found." }, { status: 404 })
+      }
+    } else {
+      const { data: favorite } = await supabase
+        .from("parent_favorites")
+        .select("id")
+        .eq("id", leadId)
+        .eq("provider_profile_id", providerProfileId)
+        .maybeSingle()
+      if (!favorite) {
         return NextResponse.json({ error: "Lead not found." }, { status: 404 })
       }
     }
@@ -159,7 +184,7 @@ export async function POST(request: Request, context: RouteContext) {
       .insert({
         lead_id: leadId,
         lead_type: dbLeadType,
-        provider_profile_id: user.id,
+        provider_profile_id: providerProfileId,
         note_text: noteText,
         created_by: user.id,
       })

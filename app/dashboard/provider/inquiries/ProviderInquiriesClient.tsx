@@ -24,6 +24,7 @@ import { getSupabaseClient } from "@/lib/supabaseClient"
 import type {
   ProviderInquiryPreviewRow,
   GuestInquiryPreviewRow,
+  ProviderFavoriteLeadRow,
 } from "@/lib/parent-engagement"
 
 type ThreadMessage = {
@@ -87,10 +88,24 @@ type ListItem =
       source: string | null
       programInterest: string | null
     }
+  | {
+      type: "favorite"
+      id: string
+      label: string
+      email: string | null
+      date: string
+      leadStatus: string
+      source: "favorite"
+      childAge: string | null
+      phone: string | null
+      location: string | null
+      preferredStartDate: string | null
+    }
 
 type Props = {
   inquiries: ProviderInquiryPreviewRow[]
   guestInquiries: GuestInquiryPreviewRow[]
+  favoriteLeads: ProviderFavoriteLeadRow[]
   initialOpenId: string | null
 }
 
@@ -157,25 +172,29 @@ function getSourceBadgeClass(source: string | null): string {
   if (source === "compare") return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800"
   if (source === "microsite")
     return "bg-sky-50 text-sky-800 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800"
+  if (source === "favorite")
+    return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
   return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700"
 }
 
 function getSourceLabel(source: string | null): string {
   if (source === "compare") return "Compare"
   if (source === "microsite") return "Website"
+  if (source === "favorite") return "Saved"
   return "Directory"
 }
 
 export function ProviderInquiriesClient({
   inquiries,
   guestInquiries,
+  favoriteLeads,
   initialOpenId,
 }: Props) {
   const router = useRouter()
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const selectedIdRef = useRef<string | null>(initialOpenId)
-  const selectedTypeRef = useRef<"thread" | "guest" | null>(null)
-  const [selectedType, setSelectedType] = useState<"thread" | "guest" | null>(null)
+  const selectedTypeRef = useRef<"thread" | "guest" | "favorite" | null>(null)
+  const [selectedType, setSelectedType] = useState<"thread" | "guest" | "favorite" | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ThreadMessage[]>([])
   const [inquiryMeta, setInquiryMeta] = useState<InquiryMeta | null>(null)
@@ -198,6 +217,7 @@ export function ProviderInquiriesClient({
 
   const [localInquiries, setLocalInquiries] = useState(inquiries)
   const [localGuestInquiries, setLocalGuestInquiries] = useState(guestInquiries)
+  const [localFavoriteLeads, setLocalFavoriteLeads] = useState(favoriteLeads)
 
   useEffect(() => {
     setLocalInquiries(inquiries)
@@ -206,6 +226,10 @@ export function ProviderInquiriesClient({
   useEffect(() => {
     setLocalGuestInquiries(guestInquiries)
   }, [guestInquiries])
+
+  useEffect(() => {
+    setLocalFavoriteLeads(favoriteLeads)
+  }, [favoriteLeads])
 
   const touchThreadInList = useCallback((inquiryId: string) => {
     const now = new Date().toISOString()
@@ -236,15 +260,29 @@ export function ProviderInquiriesClient({
           source: g.source ?? null,
           programInterest: g.program_interest ?? null,
         })),
+        ...localFavoriteLeads.map((f) => ({
+          type: "favorite" as const,
+          id: f.id,
+          label: f.parent_display_name?.trim() || "Parent",
+          email: f.parent_email ?? null,
+          date: f.created_at,
+          leadStatus: f.lead_status ?? "new",
+          source: "favorite" as const,
+          childAge: f.child_age_group ?? null,
+          phone: f.parent_phone ?? null,
+          location:
+            [f.parent_city_name, f.parent_country_name].filter((value) => Boolean(value)).join(", ") || null,
+          preferredStartDate: f.preferred_start_date ?? null,
+        })),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [localInquiries, localGuestInquiries, leadStatusOverrides]
+    [localInquiries, localGuestInquiries, localFavoriteLeads, leadStatusOverrides]
   )
 
   const listItems = useMemo(() => {
     let items = allListItems
     if (statusFilter !== "all") {
       items = items.filter(
-        (item) => item.type !== "thread" || item.leadStatus === statusFilter
+        (item) => (item.type !== "thread" && item.type !== "favorite") || item.leadStatus === statusFilter
       )
     }
     if (sourceFilter !== "all") {
@@ -317,14 +355,18 @@ export function ProviderInquiriesClient({
     if (!initialOpenId) return
     const inThread = inquiries.some((i) => i.id === initialOpenId)
     const inGuest = guestInquiries.some((g) => g.id === initialOpenId)
+    const inFavorite = favoriteLeads.some((f) => f.id === initialOpenId)
     if (inThread) {
       setSelectedType("thread")
       setSelectedId(initialOpenId)
     } else if (inGuest) {
       setSelectedType("guest")
       setSelectedId(initialOpenId)
+    } else if (inFavorite) {
+      setSelectedType("favorite")
+      setSelectedId(initialOpenId)
     }
-  }, [initialOpenId, inquiries, guestInquiries])
+  }, [initialOpenId, inquiries, guestInquiries, favoriteLeads])
 
   useEffect(() => {
     selectedIdRef.current = selectedId
@@ -335,7 +377,12 @@ export function ProviderInquiriesClient({
     if (!selectedId || !selectedType) return
     setNotesLoading(true)
     try {
-      const leadType = selectedType === "thread" ? "inquiry" : "guest-inquiry"
+      const leadType =
+        selectedType === "thread"
+          ? "inquiry"
+          : selectedType === "favorite"
+            ? "favorite"
+            : "guest-inquiry"
       const res = await fetch(`/api/leads/${leadType}/${selectedId}/notes`)
       const data = await res.json().catch(() => ({}))
       if (res.ok && Array.isArray(data.notes)) {
@@ -359,7 +406,12 @@ export function ProviderInquiriesClient({
     if (!selectedId || !selectedType || !newNoteText.trim() || addingNote) return
     setAddingNote(true)
     try {
-      const leadType = selectedType === "thread" ? "inquiry" : "guest-inquiry"
+      const leadType =
+        selectedType === "thread"
+          ? "inquiry"
+          : selectedType === "favorite"
+            ? "favorite"
+            : "guest-inquiry"
       const res = await fetch(`/api/leads/${leadType}/${selectedId}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -378,7 +430,12 @@ export function ProviderInquiriesClient({
     if (!selectedId || !selectedType || deletingNoteId) return
     setDeletingNoteId(noteId)
     try {
-      const leadType = selectedType === "thread" ? "inquiry" : "guest-inquiry"
+      const leadType =
+        selectedType === "thread"
+          ? "inquiry"
+          : selectedType === "favorite"
+            ? "favorite"
+            : "guest-inquiry"
       const res = await fetch(`/api/leads/${leadType}/${selectedId}/notes/${noteId}`, {
         method: "DELETE",
       })
@@ -417,6 +474,11 @@ export function ProviderInquiriesClient({
       setMessages([])
       setInquiryMeta(null)
       void fetchGuestDetail(selectedId)
+      void fetchNotes()
+    } else if (selectedType === "favorite" && selectedId) {
+      setMessages([])
+      setInquiryMeta(null)
+      setGuestDetail(null)
       void fetchNotes()
     } else {
       setMessages([])
@@ -521,24 +583,37 @@ export function ProviderInquiriesClient({
     }
   }
 
-  const handleSelect = (type: "thread" | "guest", id: string) => {
+  const handleSelect = (type: "thread" | "guest" | "favorite", id: string) => {
     setSelectedType(type)
     setSelectedId(id)
     router.replace(`/dashboard/provider/inquiries?open=${id}`, { scroll: false })
   }
 
   const handleLeadStatusChange = async (value: string) => {
-    if (selectedType !== "thread" || !selectedId || !inquiryMeta || updatingOutcome) return
+    if (!selectedId || updatingOutcome) return
     setUpdatingOutcome(true)
     try {
-      const res = await fetch(`/api/inquiries/${selectedId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_status: value }),
-      })
-      if (res.ok) {
-        setInquiryMeta((prev) => (prev ? { ...prev, leadStatus: value } : null))
-        setLeadStatusOverrides((prev) => ({ ...prev, [selectedId]: value }))
+      if (selectedType === "thread" && inquiryMeta) {
+        const res = await fetch(`/api/inquiries/${selectedId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_status: value }),
+        })
+        if (res.ok) {
+          setInquiryMeta((prev) => (prev ? { ...prev, leadStatus: value } : null))
+          setLeadStatusOverrides((prev) => ({ ...prev, [selectedId]: value }))
+        }
+      } else if (selectedType === "favorite") {
+        const res = await fetch(`/api/provider/favorite-leads/${selectedId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_status: value }),
+        })
+        if (res.ok) {
+          setLocalFavoriteLeads((prev) =>
+            prev.map((lead) => (lead.id === selectedId ? { ...lead, lead_status: value } : lead))
+          )
+        }
       }
     } finally {
       setUpdatingOutcome(false)
@@ -547,6 +622,7 @@ export function ProviderInquiriesClient({
 
   const selectedThread = localInquiries.find((i) => i.id === selectedId)
   const selectedGuest = localGuestInquiries.find((g) => g.id === selectedId)
+  const selectedFavorite = localFavoriteLeads.find((f) => f.id === selectedId)
 
   return (
     <div className="space-y-6">
@@ -600,6 +676,7 @@ export function ProviderInquiriesClient({
                   <SelectItem value="directory">Directory</SelectItem>
                   <SelectItem value="compare">Compare</SelectItem>
                   <SelectItem value="microsite">Website</SelectItem>
+                  <SelectItem value="favorite">Saved</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -621,7 +698,7 @@ export function ProviderInquiriesClient({
                     <button
                       type="button"
                       onClick={() => handleSelect(item.type, item.id)}
-                      className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex flex-col gap-1 ${selectedId === item.id ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+                      className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex flex-col gap-1 ${selectedId === item.id && selectedType === item.type ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
                     >
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-foreground truncate">{item.label}</span>
@@ -630,14 +707,19 @@ export function ProviderInquiriesClient({
                             Contact request
                           </Badge>
                         )}
+                        {item.type === "favorite" && (
+                          <Badge variant="secondary" className="shrink-0 text-[10px]">
+                            Saved profile
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-xs text-muted-foreground truncate">
-                        {item.type === "thread" && item.email ? `${item.email} · ` : ""}
-                        {item.type === "thread" && item.childAge ? `${item.childAge} · ` : ""}
+                        {(item.type === "thread" || item.type === "favorite") && item.email ? `${item.email} · ` : ""}
+                        {(item.type === "thread" || item.type === "favorite") && item.childAge ? `${item.childAge} · ` : ""}
                         {formatDate(item.date)}
                       </span>
                       <div className="flex flex-wrap gap-1 pt-0.5">
-                        {item.type === "thread" && (
+                        {(item.type === "thread" || item.type === "favorite") && (
                           <Badge
                             variant="outline"
                             className={`text-[10px] font-medium ${getLeadStatusBadgeClass(item.leadStatus)}`}
@@ -647,7 +729,8 @@ export function ProviderInquiriesClient({
                         )}
                         {(item.source === "directory" ||
                           item.source === "compare" ||
-                          item.source === "microsite") && (
+                          item.source === "microsite" ||
+                          item.source === "favorite") && (
                           <Badge
                             variant="outline"
                             className={`text-[10px] ${getSourceBadgeClass(item.source)}`}
@@ -843,6 +926,162 @@ export function ProviderInquiriesClient({
               </form>
             </CardContent>
           </>
+        ) : selectedType === "favorite" && selectedId ? (
+          <>
+            <CardHeader className="border-b border-border/60">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    {selectedFavorite?.parent_display_name?.trim() || "Parent"}
+                  </CardTitle>
+                  <CardDescription>Parent saved your profile to favorites</CardDescription>
+                </div>
+                {selectedFavorite && (
+                  <Select
+                    value={selectedFavorite.lead_status ?? "new"}
+                    onValueChange={handleLeadStatusChange}
+                    disabled={updatingOutcome}
+                  >
+                    <SelectTrigger className="w-[170px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="contacted">Contacted</SelectItem>
+                      <SelectItem value="tour_booked">Tour Booked</SelectItem>
+                      <SelectItem value="waitlist">Waitlist</SelectItem>
+                      <SelectItem value="enrolled">Enrolled</SelectItem>
+                      <SelectItem value="lost">Lost</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-auto p-6 space-y-4">
+              {selectedFavorite ? (
+                <>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-medium ${getLeadStatusBadgeClass(selectedFavorite.lead_status ?? "new")}`}
+                    >
+                      {getLeadStatusLabel(selectedFavorite.lead_status ?? "new")}
+                    </Badge>
+                    <Badge variant="outline" className={`text-[10px] ${getSourceBadgeClass("favorite")}`}>
+                      {getSourceLabel("favorite")}
+                    </Badge>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {selectedFavorite.parent_email ? (
+                        <a href={`mailto:${selectedFavorite.parent_email}`} className="text-primary hover:underline">
+                          {selectedFavorite.parent_email}
+                        </a>
+                      ) : (
+                        <span className="font-medium">Not provided</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {selectedFavorite.parent_phone ? (
+                        <a href={`tel:${selectedFavorite.parent_phone}`} className="text-primary hover:underline">
+                          {selectedFavorite.parent_phone}
+                        </a>
+                      ) : (
+                        <span className="font-medium">Not provided</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Baby className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Child age:</span>
+                      <span className="font-medium">{selectedFavorite.child_age_group ?? "Not provided"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Preferred start:</span>
+                      <span className="font-medium">{formatDateOnly(selectedFavorite.preferred_start_date)}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Location: </span>
+                    <span className="font-medium">
+                      {[selectedFavorite.parent_city_name, selectedFavorite.parent_country_name]
+                        .filter((value) => Boolean(value))
+                        .join(", ") || "Not provided"}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Saved on {formatDate(selectedFavorite.created_at)}
+                  </p>
+
+                  <div className="border-t border-border/60 pt-4 space-y-3">
+                    <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                      <StickyNote className="h-3.5 w-3.5" />
+                      Notes
+                    </h4>
+                    {notesLoading ? (
+                      <p className="text-xs text-muted-foreground">Loading notes…</p>
+                    ) : (
+                      <>
+                        {notes.length > 0 && (
+                          <ul className="space-y-2 pb-2">
+                            {notes.map((n) => (
+                              <li
+                                key={n.id}
+                                className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
+                              >
+                                <div className="flex gap-2 justify-between items-start">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                      {formatDate(n.createdAt)}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => void handleDeleteNote(n.id)}
+                                    disabled={deletingNoteId !== null}
+                                    aria-label="Delete note"
+                                  >
+                                    <Trash2
+                                      className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
+                                    />
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <form onSubmit={handleAddNote} className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Add a note…"
+                            value={newNoteText}
+                            onChange={(e) => setNewNoteText(e.target.value)}
+                            disabled={addingNote}
+                            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          />
+                          <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
+                            Add
+                          </Button>
+                        </form>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Could not load favorite lead details.</p>
+              )}
+            </CardContent>
+          </>
         ) : selectedType === "guest" && selectedId ? (
           <>
             <CardHeader className="border-b border-border/60">
@@ -975,8 +1214,8 @@ export function ProviderInquiriesClient({
           <CardContent className="flex-1 flex items-center justify-center text-center text-muted-foreground text-sm">
             <div>
               <MessageCircle className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>Select a conversation to view and reply.</p>
-              <p className="text-xs mt-1">Contact requests from guests are view-only.</p>
+              <p>Select a lead to view details.</p>
+              <p className="text-xs mt-1">Guest and saved-profile leads are CRM-lite (no thread).</p>
             </div>
           </CardContent>
         )}

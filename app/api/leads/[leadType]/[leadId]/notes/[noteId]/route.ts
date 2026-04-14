@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 type RouteContext = {
   params: Promise<{ leadType: string; leadId: string; noteId: string }>
 }
 
-const VALID_LEAD_TYPES = ["inquiry", "guest-inquiry"] as const
+const VALID_LEAD_TYPES = ["inquiry", "guest-inquiry", "favorite"] as const
 
 function isValidLeadType(value: string): value is (typeof VALID_LEAD_TYPES)[number] {
   return VALID_LEAD_TYPES.includes(value as (typeof VALID_LEAD_TYPES)[number])
 }
 
-function toDbLeadType(leadType: string): "inquiry" | "guest_inquiry" {
-  return leadType === "guest-inquiry" ? "guest_inquiry" : "inquiry"
+function toDbLeadType(leadType: string): "inquiry" | "guest_inquiry" | "favorite" {
+  if (leadType === "guest-inquiry") return "guest_inquiry"
+  if (leadType === "favorite") return "favorite"
+  return "inquiry"
 }
 
 /**
@@ -42,26 +45,37 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     const dbLeadType = toDbLeadType(leadType)
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
     if (dbLeadType === "inquiry") {
       const { data: inquiry } = await supabase
         .from("inquiries")
         .select("id")
         .eq("id", leadId)
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .is("deleted_at", null)
         .maybeSingle()
       if (!inquiry) {
         return NextResponse.json({ error: "Lead not found." }, { status: 404 })
       }
-    } else {
+    } else if (dbLeadType === "guest_inquiry") {
       const { data: guest } = await supabase
         .from("guest_inquiries")
         .select("id")
         .eq("id", leadId)
-        .eq("provider_profile_id", user.id)
+        .eq("provider_profile_id", providerProfileId)
         .maybeSingle()
       if (!guest) {
+        return NextResponse.json({ error: "Lead not found." }, { status: 404 })
+      }
+    } else {
+      const { data: favorite } = await supabase
+        .from("parent_favorites")
+        .select("id")
+        .eq("id", leadId)
+        .eq("provider_profile_id", providerProfileId)
+        .maybeSingle()
+      if (!favorite) {
         return NextResponse.json({ error: "Lead not found." }, { status: 404 })
       }
     }
@@ -72,7 +86,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
       .eq("id", noteId)
       .eq("lead_id", leadId)
       .eq("lead_type", dbLeadType)
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
       .select("id")
       .maybeSingle()
 
