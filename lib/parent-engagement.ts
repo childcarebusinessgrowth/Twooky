@@ -790,23 +790,8 @@ export async function getFavoriteLeadsByProviderProfileId(
   const { data: rows, error } = await supabase.rpc("get_provider_favorite_leads")
   if (error || !rows || rows.length === 0) return []
 
-  type RpcRow = {
-    id: string
-    parent_profile_id: string | null
-    provider_profile_id: string | null
-    created_at: string
-    lead_status: string | null
-    parent_display_name?: string | null
-    parent_email?: string | null
-    parent_phone?: string | null
-    parent_country_name?: string | null
-    parent_city_name?: string | null
-    child_age_group?: string | null
-    preferred_start_date?: string | null
-  }
-
   const filteredRows = (rows ?? []).filter(
-    (row): row is RpcRow => row != null && row.id != null && row.parent_profile_id != null && row.provider_profile_id != null
+    (row) => row != null && row.id != null && row.parent_profile_id != null && row.provider_profile_id != null
   )
 
   return filteredRows.map((row) => ({

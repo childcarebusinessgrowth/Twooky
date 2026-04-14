@@ -1244,18 +1244,21 @@ export interface Database {
           parent_profile_id: string
           provider_profile_id: string
           created_at: string
+          lead_status: string
         }
         Insert: {
           id?: string
           parent_profile_id: string
           provider_profile_id: string
           created_at?: string
+          lead_status?: string
         }
         Update: {
           id?: string
           parent_profile_id?: string
           provider_profile_id?: string
           created_at?: string
+          lead_status?: string
         }
         Relationships: []
       }
@@ -1493,6 +1496,23 @@ export interface Database {
         Args: { p_subdomain: string }
         Returns: Json | null
       }
+      get_provider_favorite_leads: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          parent_profile_id: string
+          provider_profile_id: string
+          created_at: string
+          lead_status: string
+          parent_display_name: string | null
+          parent_email: string | null
+          parent_phone: string | null
+          parent_country_name: string | null
+          parent_city_name: string | null
+          child_age_group: string | null
+          preferred_start_date: string | null
+        }[]
+      }
       get_guest_inquiry_message_decrypted: {
         Args: { p_guest_inquiry_id: string }
         Returns: string | null
@@ -1561,6 +1581,10 @@ export interface Database {
           lead_status: string | null
           child_age_group: string | null
         }[]
+      }
+      update_provider_favorite_lead_status: {
+        Args: { p_favorite_id: string; p_lead_status: string }
+        Returns: boolean
       }
     }
     Enums: {
