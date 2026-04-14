@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
 import { publicMessageForError } from "@/lib/publicErrors"
 import { notifyProviderNewInquiry } from "@/lib/email/providerInquiryNotification"
+import { buildInquiryNotification, insertProviderNotification } from "@/lib/providerNotifications"
 
 type CreateInquiryPayload = {
   providerSlug?: string
@@ -127,6 +128,14 @@ export async function POST(request: Request) {
       fromName: parentLabel,
       source,
     })
+    void insertProviderNotification(
+      buildInquiryNotification({
+        providerProfileId: providerRow.profile_id,
+        inquiryId: String(inquiryId),
+        fromName: parentLabel,
+        subject,
+      })
+    )
 
     return NextResponse.json(
       { id: inquiryId, redirectUrl: `/dashboard/parent/inquiries?open=${inquiryId}` },

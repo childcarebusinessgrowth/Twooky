@@ -9,6 +9,9 @@ import {
 import type { ProviderInquiryPreviewRow } from "@/lib/parent-engagement"
 import type { PublicReviewRow } from "@/lib/parent-engagement"
 
+const MAX_PROVIDER_SEARCH_RESULTS = 25
+const MAX_REVIEW_SEARCH_ROWS = 50
+
 type GuestInquirySearchRow = {
   id: string
   created_at: string
@@ -20,6 +23,10 @@ type GuestInquirySearchRow = {
 function matchesQuery(text: string | null | undefined, q: string): boolean {
   if (!text || !q) return false
   return text.toLowerCase().includes(q.toLowerCase())
+}
+
+function toIlikePattern(value: string): string {
+  return `%${value.replace(/[,%]/g, " ").trim()}%`
 }
 
 export async function GET(request: NextRequest) {
@@ -46,15 +53,23 @@ export async function GET(request: NextRequest) {
     }
 
     const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const guestPattern = toIlikePattern(q)
 
     const [inquiries, guestRows, reviews] = await Promise.all([
-      getInquiriesByProviderProfileId(supabase, providerProfileId),
+      getInquiriesByProviderProfileId(supabase, providerProfileId, {
+        limit: MAX_PROVIDER_SEARCH_RESULTS,
+        query: q,
+      }),
       supabase
         .from("guest_inquiries")
         .select("id, created_at, first_name, last_name, email")
         .eq("provider_profile_id", providerProfileId)
-        .order("created_at", { ascending: false }),
-      getReviewsByProviderProfileId(supabase, providerProfileId),
+        .or(`first_name.ilike.${guestPattern},last_name.ilike.${guestPattern},email.ilike.${guestPattern}`)
+        .order("created_at", { ascending: false })
+        .limit(MAX_PROVIDER_SEARCH_RESULTS),
+      getReviewsByProviderProfileId(supabase, providerProfileId, {
+        limit: MAX_REVIEW_SEARCH_ROWS,
+      }),
     ])
 
     const guestInquiries: GuestInquirySearchRow[] = (guestRows.data ?? []).map((r) => ({
@@ -65,31 +80,16 @@ export async function GET(request: NextRequest) {
       email: r.email ?? "",
     }))
 
-    const filteredInquiries: ProviderInquiryPreviewRow[] = inquiries.filter(
-      (i) =>
-        matchesQuery(i.parent_display_name, q) ||
-        matchesQuery(i.parent_email, q) ||
-        matchesQuery(i.inquiry_subject, q)
-    )
+    const filteredInquiries: ProviderInquiryPreviewRow[] = inquiries.slice(0, MAX_PROVIDER_SEARCH_RESULTS)
 
-    const filteredGuestInquiries: GuestInquirySearchRow[] = guestInquiries.filter(
-      (g) => {
-        const fullName = `${g.first_name} ${g.last_name}`.trim()
-        return (
-          matchesQuery(fullName, q) ||
-          matchesQuery(g.first_name, q) ||
-          matchesQuery(g.last_name, q) ||
-          matchesQuery(g.email, q)
-        )
-      }
-    )
+    const filteredGuestInquiries: GuestInquirySearchRow[] = guestInquiries.slice(0, MAX_PROVIDER_SEARCH_RESULTS)
 
     const filteredReviews: PublicReviewRow[] = reviews.filter(
       (r) =>
         matchesQuery(r.parent_display_name, q) ||
         matchesQuery(r.review_text, q) ||
         matchesQuery(r.provider_reply_text, q)
-    )
+    ).slice(0, MAX_PROVIDER_SEARCH_RESULTS)
 
     return NextResponse.json({
       inquiries: filteredInquiries,

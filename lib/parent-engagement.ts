@@ -84,15 +84,26 @@ export type PublicReviewRow = {
   provider_replied_at: string | null
 }
 
+type ProviderReviewQueryOptions = {
+  limit?: number
+}
+
 export async function getReviewsByProviderProfileId(
   supabase: TypedClient,
-  providerProfileId: string
+  providerProfileId: string,
+  options?: ProviderReviewQueryOptions
 ): Promise<PublicReviewRow[]> {
-  const { data: rows, error } = await supabase
+  let query = supabase
     .from("parent_reviews")
     .select("id, parent_profile_id, provider_profile_id, rating, review_text, created_at, provider_reply_text, provider_replied_at")
     .eq("provider_profile_id", providerProfileId)
     .order("created_at", { ascending: false })
+
+  if (typeof options?.limit === "number" && options.limit > 0) {
+    query = query.limit(options.limit)
+  }
+
+  const { data: rows, error } = await query
   if (error || !rows || rows.length === 0) return []
   const parentIds = [...new Set(rows.map((r) => r.parent_profile_id).filter((id): id is string => id != null))]
   const { data: profiles } = await supabase
@@ -169,21 +180,83 @@ export async function createReview(
   providerProfileId: string,
   rating: number,
   reviewText: string
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; reviewId: string | null; isNew: boolean }> {
   const trimmed = reviewText.trim()
-  if (trimmed.length === 0) return { error: "Review text is required." }
-  if (rating < 1 || rating > 5) return { error: "Rating must be between 1 and 5." }
-  const { error } = await supabase.from("parent_reviews").upsert(
-    {
+  if (trimmed.length === 0) return { error: "Review text is required.", reviewId: null, isNew: false }
+  if (rating < 1 || rating > 5) return { error: "Rating must be between 1 and 5.", reviewId: null, isNew: false }
+
+  const { data: existingReview, error: existingReviewError } = await supabase
+    .from("parent_reviews")
+    .select("id")
+    .eq("parent_profile_id", parentProfileId)
+    .eq("provider_profile_id", providerProfileId)
+    .maybeSingle()
+
+  if (existingReviewError) {
+    return { error: existingReviewError.message, reviewId: null, isNew: false }
+  }
+
+  if (existingReview?.id) {
+    const { error } = await supabase
+      .from("parent_reviews")
+      .update({
+        rating,
+        review_text: trimmed,
+      })
+      .eq("id", existingReview.id)
+      .eq("parent_profile_id", parentProfileId)
+
+    if (error) return { error: error.message, reviewId: null, isNew: false }
+    return { error: null, reviewId: existingReview.id, isNew: false }
+  }
+
+  const { data: insertedReview, error } = await supabase
+    .from("parent_reviews")
+    .insert({
       parent_profile_id: parentProfileId,
       provider_profile_id: providerProfileId,
       rating,
       review_text: trimmed,
-    },
-    { onConflict: "parent_profile_id,provider_profile_id" }
-  )
-  if (error) return { error: error.message }
-  return { error: null }
+    })
+    .select("id")
+    .single()
+
+  if (!error) {
+    return { error: null, reviewId: insertedReview.id, isNew: true }
+  }
+
+  const isDuplicateReview =
+    error.code === "23505" || error.message.toLowerCase().includes("duplicate key")
+
+  if (!isDuplicateReview) {
+    return { error: error.message, reviewId: null, isNew: false }
+  }
+
+  const { data: conflictedReview, error: conflictedReviewError } = await supabase
+    .from("parent_reviews")
+    .select("id")
+    .eq("parent_profile_id", parentProfileId)
+    .eq("provider_profile_id", providerProfileId)
+    .maybeSingle()
+
+  if (conflictedReviewError || !conflictedReview?.id) {
+    return { error: conflictedReviewError?.message ?? error.message, reviewId: null, isNew: false }
+  }
+
+  const { error: updateAfterConflictError } = await supabase
+    .from("parent_reviews")
+    .update({
+      rating,
+      review_text: trimmed,
+    })
+    .eq("id", conflictedReview.id)
+    .eq("parent_profile_id", parentProfileId)
+
+  if (updateAfterConflictError) {
+    return { error: updateAfterConflictError.message, reviewId: null, isNew: false }
+  }
+
+  return { error: null, reviewId: conflictedReview.id, isNew: false }
 }
 
 /**
@@ -256,7 +329,7 @@ export async function addProviderReply(
 }
 
 /**
- * Create a report for a review (provider reporting a parent's review).
+ * Create a report for a review using the authenticated reporter profile id.
  */
 export async function createReviewReport(
   supabase: TypedClient,
@@ -267,16 +340,6 @@ export async function createReviewReport(
 ): Promise<{ error: string | null }> {
   const trimmedReason = reason.trim()
   if (trimmedReason.length === 0) return { error: "Reason is required." }
-  const { data: review, error: reviewError } = await supabase
-    .from("parent_reviews")
-    .select("id, provider_profile_id")
-    .eq("id", reviewId)
-    .maybeSingle()
-  if (reviewError) return { error: reviewError.message }
-  if (!review) return { error: "Review not found." }
-  if (review.provider_profile_id !== reporterProfileId) {
-    return { error: "You can only report reviews for your own listing." }
-  }
   const { error } = await supabase.from("review_reports").insert({
     review_id: reviewId,
     reporter_profile_id: reporterProfileId,
@@ -690,12 +753,22 @@ export type ProviderInquiryPreviewRow = {
   first_provider_response_at: string | null
 }
 
+type ProviderInquiryQueryOptions = {
+  limit?: number
+  query?: string
+}
+
 export async function getInquiriesByProviderProfileId(
   supabase: TypedClient,
-  providerProfileId: string
+  providerProfileId: string,
+  options?: ProviderInquiryQueryOptions
 ): Promise<ProviderInquiryPreviewRow[]> {
   void providerProfileId
-  const { data: rows, error } = await supabase.rpc("get_provider_inquiry_previews")
+  const trimmedQuery = options?.query?.trim() || null
+  const { data: rows, error } = await supabase.rpc("get_provider_inquiry_previews", {
+    p_limit: typeof options?.limit === "number" && options.limit > 0 ? options.limit : null,
+    p_query: trimmedQuery,
+  })
   if (error || !rows || rows.length === 0) return []
 
   type RpcRow = {
@@ -708,8 +781,8 @@ export async function getInquiriesByProviderProfileId(
     parent_email: string | null
     lead_status: string | null
     child_age_group: string | null
-    source?: string | null
-    first_provider_response_at?: string | null
+    source: string | null
+    first_provider_response_at: string | null
   }
   const filteredRows = (rows ?? []).filter(
     (row): row is RpcRow => row != null && row.parent_profile_id != null

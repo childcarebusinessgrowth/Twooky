@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
-import { createReview } from "@/lib/parent-engagement"
 import { getProfileRoleForUser } from "@/lib/authz"
 import { LoginToWriteReviewDialog } from "@/components/login-to-write-review-dialog"
 
@@ -64,16 +63,21 @@ export function ProviderWriteReview({
     if (!user || !isParent || !providerProfileId) return
     setError(null)
     setSubmitting(true)
-    const result = await createReview(
-      getSupabaseClient(),
-      user.id,
-      providerProfileId,
-      rating,
-      text
-    )
+    const response = await fetch("/api/reviews", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        providerProfileId,
+        rating,
+        text,
+      }),
+    })
+    const result = (await response.json().catch(() => null)) as { error?: string } | null
     setSubmitting(false)
-    if (result.error) {
-      setError(result.error)
+    if (!response.ok) {
+      setError(result?.error ?? "Failed to submit review.")
       return
     }
     setText("")

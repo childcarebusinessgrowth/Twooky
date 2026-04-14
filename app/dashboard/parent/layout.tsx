@@ -21,7 +21,7 @@ import {
   Wallet,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -148,17 +148,13 @@ function ParentSidebarGroup({
   hasActiveChild: boolean
   onItemClick?: () => void
 }) {
-  const [open, setOpen] = useState(() => pathname.startsWith(item.pathPrefix))
-
-  useEffect(() => {
-    if (pathname.startsWith(item.pathPrefix)) {
-      setOpen(true)
-    }
-  }, [item.pathPrefix, pathname])
+  const [manualOpen, setManualOpen] = useState(() => pathname.startsWith(item.pathPrefix))
+  const isRouteOpen = pathname.startsWith(item.pathPrefix)
+  const open = isRouteOpen || manualOpen
 
   const Icon = item.icon
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={setManualOpen}>
       <CollapsibleTrigger
         className={cn(
           "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",

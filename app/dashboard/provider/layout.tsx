@@ -108,11 +108,7 @@ export default function ProviderDashboardLayout({
   const identity = getUserIdentity(user, "provider")
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
-  // Count persisted provider_notifications only; inquiries/reviews have no read state in DB
-  const unreadCount = notifications.filter(
-    (n) =>
-      (n.type === "listing_confirmed" || n.type === "review_report_accepted") && !n.readAt
-  ).length
+  const unreadCount = notifications.filter((n) => !n.readAt).length
 
   async function markNotificationsRead(ids: string[]) {
     if (ids.length === 0) return

@@ -19,6 +19,7 @@ export default async function ProviderReviewsPage() {
   return (
     <ProviderReviewsContent
       providerProfileId={providerProfileId}
+      reporterProfileId={user?.id ?? ""}
       reviews={reviews}
     />
   )

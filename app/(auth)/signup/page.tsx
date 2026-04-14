@@ -33,7 +33,8 @@ type AccountType = "select" | "parent" | "provider"
 function SignupPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [step, setStep] = useState<AccountType>("select")
+  const initialStep: AccountType = searchParams.get("role") === "provider" ? "provider" : "select"
+  const [step, setStep] = useState<AccountType>(initialStep)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
@@ -54,12 +55,6 @@ function SignupPageContent() {
   const [locationLoadError, setLocationLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { signUpWithEmail, authError } = useAuth()
-
-  useEffect(() => {
-    if (searchParams.get("role") === "provider") {
-      setStep("provider")
-    }
-  }, [searchParams])
 
   useEffect(() => {
     async function loadCountries() {

@@ -787,16 +787,22 @@ export interface Database {
         Row: {
           id: string
           provider_profile_id: string
+          visitor_token: string
+          view_bucket: string
           viewed_at: string
         }
         Insert: {
           id?: string
           provider_profile_id: string
+          visitor_token: string
+          view_bucket: string
           viewed_at?: string
         }
         Update: {
           id?: string
           provider_profile_id?: string
+          visitor_token?: string
+          view_bucket?: string
           viewed_at?: string
         }
         Relationships: []
@@ -1569,7 +1575,7 @@ export interface Database {
         }[]
       }
       get_provider_inquiry_previews: {
-        Args: Record<string, never>
+        Args: { p_limit?: number | null; p_query?: string | null }
         Returns: {
           id: string
           parent_profile_id: string
@@ -1580,6 +1586,8 @@ export interface Database {
           parent_email: string | null
           lead_status: string | null
           child_age_group: string | null
+          source: string | null
+          first_provider_response_at: string | null
         }[]
       }
       update_provider_favorite_lead_status: {

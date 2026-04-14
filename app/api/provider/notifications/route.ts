@@ -2,11 +2,6 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
-import {
-  getInquiriesByProviderProfileId,
-  getGuestInquiriesByProviderProfileId,
-  getReviewsByProviderProfileId,
-} from "@/lib/parent-engagement"
 
 export type ProviderNotificationItem = {
   id: string
@@ -19,7 +14,11 @@ export type ProviderNotificationItem = {
   readAt: string | null
 }
 
-function mapPersistedNotificationType(raw: string | null): "listing_confirmed" | "review_report_accepted" {
+function mapPersistedNotificationType(
+  raw: string | null
+): "inquiry" | "review" | "listing_confirmed" | "review_report_accepted" {
+  if (raw === "inquiry") return "inquiry"
+  if (raw === "review") return "review"
   if (raw === "review_report_accepted") return "review_report_accepted"
   return "listing_confirmed"
 }
@@ -61,18 +60,12 @@ export async function GET() {
     }
 
     const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
-
-    const [inquiries, guestInquiries, reviews, { data: notificationRows }] = await Promise.all([
-      getInquiriesByProviderProfileId(supabase, providerProfileId),
-      getGuestInquiriesByProviderProfileId(supabase, providerProfileId),
-      getReviewsByProviderProfileId(supabase, providerProfileId),
-      supabase
-        .from("provider_notifications")
-        .select("id, type, title, message, href, created_at, read_at")
-        .eq("provider_profile_id", providerProfileId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-    ])
+    const { data: notificationRows } = await supabase
+      .from("provider_notifications")
+      .select("id, type, title, message, href, created_at, read_at")
+      .eq("provider_profile_id", providerProfileId)
+      .order("created_at", { ascending: false })
+      .limit(20)
 
     type ItemWithSort = ProviderNotificationItem & { sortAt: string }
     const items: ItemWithSort[] = []
@@ -86,49 +79,6 @@ export async function GET() {
         time: formatNotificationTime(row.created_at),
         href: row.href ?? "/dashboard/provider",
         readAt: row.read_at ?? null,
-        sortAt: row.created_at,
-      })
-    })
-
-    inquiries.slice(0, 8).forEach((row) => {
-      const name = row.parent_display_name?.trim() || "A parent"
-      items.push({
-        id: row.id,
-        type: "inquiry",
-        title: `New inquiry from ${name}`,
-        message: (row.inquiry_subject?.trim() || "Message sent").slice(0, 80),
-        time: formatNotificationTime(row.updated_at),
-        href: `/dashboard/provider/inquiries?open=${row.id}`,
-        readAt: null,
-        sortAt: row.updated_at,
-      })
-    })
-
-    guestInquiries.slice(0, 8).forEach((row) => {
-      const name = `${row.first_name} ${row.last_name}`.trim() || "A guest"
-      items.push({
-        id: row.id,
-        type: "inquiry",
-        title: `New inquiry from ${name}`,
-        message: "Guest inquiry",
-        time: formatNotificationTime(row.created_at),
-        href: `/dashboard/provider/inquiries?open=${row.id}`,
-        readAt: null,
-        sortAt: row.created_at,
-      })
-    })
-
-    reviews.slice(0, 8).forEach((row) => {
-      const name = row.parent_display_name?.trim() || "A parent"
-      const snippet = row.review_text.trim().slice(0, 60)
-      items.push({
-        id: row.id,
-        type: "review",
-        title: `New ${row.rating}★ review from ${name}`,
-        message: snippet ? `"${snippet}${row.review_text.length > 60 ? "…" : ""}"` : "New review",
-        time: formatNotificationTime(row.created_at),
-        href: "/dashboard/provider/reviews",
-        readAt: null,
         sortAt: row.created_at,
       })
     })
@@ -150,7 +100,7 @@ export async function GET() {
   }
 }
 
-/** Mark provider notifications as read. Only rows in provider_notifications are updated. */
+/** Mark provider notifications as read. */
 export async function PATCH(request: Request) {
   try {
     const supabase = await createSupabaseServerClient()

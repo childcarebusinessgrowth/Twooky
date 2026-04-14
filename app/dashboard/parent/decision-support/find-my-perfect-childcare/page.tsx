@@ -156,6 +156,15 @@ export default async function ParentDecisionSupportFindMyPerfectChildcarePage({
   return (
     <div className="space-y-6">
       <FindMyPerfectChildcareQuiz
+        key={[
+          validCountry,
+          validCity,
+          validAgeGroup,
+          validProgramType,
+          validLanguage,
+          selectedMinFee,
+          selectedMaxFee,
+        ].join("|")}
         countries={locationOptions.countries}
         cities={locationOptions.cities}
         ageGroupOptions={filterOptions.ageGroups}

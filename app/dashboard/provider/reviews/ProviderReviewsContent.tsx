@@ -57,9 +57,10 @@ function StarRating({ rating }: { rating: number }) {
 type ReviewCardProps = {
   review: PublicReviewRow
   providerProfileId: string
+  reporterProfileId: string
 }
 
-function ReviewCard({ review, providerProfileId }: ReviewCardProps) {
+function ReviewCard({ review, providerProfileId, reporterProfileId }: ReviewCardProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [showReplyForm, setShowReplyForm] = useState(false)
@@ -127,7 +128,7 @@ function ReviewCard({ review, providerProfileId }: ReviewCardProps) {
     const { error } = await createReviewReport(
       getSupabaseClient(),
       review.id,
-      providerProfileId,
+      reporterProfileId,
       reasonLabel,
       reportDetails.trim() || null
     )
@@ -300,11 +301,13 @@ function ReviewCard({ review, providerProfileId }: ReviewCardProps) {
 
 type ProviderReviewsContentProps = {
   providerProfileId: string
+  reporterProfileId: string
   reviews: PublicReviewRow[]
 }
 
 export function ProviderReviewsContent({
   providerProfileId,
+  reporterProfileId,
   reviews,
 }: ProviderReviewsContentProps) {
   const averageRating =
@@ -364,6 +367,7 @@ export function ProviderReviewsContent({
               key={review.id}
               review={review}
               providerProfileId={providerProfileId}
+              reporterProfileId={reporterProfileId}
             />
           ))
         ) : (

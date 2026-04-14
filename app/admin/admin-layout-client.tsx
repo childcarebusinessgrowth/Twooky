@@ -169,15 +169,13 @@ function AdminSidebarGroup({
   hasActiveChild: boolean
   onItemClick?: () => void
 }) {
-  const [open, setOpen] = useState(() => pathname.startsWith(groupPathPrefix))
+  const [manualOpen, setManualOpen] = useState(() => pathname.startsWith(groupPathPrefix))
   const Icon = item.icon
-
-  useEffect(() => {
-    if (pathname.startsWith(groupPathPrefix)) setOpen(true)
-  }, [pathname, groupPathPrefix])
+  const isRouteOpen = pathname.startsWith(groupPathPrefix)
+  const open = isRouteOpen || manualOpen
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={setManualOpen}>
       <CollapsibleTrigger
         className={cn(
           "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",

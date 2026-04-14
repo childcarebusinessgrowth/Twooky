@@ -1,30 +1,36 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Save, Bell, Shield, Trash2, BookOpen } from "lucide-react"
+import { Loader2, Save, Shield, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useAuth } from "@/components/AuthProvider"
 import {
-  getProviderNotificationPrefs,
-  updateNotificationPrefs,
   deactivateListing,
   deleteProviderAccount,
+  getProviderNotificationPrefs,
   type ProviderNotificationPrefs,
+  updateNotificationPrefs,
+  updateProviderPassword,
 } from "./actions"
 
 export default function SettingsPage() {
   const { toast } = useToast()
   const router = useRouter()
   const { user, signOut } = useAuth()
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
   const [notificationPrefs, setNotificationPrefs] = useState<ProviderNotificationPrefs>({
     notify_new_inquiries: true,
     notify_new_reviews: true,
@@ -32,41 +38,26 @@ export default function SettingsPage() {
   })
   const [prefsLoading, setPrefsLoading] = useState(true)
   const [prefsSaving, setPrefsSaving] = useState(false)
-  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
-    let mounted = true
-    getProviderNotificationPrefs().then(({ data, error }) => {
-      if (!mounted) return
-      setPrefsLoading(false)
+    let cancelled = false
+
+    void (async () => {
+      const { data, error } = await getProviderNotificationPrefs()
+      if (cancelled) return
       if (error) {
-        toast({ title: "Could not load notification preferences", variant: "destructive" })
-        return
+        toast({ title: "Unable to load notification preferences", variant: "destructive" })
       }
-      if (data) setNotificationPrefs(data)
-    })
+      if (data) {
+        setNotificationPrefs(data)
+      }
+      setPrefsLoading(false)
+    })()
+
     return () => {
-      mounted = false
+      cancelled = true
     }
   }, [toast])
-
-  const handleNotificationChange = async (
-    key: keyof ProviderNotificationPrefs,
-    value: boolean
-  ) => {
-    const next = { ...notificationPrefs, [key]: value }
-    setNotificationPrefs(next)
-    setPrefsSaving(true)
-    const { error } = await updateNotificationPrefs(next)
-    setPrefsSaving(false)
-    if (error) {
-      toast({ title: "Failed to save preference", variant: "destructive" })
-      setNotificationPrefs(notificationPrefs)
-      return
-    }
-    toast({ title: "Preferences saved", variant: "success" })
-  }
 
   const handleDeactivateConfirm = async () => {
     const { error } = await deactivateListing()
@@ -90,6 +81,63 @@ export default function SettingsPage() {
     router.refresh()
   }
 
+  const handlePasswordSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      toast({ title: "Fill all password fields", variant: "destructive" })
+      return
+    }
+
+    if (newPassword.length < 8) {
+      toast({ title: "Password must be at least 8 characters long", variant: "destructive" })
+      return
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: "New passwords do not match", variant: "destructive" })
+      return
+    }
+
+    setIsUpdatingPassword(true)
+    try {
+      const { error } = await updateProviderPassword({
+        currentPassword,
+        newPassword,
+      })
+
+      if (error) {
+        toast({ title: error, variant: "destructive" })
+        return
+      }
+
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmNewPassword("")
+      toast({ title: "Password updated successfully", variant: "success" })
+    } catch {
+      toast({ title: "Unable to update password right now", variant: "destructive" })
+    } finally {
+      setIsUpdatingPassword(false)
+    }
+  }
+
+  const handleNotificationPrefsSave = async () => {
+    setPrefsSaving(true)
+    try {
+      const { error } = await updateNotificationPrefs(notificationPrefs)
+      if (error) {
+        toast({ title: error, variant: "destructive" })
+        return
+      }
+      toast({ title: "Notification preferences updated", variant: "success" })
+    } catch {
+      toast({ title: "Unable to update preferences right now", variant: "destructive" })
+    } finally {
+      setPrefsSaving(false)
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Page header */}
@@ -108,6 +156,7 @@ export default function SettingsPage() {
           <CardDescription>Update your login credentials</CardDescription>
         </CardHeader>
         <CardContent>
+          <form onSubmit={handlePasswordSubmit}>
           <FieldGroup>
             <Field>
               <FieldLabel>Email Address</FieldLabel>
@@ -127,8 +176,10 @@ export default function SettingsPage() {
               <Input
                 type="password"
                 placeholder="Enter current password"
-                disabled
-                className="bg-muted"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                disabled={isUpdatingPassword}
               />
             </Field>
 
@@ -138,8 +189,10 @@ export default function SettingsPage() {
                 <Input
                   type="password"
                   placeholder="Enter new password"
-                  disabled
-                  className="bg-muted"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  disabled={isUpdatingPassword}
                 />
               </Field>
 
@@ -148,85 +201,92 @@ export default function SettingsPage() {
                 <Input
                   type="password"
                   placeholder="Confirm new password"
-                  disabled
-                  className="bg-muted"
+                  autoComplete="new-password"
+                  value={confirmNewPassword}
+                  onChange={(event) => setConfirmNewPassword(event.target.value)}
+                  disabled={isUpdatingPassword}
                 />
               </Field>
             </div>
 
-            <p className="text-sm text-muted-foreground">Password change coming soon.</p>
-            <Button disabled>
-              <Save className="h-4 w-4 mr-2" />
+            <p className="text-sm text-muted-foreground">Use at least 8 characters for your new password.</p>
+            <Button type="submit" disabled={isUpdatingPassword}>
+              {isUpdatingPassword ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
               Update Password
             </Button>
           </FieldGroup>
+          </form>
         </CardContent>
       </Card>
 
-      {/* Notification Preferences */}
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Notification Preferences
-          </CardTitle>
-          <CardDescription>Choose how you want to be notified</CardDescription>
+          <CardTitle>Notification Preferences</CardTitle>
+          <CardDescription>Control which provider emails and dashboard alerts you receive</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">New Inquiries</p>
-              <p className="text-sm text-muted-foreground">Get notified when a parent sends an inquiry</p>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+            <div className="space-y-1 pr-2">
+              <p className="font-medium text-foreground">New inquiry emails</p>
+              <p className="text-sm text-muted-foreground">
+                Get emailed when a new parent or guest inquiry arrives.
+              </p>
             </div>
             <Switch
               checked={notificationPrefs.notify_new_inquiries}
-              onCheckedChange={(checked) => handleNotificationChange("notify_new_inquiries", checked)}
+              onCheckedChange={(checked) =>
+                setNotificationPrefs((prev) => ({ ...prev, notify_new_inquiries: checked }))
+              }
               disabled={prefsLoading || prefsSaving}
+              aria-label="Toggle new inquiry emails"
             />
           </div>
 
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">New Reviews</p>
-              <p className="text-sm text-muted-foreground">Get notified when someone leaves a review</p>
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+            <div className="space-y-1 pr-2">
+              <p className="font-medium text-foreground">New review emails</p>
+              <p className="text-sm text-muted-foreground">
+                Get emailed when a parent leaves a new review on your listing.
+              </p>
             </div>
             <Switch
               checked={notificationPrefs.notify_new_reviews}
-              onCheckedChange={(checked) => handleNotificationChange("notify_new_reviews", checked)}
+              onCheckedChange={(checked) =>
+                setNotificationPrefs((prev) => ({ ...prev, notify_new_reviews: checked }))
+              }
               disabled={prefsLoading || prefsSaving}
+              aria-label="Toggle new review emails"
             />
           </div>
 
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Weekly Analytics Report</p>
-              <p className="text-sm text-muted-foreground">Receive a weekly summary of your listing performance</p>
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+            <div className="space-y-1 pr-2">
+              <p className="font-medium text-foreground">Weekly analytics emails</p>
+              <p className="text-sm text-muted-foreground">
+                Receive a weekly summary of traffic and engagement for your listing.
+              </p>
             </div>
             <Switch
               checked={notificationPrefs.notify_weekly_analytics}
-              onCheckedChange={(checked) => handleNotificationChange("notify_weekly_analytics", checked)}
+              onCheckedChange={(checked) =>
+                setNotificationPrefs((prev) => ({ ...prev, notify_weekly_analytics: checked }))
+              }
               disabled={prefsLoading || prefsSaving}
+              aria-label="Toggle weekly analytics emails"
             />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Help */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Profile Tour
-          </CardTitle>
-          <CardDescription>Replay the walkthrough for updating your listing</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/provider/listing?tour=1">Show profile tour</Link>
+          <Button onClick={() => void handleNotificationPrefsSave()} disabled={prefsLoading || prefsSaving}>
+            {prefsSaving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save Preferences
           </Button>
         </CardContent>
       </Card>

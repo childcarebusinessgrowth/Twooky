@@ -38,6 +38,8 @@ export type SearchPageQueryParams = {
   ageGroups?: string
 }
 
+const MAX_SERIALIZED_SEARCH_RESULTS = 150
+
 const AGE_TAGS: ReadonlySet<AgeTag> = new Set([
   "infant",
   "toddler",
@@ -286,7 +288,9 @@ export async function getSearchPageData(options: {
     return (a.business_name ?? "").localeCompare(b.business_name ?? "")
   })
 
-  const providers = rankedRows.map((row) => activeProviderRowToCardData(row, baseUrl))
+  const providers = rankedRows
+    .slice(0, MAX_SERIALIZED_SEARCH_RESULTS)
+    .map((row) => activeProviderRowToCardData(row, baseUrl))
 
   return {
     providers,

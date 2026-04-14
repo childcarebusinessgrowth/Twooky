@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -90,24 +90,15 @@ export function FindMyPerfectChildcareQuiz({
   const [language, setLanguage] = useState(initialValues.language)
   const [minFee, setMinFee] = useState(initialValues.minFee)
   const [maxFee, setMaxFee] = useState(initialValues.maxFee)
-  const [stepIndex, setStepIndex] = useState(0)
-
-  useEffect(() => {
-    setCountry(initialValues.country)
-    setCity(initialValues.city)
-    setAgeGroup(initialValues.ageGroup)
-    setProgramType(initialValues.programType)
-    setLanguage(initialValues.language)
-    setMinFee(initialValues.minFee)
-    setMaxFee(initialValues.maxFee)
+  const [stepIndex, setStepIndex] = useState(() => {
     if (initialValues.country && initialValues.city && initialValues.ageGroup) {
-      setStepIndex(STEPS.length - 1)
-    } else if (initialValues.country && initialValues.city) {
-      setStepIndex(1)
-    } else {
-      setStepIndex(0)
+      return STEPS.length - 1
     }
-  }, [initialValues])
+    if (initialValues.country && initialValues.city) {
+      return 1
+    }
+    return 0
+  })
 
   const availableCities = useMemo(() => {
     if (!country) return []

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { publicMessageForError } from "@/lib/publicErrors"
 import { notifyProviderNewInquiry } from "@/lib/email/providerInquiryNotification"
+import { buildGuestInquiryNotification, insertProviderNotification } from "@/lib/providerNotifications"
 
 type GuestInquiryPayload = {
   providerSlug?: string
@@ -201,6 +202,13 @@ export async function POST(request: Request) {
         fromName: guestDisplayName,
         source,
       })
+      void insertProviderNotification(
+        buildGuestInquiryNotification({
+          providerProfileId: resolvedProviderProfileId,
+          inquiryId: String(id),
+          fromName: guestDisplayName,
+        })
+      )
     }
 
     return NextResponse.json({ id }, { status: 201 })
