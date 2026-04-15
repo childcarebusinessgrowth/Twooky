@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getPasswordResetRedirectUrl } from "@/lib/email/brand"
 import { sendPasswordResetEmail } from "@/lib/email/passwordReset"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 type Body = {
@@ -14,6 +15,16 @@ function isValidEmail(value: string): boolean {
 const GENERIC_SUCCESS_MESSAGE = "If an account exists for this email, a reset link has been sent."
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request)
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "forgot-password",
+    limit: 5,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   let email = ""
   try {
     const body = (await request.json()) as Body

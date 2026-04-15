@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { publicMessageForError } from "@/lib/publicErrors"
 import { notifyProviderNewInquiry } from "@/lib/email/providerInquiryNotification"
 import { buildGuestInquiryNotification, insertProviderNotification } from "@/lib/providerNotifications"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 
 type GuestInquiryPayload = {
   providerSlug?: string
@@ -29,6 +30,16 @@ function normalizeSubdomain(raw: string): string {
 }
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request, { allowRootSubdomains: true })
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "guest-inquiries",
+    limit: 5,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   try {
     const body = (await request.json()) as GuestInquiryPayload
     const websiteSubdomain =

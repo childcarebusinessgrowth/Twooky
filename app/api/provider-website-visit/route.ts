@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { parseConsentCookie } from "@/lib/cookie-consent"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 const VISITOR_COOKIE_NAME = "eld_microsite_visitor"
@@ -27,6 +28,16 @@ function isLikelyVisitorToken(value: string | undefined): value is string {
 }
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request, { allowRootSubdomains: true })
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "provider-website-visit",
+    limit: 30,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   try {
     const consent = parseConsentCookie(request.headers.get("cookie"))
     if (consent?.analytics !== true) {

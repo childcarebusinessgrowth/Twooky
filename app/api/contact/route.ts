@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 const CONSENT_VERSION = "2025-03-15"
@@ -16,6 +17,16 @@ function isValidEmail(value: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request, { allowRootSubdomains: true })
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "contact",
+    limit: 5,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   try {
     const body = (await request.json()) as ContactPayload
     const name = typeof body.name === "string" ? body.name.trim() : ""

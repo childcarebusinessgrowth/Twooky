@@ -1,4 +1,5 @@
 import "server-only"
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout"
 
 /**
  * Server-only forward geocoding to validate that a city name exists and lies in the given country.
@@ -46,12 +47,16 @@ export async function validateCityInCountry(
     key: apiKey,
   })
 
-  const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${query.toString()}`, {
-    method: "GET",
-    cache: "no-store",
-  })
+  const response = await fetchWithTimeout(
+    `https://maps.googleapis.com/maps/api/geocode/json?${query.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+    10_000,
+  ).catch(() => null)
 
-  if (!response.ok) {
+  if (!response?.ok) {
     return { valid: false, error: "Could not verify city. Please try again." }
   }
 
@@ -108,12 +113,16 @@ export async function geocodeAddressToCoordinates(
     key: apiKey,
   })
 
-  const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${query.toString()}`, {
-    method: "GET",
-    cache: "no-store",
-  })
+  const response = await fetchWithTimeout(
+    `https://maps.googleapis.com/maps/api/geocode/json?${query.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+    10_000,
+  ).catch(() => null)
 
-  if (!response.ok) {
+  if (!response?.ok) {
     return null
   }
 

@@ -11,8 +11,15 @@ const Analytics = dynamic(
   () => import("@vercel/analytics/next").then((mod) => mod.Analytics),
   { ssr: false },
 )
+const SpeedInsights = dynamic(() => import("@vercel/speed-insights/next").then((mod) => mod.SpeedInsights), {
+  ssr: false,
+})
 
-export function AnalyticsConsentGate() {
+type AnalyticsConsentGateProps = {
+  enabled?: boolean
+}
+
+export function AnalyticsConsentGate({ enabled = true }: AnalyticsConsentGateProps) {
   const [allowAnalytics, setAllowAnalytics] = useState(false)
 
   useEffect(() => {
@@ -25,7 +32,12 @@ export function AnalyticsConsentGate() {
     return () => window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, sync)
   }, [])
 
-  if (!allowAnalytics) return null
+  if (!enabled || !allowAnalytics) return null
 
-  return <Analytics />
+  return (
+    <>
+      <Analytics />
+      <SpeedInsights />
+    </>
+  )
 }

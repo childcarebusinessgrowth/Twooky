@@ -7,10 +7,21 @@ import {
   PROVIDER_PROFILE_VISITOR_COOKIE_MAX_AGE_SECONDS,
   PROVIDER_PROFILE_VISITOR_COOKIE_NAME,
 } from "@/lib/providerProfileViews"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request, { allowRootSubdomains: true })
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "provider-profile-view",
+    limit: 30,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   try {
     const consent = parseConsentCookie(request.headers.get("cookie"))
     if (consent?.analytics !== true) {

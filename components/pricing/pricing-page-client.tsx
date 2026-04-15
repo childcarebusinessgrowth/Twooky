@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Fragment, useState } from "react"
 import { BadgeCheck, Check, Minus, Star } from "lucide-react"
+import { StartCheckoutButton } from "@/components/billing/start-checkout-button"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,12 +16,13 @@ import {
   PRICING_FOOTNOTE,
   PRICING_PLANS,
   type FeatureRow,
-  type PlanId,
   type PlanTheme,
   type PricingPlan,
+  isPaidPlanId,
+  type PlanId,
 } from "@/lib/pricing-data"
 
-type BillingPeriod = "monthly" | "annual"
+type PricingBillingCycle = "monthly" | "annual"
 
 const THEME: Record<
   PlanTheme,
@@ -52,8 +54,8 @@ function BillingToggle({
   value,
   onChange,
 }: {
-  value: BillingPeriod
-  onChange: (next: BillingPeriod) => void
+  value: PricingBillingCycle
+  onChange: (next: PricingBillingCycle) => void
 }) {
   return (
     <div
@@ -118,7 +120,7 @@ function PriceBlock({
 }: {
   plan: PricingPlan
   featured?: boolean
-  billing: BillingPeriod
+  billing: PricingBillingCycle
 }) {
   const theme = THEME[plan.theme]
 
@@ -222,7 +224,7 @@ function PriceBlock({
   )
 }
 
-function ComparePriceCell({ plan, billing }: { plan: PricingPlan; billing: BillingPeriod }) {
+function ComparePriceCell({ plan, billing }: { plan: PricingPlan; billing: PricingBillingCycle }) {
   if (plan.monthlyUsd === null) {
     return (
       <div className="flex flex-col items-center gap-0.5 text-center">
@@ -297,7 +299,7 @@ function FeatureCell({
 }
 
 export function PricingPageClient() {
-  const [billing, setBilling] = useState<BillingPeriod>("monthly")
+  const [billing, setBilling] = useState<PricingBillingCycle>("monthly")
 
   return (
     <div className="min-h-screen bg-background">
@@ -336,6 +338,7 @@ export function PricingPageClient() {
               {PRICING_PLANS.map((plan) => {
                 const theme = THEME[plan.theme]
                 const isPopular = plan.badge === "Most Popular"
+                const checkoutBillingPeriod = billing === "monthly" ? "monthly" : "yearly"
 
                 return (
                   <Card
@@ -436,16 +439,31 @@ export function PricingPageClient() {
                       </ul>
                     </CardContent>
                     <CardFooter className="mt-auto border-t border-border/50 bg-muted/25 px-6 py-5">
-                      <Button
-                        className={cn(
-                          "w-full rounded-xl font-semibold",
-                          isPopular ? "h-12 text-base shadow-md" : "h-11"
-                        )}
-                        variant={isPopular ? "default" : "outline"}
-                        asChild
-                      >
-                        <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>
-                      </Button>
+                      {isPaidPlanId(plan.id) ? (
+                        <StartCheckoutButton
+                          planId={plan.id}
+                          billingPeriod={checkoutBillingPeriod}
+                          unauthenticatedHref="/for-providers"
+                          className={cn(
+                            "w-full rounded-xl font-semibold",
+                            isPopular ? "h-12 text-base shadow-md" : "h-11"
+                          )}
+                          variant={isPopular ? "default" : "outline"}
+                        >
+                          {billing === "monthly" ? `Choose ${plan.name}` : `Choose ${plan.name} yearly`}
+                        </StartCheckoutButton>
+                      ) : (
+                        <Button
+                          className={cn(
+                            "w-full rounded-xl font-semibold",
+                            isPopular ? "h-12 text-base shadow-md" : "h-11"
+                          )}
+                          variant={isPopular ? "default" : "outline"}
+                          asChild
+                        >
+                          <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>
+                        </Button>
+                      )}
                     </CardFooter>
                   </Card>
                 )

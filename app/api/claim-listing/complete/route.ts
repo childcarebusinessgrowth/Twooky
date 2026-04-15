@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server"
 import { completeClaimSubmission } from "@/lib/claim-listing-submit"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request, { allowRootSubdomains: true })
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "claim-listing-complete",
+    limit: 5,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   try {
     const body = await request.json()
     const result = await completeClaimSubmission({

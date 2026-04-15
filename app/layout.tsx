@@ -43,6 +43,7 @@ export default async function RootLayout({
   const requestHeaders = await headers()
   const isMicrositeRequest = requestHeaders.get("x-microsite-request") === "1"
   const footerCities = await getRandomFooterCities(7)
+  const enableVercelObservability = process.env.VERCEL === "1"
 
   return (
     <html
@@ -59,7 +60,7 @@ export default async function RootLayout({
           <CookieConsentBannerLazy />
         </DeferredClientRender>
         <DeferredClientRender timeoutMs={1800}>
-          <AnalyticsConsentGate />
+          <AnalyticsConsentGate enabled={enableVercelObservability} />
         </DeferredClientRender>
       </body>
     </html>

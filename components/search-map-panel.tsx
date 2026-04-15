@@ -321,6 +321,7 @@ export function SearchMapPanel({
     if (!mapContainerRef.current) return
 
     let isCancelled = false
+    const markerByProviderId = markerByProviderIdRef.current
     setMapError(null)
     setIsLoadingMap(true)
 
@@ -354,7 +355,7 @@ export function SearchMapPanel({
 
         const infoWindow = new maps.InfoWindow()
         infoWindowRef.current = infoWindow
-        clearMarkers(markerByProviderIdRef.current)
+        clearMarkers(markerByProviderId)
         const bounds = new maps.LatLngBounds()
 
         addMarkersToMap(
@@ -362,7 +363,7 @@ export function SearchMapPanel({
           map,
           infoWindow,
           directPoints,
-          markerByProviderIdRef.current,
+          markerByProviderId,
           bounds,
         )
 
@@ -410,14 +411,14 @@ export function SearchMapPanel({
               map,
               infoWindow,
               resolvedBatch,
-              markerByProviderIdRef.current,
+              markerByProviderId,
               bounds,
             )
 
             if (hasAdjustedToResolvedPoints) return
 
             hasAdjustedToResolvedPoints = true
-            if (markerByProviderIdRef.current.size > 1) {
+            if (markerByProviderId.size > 1) {
               map.fitBounds(bounds, 80)
               return
             }
@@ -444,7 +445,7 @@ export function SearchMapPanel({
 
     return () => {
       isCancelled = true
-      clearMarkers(markerByProviderIdRef.current)
+      clearMarkers(markerByProviderId)
     }
   }, [defaultCenter, mapsApiKey, providers, searchLocation])
 

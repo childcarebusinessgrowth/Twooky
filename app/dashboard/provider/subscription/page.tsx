@@ -1,188 +1,244 @@
-"use client"
-
 import { Check, Sparkles } from "lucide-react"
+import { ManageBillingButton } from "@/components/billing/manage-billing-button"
+import { StartCheckoutButton } from "@/components/billing/start-checkout-button"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import {
+  annualUsdTotal,
+  getPricingPlan,
+  isPaidPlanId,
+  PRICING_PLANS,
+  type BillingPeriod,
+  type PlanId,
+} from "@/lib/pricing-data"
+import {
+  formatProviderBillingInterval,
+  formatProviderBillingStatus,
+  getProviderBillingSnapshot,
+  hasPaidSubscriptionEntitlement,
+} from "@/lib/provider-billing"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { cn } from "@/lib/utils"
 
-const plans = [
-  {
-    name: "Free Listing",
-    price: "$0",
-    period: "forever",
-    description: "Basic listing to get started",
-    features: [
-      "Basic profile page",
-      "Up to 3 photos",
-      "Receive inquiries",
-      "Basic analytics",
-    ],
-    notIncluded: [
-      "Featured placement",
-      "Priority support",
-      "Review responses",
-      "Advanced analytics",
-    ],
-    current: false,
-    popular: false,
-  },
-  {
-    name: "Featured Listing",
-    price: "$49",
-    period: "per month",
-    description: "Stand out from the competition",
-    features: [
-      "Everything in Free",
-      "Featured badge",
-      "Up to 10 photos",
-      "Priority in search results",
-      "Review responses",
-      "Email support",
-    ],
-    notIncluded: [
-      "Homepage placement",
-      "Advanced analytics",
-    ],
-    current: false,
-    popular: true,
-  },
-  {
-    name: "Premium Profile",
-    price: "$99",
-    period: "per month",
-    description: "Maximum visibility and features",
-    features: [
-      "Everything in Featured",
-      "Homepage placement",
-      "Unlimited photos",
-      "Video gallery",
-      "Advanced analytics",
-      "Priority phone support",
-      "Custom branding",
-      "Social media integration",
-    ],
-    notIncluded: [],
-    current: true,
-    popular: false,
-  },
-]
+type PageProps = {
+  searchParams?: Promise<{ checkout?: string }>
+}
 
-export default function SubscriptionPage() {
+function formatPlanPrice(planId: "grow" | "thrive", billingPeriod: BillingPeriod) {
+  const plan = getPricingPlan(planId)
+  if (!plan || plan.monthlyUsd == null || plan.monthlyUsd === undefined) return "Contact us"
+  if (billingPeriod === "monthly") return `$${plan.monthlyUsd}/mo`
+  return `$${annualUsdTotal(plan.monthlyUsd)}/yr`
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
+export default async function SubscriptionPage({ searchParams }: PageProps) {
+  const params = searchParams ? await searchParams : {}
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let providerPlanId: PlanId = "sprout"
+  let providerPlanName = "Sprout"
+  let billing: Awaited<ReturnType<typeof getProviderBillingSnapshot>>["billing"] = null
+
+  if (user) {
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const snapshot = await getProviderBillingSnapshot(supabase, providerProfileId)
+    providerPlanId = snapshot.providerPlanId
+    providerPlanName = snapshot.providerPlanName
+    billing = snapshot.billing
+  }
+
+  const hasPaidPlan = hasPaidSubscriptionEntitlement(billing)
+  const currentInterval = billing?.billing_interval ?? null
+  const renewalDate = billing?.cancel_at_period_end
+    ? formatDate(billing.current_period_end)
+    : formatDate(billing?.current_period_end)
+  const statusLabel = billing ? formatProviderBillingStatus(billing.status, billing.cancel_at_period_end) : null
+  const intervalLabel = formatProviderBillingInterval(currentInterval)
+  const checkoutState = params.checkout === "success" ? "success" : params.checkout === "canceled" ? "canceled" : null
+  const selectablePlans = PRICING_PLANS.filter((plan) => plan.id !== "kinderpathPro")
+
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Subscription</h1>
-        <p className="text-muted-foreground">Manage your subscription plan and billing</p>
+        <p className="text-muted-foreground">Manage your provider plan, renewals, and Stripe billing.</p>
       </div>
 
-      {/* Current plan banner */}
-      <Card className="border-primary bg-primary/5">
-        <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-6">
-          <div>
-            <p className="text-sm text-muted-foreground">Current Plan</p>
-            <p className="text-xl font-bold text-foreground">Premium Profile</p>
-            <p className="text-sm text-muted-foreground">Renews on April 11, 2026</p>
+      {checkoutState === "success" ? (
+        <Card className="border-green-500/40 bg-green-500/5">
+          <CardContent className="py-5 text-sm text-foreground">
+            Stripe checkout completed. Your plan will update here as soon as Stripe confirms the subscription.
+          </CardContent>
+        </Card>
+      ) : checkoutState === "canceled" ? (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="py-5 text-sm text-foreground">
+            Checkout was canceled. Your plan has not changed.
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card className="border-primary/40 bg-primary/5">
+        <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Current plan</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xl font-bold text-foreground">{providerPlanName}</p>
+              {statusLabel ? <Badge variant="outline">{statusLabel}</Badge> : null}
+              {intervalLabel ? <Badge variant="secondary">{intervalLabel}</Badge> : null}
+            </div>
+            {billing?.cancel_at_period_end && renewalDate ? (
+              <p className="text-sm text-muted-foreground">Access ends on {renewalDate}</p>
+            ) : renewalDate && hasPaidPlan ? (
+              <p className="text-sm text-muted-foreground">Renews on {renewalDate}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {providerPlanId === "sprout"
+                  ? "You are currently on the free provider plan."
+                  : "This plan is managed outside Stripe."}
+              </p>
+            )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline">Manage Billing</Button>
-            <Button variant="outline">Cancel Plan</Button>
+          <div className="flex flex-wrap gap-2">
+            {billing?.stripe_customer_id ? (
+              <ManageBillingButton variant="outline">Manage Billing</ManageBillingButton>
+            ) : null}
+            {providerPlanId === "kinderpathPro" ? (
+              <Button variant="outline" asChild>
+                <a href="/contact">Contact account manager</a>
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>
 
-      {/* Plans */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {plans.map((plan) => (
-          <Card 
-            key={plan.name} 
-            className={cn(
-              "relative border-border/50",
-              plan.popular && "border-secondary shadow-lg",
-              plan.current && "border-primary"
-            )}
-          >
-            {plan.popular && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-secondary text-secondary-foreground">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Most Popular
-                </Badge>
-              </div>
-            )}
-            {plan.current && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-primary">Current Plan</Badge>
-              </div>
-            )}
+      <div className="grid gap-6 md:grid-cols-3">
+        {selectablePlans.map((plan) => {
+          const isCurrentPlan = providerPlanId === plan.id
+          const paidPlanId = isPaidPlanId(plan.id) ? plan.id : null
+          const isPopular = plan.badge === "Most Popular"
 
-            <CardHeader className="pt-8">
-              <CardTitle>{plan.name}</CardTitle>
-              <CardDescription>{plan.description}</CardDescription>
-              <div className="pt-4">
-                <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                <span className="text-muted-foreground">/{plan.period}</span>
-              </div>
-            </CardHeader>
-
-            <CardContent>
-              <ul className="space-y-3 mb-6">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-primary shrink-0" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-                {plan.notIncluded.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="h-4 w-4 shrink-0" />
-                    <span className="line-through">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {plan.current ? (
-                <Button variant="outline" className="w-full" disabled>
-                  Current Plan
-                </Button>
-              ) : plan.price === "$0" ? (
-                <Button variant="outline" className="w-full">
-                  Downgrade
-                </Button>
-              ) : (
-                <Button 
-                  className={cn(
-                    "w-full",
-                    plan.popular && "bg-secondary hover:bg-secondary/90"
-                  )}
-                >
-                  Upgrade
-                </Button>
+          return (
+            <Card
+              key={plan.id}
+              className={cn(
+                "relative border-border/60",
+                isCurrentPlan && "border-primary shadow-sm",
+                isPopular && "border-emerald-600/30 shadow-lg",
               )}
-            </CardContent>
-          </Card>
-        ))}
+            >
+              {isPopular ? (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <Badge className="bg-secondary text-secondary-foreground">
+                    <Sparkles className="mr-1 h-3 w-3" />
+                    {plan.badge}
+                  </Badge>
+                </div>
+              ) : null}
+              {isCurrentPlan ? (
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-primary">Current Plan</Badge>
+                </div>
+              ) : null}
+
+              <CardHeader className="space-y-2 pt-8">
+                <CardTitle>{plan.name}</CardTitle>
+                <CardDescription>{plan.tagline}</CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  {plan.monthlyUsd === null ? (
+                    <>
+                      <p className="text-3xl font-bold text-foreground">Free</p>
+                      <p className="text-sm text-muted-foreground">Basic directory presence forever.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">Monthly</p>
+                      <p className="text-3xl font-bold text-foreground">
+                        {paidPlanId ? formatPlanPrice(paidPlanId, "monthly") : "Contact us"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Yearly: {paidPlanId ? formatPlanPrice(paidPlanId, "yearly") : "Contact us"} billed once per year.
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <ul className="space-y-3">
+                  {plan.highlights.map((feature) => (
+                    <li key={feature.text} className="flex items-start gap-2 text-sm">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span>{feature.text}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {paidPlanId ? (
+                  <div className="space-y-2">
+                    <StartCheckoutButton
+                      planId={paidPlanId}
+                      billingPeriod="monthly"
+                      className="w-full"
+                      variant={isPopular ? "default" : "outline"}
+                      disabled={isCurrentPlan && currentInterval === "month"}
+                    >
+                      {isCurrentPlan && currentInterval === "month"
+                        ? "Current monthly plan"
+                        : hasPaidPlan
+                          ? "Change in billing portal"
+                          : "Subscribe monthly"}
+                    </StartCheckoutButton>
+                    <StartCheckoutButton
+                      planId={paidPlanId}
+                      billingPeriod="yearly"
+                      className="w-full"
+                      variant="outline"
+                      disabled={isCurrentPlan && currentInterval === "year"}
+                    >
+                      {isCurrentPlan && currentInterval === "year"
+                        ? "Current yearly plan"
+                        : hasPaidPlan
+                          ? "Change in billing portal"
+                          : "Subscribe yearly"}
+                    </StartCheckoutButton>
+                  </div>
+                ) : (
+                  <Button className="w-full" variant="outline" disabled={isCurrentPlan}>
+                    {isCurrentPlan ? "Current Plan" : "Automatic fallback when no paid plan is active"}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
-      {/* FAQ */}
-      <Card className="border-border/50">
+      <Card className="border-border/60">
         <CardHeader>
-          <CardTitle>Frequently Asked Questions</CardTitle>
+          <CardTitle>Billing notes</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-medium text-foreground mb-1">Can I change plans anytime?</h4>
-            <p className="text-sm text-muted-foreground">Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-foreground mb-1">What payment methods do you accept?</h4>
-            <p className="text-sm text-muted-foreground">We accept all major credit cards, PayPal, and bank transfers for annual plans.</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-foreground mb-1">Is there a contract or commitment?</h4>
-            <p className="text-sm text-muted-foreground">No long-term contracts. You can cancel your subscription at any time with no penalty.</p>
-          </div>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>Grow and Thrive are billed through Stripe and sync back to your provider profile automatically.</p>
+          <p>When you cancel at period end, your current paid features stay active until the current billing period ends.</p>
+          <p>Sprout remains your default plan whenever there is no active paid Stripe subscription.</p>
         </CardContent>
       </Card>
     </div>

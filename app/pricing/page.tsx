@@ -1,3 +1,4 @@
+import { AuthProviderClient } from "@/components/auth-provider-client"
 import { PricingPageClient } from "@/components/pricing/pricing-page-client"
 
 export const metadata = {
@@ -7,5 +8,9 @@ export const metadata = {
 }
 
 export default function PricingPage() {
-  return <PricingPageClient />
+  return (
+    <AuthProviderClient>
+      <PricingPageClient />
+    </AuthProviderClient>
+  )
 }

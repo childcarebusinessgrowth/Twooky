@@ -6,7 +6,7 @@ import { CACHE_TAGS } from "@/lib/cache-tags"
 import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import type { GooglePlaceDetailsSummary } from "./google-place-reviews"
 import { formatDailyFeeRange } from "./currency"
-import { getProgramTypeBySlug, getAgeGroupsById } from "./program-types"
+import { getProgramTypeBySlug } from "./program-types"
 import { getSupabaseAdminClient } from "./supabaseAdmin"
 import {
   filterProvidersByVisitorGeo,
@@ -378,6 +378,8 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         .eq("listing_status", "active")
         .eq("featured", true)
         .not("provider_slug", "is", null)
+        .order("business_name", { ascending: true })
+        .order("profile_id", { ascending: true })
         .limit(limit)
 
       let profileRows = profiles
@@ -389,6 +391,8 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           .eq("listing_status", "active")
           .eq("featured", true)
           .not("provider_slug", "is", null)
+          .order("business_name", { ascending: true })
+          .order("profile_id", { ascending: true })
           .limit(limit)
         profileRows = retry.data?.map((row) => withGoogleCacheFallbackFields(row)) ?? null
         profileRowsError = retry.error

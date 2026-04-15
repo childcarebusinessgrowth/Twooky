@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
 import { resolveProviderLocation } from "@/lib/resolve-provider-city"
@@ -87,6 +88,16 @@ async function rollbackUserIfNeeded(userId: string) {
 }
 
 export async function POST(request: Request) {
+  const originError = enforceTrustedOrigin(request)
+  if (originError) return originError
+
+  const rateLimitError = enforceRateLimit(request, {
+    key: "signup",
+    limit: 5,
+    windowMs: 60_000,
+  })
+  if (rateLimitError) return rateLimitError
+
   try {
     const body = (await request.json()) as SignupPayload
     const email = body.email?.trim().toLowerCase()

@@ -1,4 +1,6 @@
 export type PlanId = "sprout" | "grow" | "thrive" | "kinderpathPro"
+export type PaidPlanId = Extract<PlanId, "grow" | "thrive">
+export type BillingPeriod = "monthly" | "yearly"
 
 export type PlanTheme = "blue" | "lightGreen" | "darkGreen" | "orange"
 
@@ -37,8 +39,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     tagline: "Stand out locally",
     theme: "lightGreen",
     monthlyUsd: 29,
-    ctaLabel: "Talk to us",
-    ctaHref: "/contact",
+    ctaLabel: "Choose Grow",
+    ctaHref: "/pricing",
     highlights: [
       { text: "Full enhanced profile, photos & virtual tour" },
       { text: "Boosted search placement" },
@@ -52,8 +54,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     theme: "darkGreen",
     badge: "Most Popular",
     monthlyUsd: 59,
-    ctaLabel: "Talk to us",
-    ctaHref: "/contact",
+    ctaLabel: "Choose Thrive",
+    ctaHref: "/pricing",
     highlights: [
       { text: "Video showcase & verified badge" },
       { text: "Priority search placement & CRM dashboard" },
@@ -359,6 +361,7 @@ export const FEATURE_CATEGORIES: FeatureCategory[] = [
 ]
 
 export const PLAN_IDS: PlanId[] = ["sprout", "grow", "thrive", "kinderpathPro"]
+export const PAID_PLAN_IDS: PaidPlanId[] = ["grow", "thrive"]
 
 /** Annual billing: pay for 11 months, 12th month free (matches package spreadsheet). */
 export const ANNUAL_PAID_MONTHS = 11
@@ -373,3 +376,11 @@ export function annualSavingsUsd(monthlyUsd: number): number {
 
 export const PRICING_FOOTNOTE =
   "KinderPath Pro exclusive, prime platform placements & push notifications included as part of your done-for-you package."
+
+export function getPricingPlan(planId: PlanId): PricingPlan | undefined {
+  return PRICING_PLANS.find((plan) => plan.id === planId)
+}
+
+export function isPaidPlanId(value: string | null | undefined): value is PaidPlanId {
+  return value === "grow" || value === "thrive"
+}

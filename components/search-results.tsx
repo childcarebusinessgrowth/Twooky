@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { resolveLocationTextFromSearchParams } from "@/lib/search-location-query"
 import { useRouter, useSearchParams } from "next/navigation"
 import { MapPin, SlidersHorizontal } from "lucide-react"
@@ -48,7 +48,16 @@ type SearchResultsProps = {
   emptyStateDescription?: string
 }
 
-export function SearchResults({
+export function SearchResults(props: SearchResultsProps) {
+  const providerResetKey = useMemo(
+    () => props.providers.map((provider) => String(provider.id)).join("|"),
+    [props.providers],
+  )
+
+  return <SearchResultsInner key={providerResetKey} {...props} />
+}
+
+function SearchResultsInner({
   providers,
   filterOptions,
   basePath = "/search",
@@ -355,10 +364,6 @@ export function SearchResults({
     [providers, visibleCount],
   )
   const isAllLoaded = visibleCount >= providers.length
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE)
-  }, [providers])
 
   return (
     <div className="min-h-screen bg-background">

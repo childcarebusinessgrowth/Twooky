@@ -1,4 +1,5 @@
 import "server-only"
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout"
 
 type GoogleFindPlaceResponse = {
   status?: string
@@ -34,12 +35,13 @@ export async function resolveGooglePlaceIdFromText(
     key: apiKey,
   })
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?${query.toString()}`,
     {
       method: "GET",
       cache: "no-store",
-    }
+    },
+    10_000,
   ).catch(() => null)
 
   if (!response || !response.ok) return null

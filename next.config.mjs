@@ -9,6 +9,47 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 })
 
+const securityHeaders = [
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' https://fonts.gstatic.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com https://maps.googleapis.com https://maps.gstatic.com",
+      "connect-src 'self' https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com",
+      "worker-src 'self' blob:",
+      "upgrade-insecure-requests",
+    ].join("; "),
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  {
+    key: "X-Frame-Options",
+    value: "SAMEORIGIN",
+  },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), geolocation=(), microphone=()",
+  },
+]
+
 const nextConfig = {
   experimental: {
     serverActions: {
@@ -50,6 +91,14 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ]
   },
 }
 

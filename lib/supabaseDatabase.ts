@@ -633,6 +633,81 @@ export interface Database {
         }
         Relationships: []
       }
+      provider_billing_subscriptions: {
+        Row: {
+          provider_profile_id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          stripe_product_id: string | null
+          stripe_price_id: string | null
+          plan_id: "sprout" | "grow" | "thrive"
+          billing_interval: "month" | "year" | null
+          status:
+            | "incomplete"
+            | "incomplete_expired"
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "paused"
+          cancel_at_period_end: boolean
+          current_period_start: string | null
+          current_period_end: string | null
+          canceled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          provider_profile_id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_product_id?: string | null
+          stripe_price_id?: string | null
+          plan_id?: "sprout" | "grow" | "thrive"
+          billing_interval?: "month" | "year" | null
+          status?:
+            | "incomplete"
+            | "incomplete_expired"
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "paused"
+          cancel_at_period_end?: boolean
+          current_period_start?: string | null
+          current_period_end?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          provider_profile_id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_product_id?: string | null
+          stripe_price_id?: string | null
+          plan_id?: "sprout" | "grow" | "thrive"
+          billing_interval?: "month" | "year" | null
+          status?:
+            | "incomplete"
+            | "incomplete_expired"
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "paused"
+          cancel_at_period_end?: boolean
+          current_period_start?: string | null
+          current_period_end?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       provider_listing_claims: {
         Row: {
           id: string
