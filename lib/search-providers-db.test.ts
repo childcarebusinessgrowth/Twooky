@@ -7,6 +7,7 @@ import { filterActiveProviders, type ActiveProviderRow } from "./search-provider
 function buildRow(overrides: Partial<ActiveProviderRow> = {}): ActiveProviderRow {
   return {
     profile_id: "provider-1",
+    plan_id: overrides.plan_id ?? "sprout",
     provider_slug: "provider-1",
     business_name: "Provider One",
     city: "Dubai",

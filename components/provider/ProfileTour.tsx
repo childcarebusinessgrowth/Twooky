@@ -6,7 +6,7 @@ import { driver, type DriveStep } from "driver.js"
 import "driver.js/dist/driver.css"
 import "./profile-tour.css"
 
-const TOUR_STEPS: DriveStep[] = [
+const FULL_TOUR_STEPS: DriveStep[] = [
   {
     popover: {
       title: "Welcome",
@@ -56,13 +56,60 @@ const TOUR_STEPS: DriveStep[] = [
       align: "end",
     },
   },
+]
+
+const SPROUT_TOUR_STEPS: DriveStep[] = [
   {
-    element: "[data-tour-photos]",
     popover: {
-      title: "Photos",
+      title: "Welcome",
       description:
-        "After submitting, go to Photos to add images. Photos are very important,families use them to visualize your space.",
+        "Let's get your basic listing ready for families. We'll walk through the fields needed for your Sprout submission.",
       side: "bottom",
+      align: "center",
+    },
+  },
+  {
+    element: "[data-tour-business-name]",
+    popover: {
+      title: "Business Name",
+      description: "Enter the name families will see in the directory.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: "[data-tour-location]",
+    popover: {
+      title: "Location",
+      description: "Add your address so parents know where your program is located.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: "[data-tour-provider-type]",
+    popover: {
+      title: "Provider Type",
+      description: "Select the provider type or types you want displayed on your listing.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: "[data-tour-verification]",
+    popover: {
+      title: "Verification Documents",
+      description: "Upload at least one verification document for admin review before submitting.",
+      side: "top",
+      align: "start",
+    },
+  },
+  {
+    element: "[data-tour-submit]",
+    popover: {
+      title: "Submit",
+      description: "Submit your basic listing when these fields are complete. The admin team will review it.",
+      side: "left",
       align: "center",
     },
   },
@@ -80,9 +127,14 @@ type ProfileTourProps = {
   autoStart?: boolean
   /** When false, the tour waits. Pass true once the page content (tabs, buttons) is rendered. */
   isReady?: boolean
+  variant?: "full" | "sprout"
 }
 
-export function ProfileTour({ autoStart = false, isReady = true }: ProfileTourProps) {
+export function ProfileTour({
+  autoStart = false,
+  isReady = true,
+  variant = "full",
+}: ProfileTourProps) {
   const searchParams = useSearchParams()
   const hasStarted = useRef(false)
 
@@ -102,7 +154,7 @@ export function ProfileTour({ autoStart = false, isReady = true }: ProfileTourPr
         nextBtnText: "Next",
         prevBtnText: "Back",
         doneBtnText: "Done",
-        steps: TOUR_STEPS,
+        steps: variant === "sprout" ? SPROUT_TOUR_STEPS : FULL_TOUR_STEPS,
         popoverClass: "profile-tour-popover",
         onDestroyed: () => {
           void markTourShown()
@@ -112,7 +164,7 @@ export function ProfileTour({ autoStart = false, isReady = true }: ProfileTourPr
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [autoStart, isReady, searchParams])
+  }, [autoStart, isReady, searchParams, variant])
 
   return null
 }

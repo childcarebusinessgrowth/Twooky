@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 const DOC_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"]
 
@@ -25,13 +26,14 @@ export async function POST(request: Request) {
     const body = await request.json()
     const docType = DOC_TYPES.includes(body.document_type) ? body.document_type : "Other"
     const documents = Array.isArray(body.documents) ? body.documents : []
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
     const admin = getSupabaseAdminClient()
     for (const doc of documents) {
       const { error: docErr } = await admin
         .from("provider_listing_documents")
         .insert({
-          provider_profile_id: user.id,
+          provider_profile_id: providerProfileId,
           document_type: docType,
           storage_path: doc.path,
           mime_type: doc.mime_type,

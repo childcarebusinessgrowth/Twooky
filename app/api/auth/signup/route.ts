@@ -309,6 +309,7 @@ export async function POST(request: Request) {
       const { error: providerProfileError } = await admin.from("provider_profiles" as never).upsert(
         {
           profile_id: userId,
+          plan_id: "sprout",
           listing_status: "draft",
           provider_slug: providerSlug || null,
           business_name: businessName,

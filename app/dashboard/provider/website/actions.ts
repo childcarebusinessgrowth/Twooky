@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { randomUUID } from "crypto"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import type { Json } from "@/lib/supabaseDatabase"
 import { buildPublishedSnapshot } from "@/lib/website-builder/snapshot"
 import { summarizeMobileValidationIssues, validateMobileWebsite } from "@/lib/website-builder/mobile-validator"
@@ -22,6 +23,17 @@ import {
 } from "./constants"
 
 type AdminClient = ReturnType<typeof getSupabaseAdminClient>
+
+async function ensureWebsitePlanAccess(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const access = await getProviderPlanAccessForUser(supabase, userId)
+  if (!access.canAccessWebsite) {
+    return { error: "Website is not available on the Sprout plan." }
+  }
+  return { ok: true }
+}
 
 function sanitizeSubdomainBase(raw: string): string {
   return raw
@@ -188,6 +200,8 @@ export async function loadProviderWebsiteState(): Promise<
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -245,6 +259,8 @@ export async function getProviderWebsiteNavSummary(): Promise<
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -272,6 +288,8 @@ export async function createProviderWebsite(
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const providerProfileResolution = await ensureProviderProfileForWebsiteCreation(admin, user)
@@ -378,6 +396,8 @@ export async function saveProviderWebsiteDraft(input: {
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -432,6 +452,8 @@ export async function addProviderWebsitePage(input: {
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -494,6 +516,8 @@ export async function deleteProviderWebsitePage(pageId: string): Promise<{ ok: t
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -533,6 +557,8 @@ export async function applyProviderWebsiteTemplate(templateKey: string): Promise
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -612,6 +638,8 @@ export async function publishProviderWebsite(
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -699,6 +727,8 @@ export async function updateProviderWebsiteSubdomain(input: {
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
@@ -787,6 +817,8 @@ export async function uploadProviderWebsiteAsset(
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
+  const websiteAccess = await ensureWebsitePlanAccess(supabase, user.id)
+  if ("error" in websiteAccess) return websiteAccess
 
   const admin = getSupabaseAdminClient()
   const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)

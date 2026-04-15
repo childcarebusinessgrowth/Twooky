@@ -7,6 +7,7 @@ import {
   PROVIDER_DOCUMENTS_BUCKET,
   MAX_FILE_SIZE_BYTES,
 } from "@/lib/provider-documents-constants"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
 
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       }
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
     const admin = getSupabaseAdminClient()
     const { data: buckets, error: listErr } = await admin.storage.listBuckets()
     if (listErr) throw new Error(listErr.message)
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     for (const file of files) {
       const ext = (file.name || "").split(".").pop()?.toLowerCase() || "bin"
       const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "bin"
-      const storagePath = `${user.id}/${randomUUID()}.${safeExt}`
+      const storagePath = `${providerProfileId}/${randomUUID()}.${safeExt}`
       const { data: signed, error: signedErr } = await admin.storage
         .from(PROVIDER_DOCUMENTS_BUCKET)
         .createSignedUploadUrl(storagePath)

@@ -286,7 +286,7 @@ export async function syncProviderSubscriptionFromStripe(
   const shouldGrantPaidPlan =
     planMapping != null && PAID_ENTITLEMENT_STATUSES.has(subscription.status as ProviderBillingStatus)
 
-  const effectivePlanId: ProviderBillingRow["plan_id"] =
+  const billingPlanId: ProviderBillingRow["plan_id"] =
     shouldGrantPaidPlan && planMapping ? planMapping.planId : "sprout"
   const effectiveInterval = planMapping?.billingInterval ?? null
   const primaryItem = subscription.items.data[0]
@@ -303,7 +303,7 @@ export async function syncProviderSubscriptionFromStripe(
     stripe_subscription_id: subscription.id,
     stripe_product_id: productId,
     stripe_price_id: primaryPrice?.id ?? null,
-    plan_id: effectivePlanId,
+    plan_id: billingPlanId,
     billing_interval: effectiveInterval,
     status: subscription.status as ProviderBillingStatus,
     cancel_at_period_end: subscription.cancel_at_period_end,
@@ -318,14 +318,5 @@ export async function syncProviderSubscriptionFromStripe(
 
   if (billingError) {
     throw new Error(billingError.message)
-  }
-
-  const { error: profileError } = await admin
-    .from("provider_profiles")
-    .update({ plan_id: effectivePlanId })
-    .eq("profile_id", providerProfileId)
-
-  if (profileError) {
-    throw new Error(profileError.message)
   }
 }

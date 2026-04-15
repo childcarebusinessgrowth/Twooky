@@ -5,7 +5,7 @@ import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-direc
 import { randomUUID } from "crypto"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import { MAX_PHOTOS_PER_PROVIDER } from "./constants"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
@@ -71,7 +71,10 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
   if (authError || !user) {
     return { error: "You must be signed in to upload photos." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessPhotos } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessPhotos) {
+    return { error: "Photos are not available on the Sprout plan." }
+  }
 
   // Ensure provider_profiles row exists (e.g. user may not have saved listing yet)
   const admin = getSupabaseAdminClient()
@@ -185,7 +188,10 @@ export async function updateProviderPhotoCaption(
   if (authError || !user) {
     return { error: "You must be signed in to update photos." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessPhotos } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessPhotos) {
+    return { error: "Photos are not available on the Sprout plan." }
+  }
 
   const { error } = await supabase
     .from("provider_photos")
@@ -214,7 +220,10 @@ export async function setPrimaryProviderPhoto(photoId: string): Promise<SetPrima
   if (authError || !user) {
     return { error: "You must be signed in to update photos." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessPhotos } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessPhotos) {
+    return { error: "Photos are not available on the Sprout plan." }
+  }
 
   const { data: targetPhoto, error: targetPhotoError } = await supabase
     .from("provider_photos")
@@ -289,7 +298,10 @@ export async function deleteProviderPhoto(photoId: string): Promise<DeleteProvid
   if (authError || !user) {
     return { error: "You must be signed in to delete photos." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessPhotos } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessPhotos) {
+    return { error: "Photos are not available on the Sprout plan." }
+  }
 
   const { data: row, error: selectError } = await supabase
     .from("provider_photos")

@@ -16,6 +16,7 @@ import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
+import { getProviderPlanAccess, normalizeProviderPlanId } from "@/lib/provider-plan-access"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -23,6 +24,8 @@ export type PublicAvailabilityStatus = "openings" | "waitlist" | "full"
 
 export type PublicProviderView = {
   profileId: string
+  planId: string
+  isSproutPlan: boolean
   slug: string
   name: string
   image: string
@@ -145,10 +148,10 @@ const PLACEHOLDER_IMAGE =
   "https://images.pexels.com/photos/1648377/pexels-photo-1648377.jpeg?auto=compress&cs=tinysrgb&w=800"
 
 const PUBLIC_PROVIDER_SELECT_WITH_GOOGLE_CACHE =
-  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+  "profile_id, plan_id, provider_slug, business_name, description, address, phone, website, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
 
 const PUBLIC_PROVIDER_SELECT_LEGACY =
-  "profile_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
+  "profile_id, plan_id, provider_slug, business_name, description, address, phone, website, google_place_id, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, currency_id, currencies(symbol, code), virtual_tour_url, virtual_tour_urls, is_admin_managed, owner_profile_id, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count"
 
 function isMissingColumnError(message: string | undefined): boolean {
   const m = (message ?? "").toLowerCase()
@@ -322,50 +325,61 @@ export async function getActivePublicProviderBySlug(
   const programTypes = programTypesByProfile[profileId] ?? []
   const ownerProfileId = (profile as { owner_profile_id?: string | null }).owner_profile_id ?? null
   const isClaimed = typeof ownerProfileId === "string" && ownerProfileId.trim().length > 0
+  const planId = normalizeProviderPlanId((profile as { plan_id?: string | null }).plan_id)
+  const planAccess = getProviderPlanAccess(planId)
+  const isSproutPlan = planAccess.isSprout
 
   return {
     profileId,
+    planId,
+    isSproutPlan,
     slug: profile.provider_slug ?? slug,
     name: profile.business_name ?? "Provider",
-    image,
+    image: isSproutPlan ? PLACEHOLDER_IMAGE : image,
     address: profile.address ?? "",
-    platformRating,
-    platformReviewCount,
-    displayRating,
-    displayReviewCount,
-    googleReviewsUrl,
-    rating: displayRating,
-    reviewCount: displayReviewCount,
+    platformRating: isSproutPlan ? 0 : platformRating,
+    platformReviewCount: isSproutPlan ? 0 : platformReviewCount,
+    displayRating: isSproutPlan ? 0 : displayRating,
+    displayReviewCount: isSproutPlan ? 0 : displayReviewCount,
+    googleReviewsUrl: isSproutPlan ? null : googleReviewsUrl,
+    rating: isSproutPlan ? 0 : displayRating,
+    reviewCount: isSproutPlan ? 0 : displayReviewCount,
     providerTypes: profile.provider_types ?? [],
-    programTypes,
-    description: profile.description ?? "",
-    ageGroups: ageRanges,
-    hours,
-    languages,
-    curriculumTypes: Array.isArray(profile.curriculum_type) ? profile.curriculum_type : profile.curriculum_type ? [profile.curriculum_type] : [],
-    website: profile.website ?? "",
-    phone: profile.phone ?? "",
-    priceRange,
+    programTypes: isSproutPlan ? [] : programTypes,
+    description: isSproutPlan ? "" : (profile.description ?? ""),
+    ageGroups: isSproutPlan ? [] : ageRanges,
+    hours: isSproutPlan ? "" : hours,
+    languages: isSproutPlan ? [] : languages,
+    curriculumTypes: isSproutPlan
+      ? []
+      : Array.isArray(profile.curriculum_type)
+        ? profile.curriculum_type
+        : profile.curriculum_type
+          ? [profile.curriculum_type]
+          : [],
+    website: isSproutPlan ? "" : (profile.website ?? ""),
+    phone: isSproutPlan ? "" : (profile.phone ?? ""),
+    priceRange: isSproutPlan ? "" : priceRange,
     currencySymbol,
     currencyCode,
-    registrationFee,
-    depositFee,
-    mealsFee,
-    additionalServices,
-    mealsIncluded,
-    outdoorSpace,
-    specialNeeds,
-    inquiriesEnabled: !profile.is_admin_managed || isClaimed,
-    earlyLearningExcellenceBadge: profile.early_learning_excellence_badge ?? false,
-    verifiedProviderBadge: profile.verified_provider_badge ?? false,
+    registrationFee: isSproutPlan ? null : registrationFee,
+    depositFee: isSproutPlan ? null : depositFee,
+    mealsFee: isSproutPlan ? null : mealsFee,
+    additionalServices: isSproutPlan ? [] : additionalServices,
+    mealsIncluded: isSproutPlan ? false : mealsIncluded,
+    outdoorSpace: isSproutPlan ? false : outdoorSpace,
+    specialNeeds: isSproutPlan ? false : specialNeeds,
+    inquiriesEnabled: planAccess.canReceivePublicInquiries && (!profile.is_admin_managed || isClaimed),
+    earlyLearningExcellenceBadge: isSproutPlan ? false : (profile.early_learning_excellence_badge ?? false),
+    verifiedProviderBadge: isSproutPlan ? false : (profile.verified_provider_badge ?? false),
     verifiedProviderBadgeColor: profile.verified_provider_badge_color ?? "emerald",
-    availabilityStatus,
-    availableSpotsCount,
-    availabilityLabel,
-    images,
-    photos,
-    virtualTourEmbedUrls,
-    reviews,
-    faqs,
+    availabilityStatus: isSproutPlan ? "openings" : availabilityStatus,
+    availableSpotsCount: isSproutPlan ? null : availableSpotsCount,
+    availabilityLabel: isSproutPlan ? "" : availabilityLabel,
+    images: isSproutPlan ? [] : images,
+    photos: isSproutPlan ? [] : photos,
+    virtualTourEmbedUrls: isSproutPlan ? [] : virtualTourEmbedUrls,
+    reviews: isSproutPlan ? [] : reviews,
+    faqs: isSproutPlan ? [] : faqs,
   }
 }

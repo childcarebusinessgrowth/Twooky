@@ -9,6 +9,7 @@ import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getProviderOverviewData, type RecentInquiryRow } from "@/lib/provider-dashboard"
 import { ProviderOnboardingWelcome } from "@/components/provider/ProviderOnboardingWelcome"
+import { getProviderPlanAccessByProfileId } from "@/lib/provider-plan-access"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
@@ -41,9 +42,11 @@ export default async function ProviderDashboardPage() {
   let overview: Awaited<ReturnType<typeof getProviderOverviewData>>
   let listingStatus: string | null = null
   let isNewProvider = false
+  let isSproutPlan = false
   if (user) {
     const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
-    overview = await getProviderOverviewData(supabase, providerProfileId)
+    const planAccess = await getProviderPlanAccessByProfileId(supabase, providerProfileId)
+    isSproutPlan = planAccess.isSprout
     const { data: profileRow } = await supabase
       .from("provider_profiles")
       .select("listing_status, onboarding_tour_shown_at")
@@ -54,19 +57,33 @@ export default async function ProviderDashboardPage() {
       profileRow != null &&
       profileRow.onboarding_tour_shown_at == null &&
       (profileRow.listing_status === "draft" || profileRow.listing_status == null)
-    const { data: rows } = await supabase
-      .from("provider_photos")
-      .select("id, storage_path, caption")
-      .eq("provider_profile_id", providerProfileId)
-      .order("is_primary", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true })
-      .limit(6)
-    dashboardPhotos = (rows ?? []).map((row) => ({
-      id: row.id,
-      url: buildProviderPhotoPublicUrl(row.storage_path),
-      caption: row.caption,
-    }))
+    overview = isSproutPlan
+      ? {
+          profileViews: 0,
+          profileViewsPrevMonth: 0,
+          inquiryCount: 0,
+          guestInquiryCount: 0,
+          reviewCount: 0,
+          reviewCountThisMonth: 0,
+          averageRating: null,
+          recentInquiries: [],
+        }
+      : await getProviderOverviewData(supabase, providerProfileId)
+    if (!isSproutPlan) {
+      const { data: rows } = await supabase
+        .from("provider_photos")
+        .select("id, storage_path, caption")
+        .eq("provider_profile_id", providerProfileId)
+        .order("is_primary", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(6)
+      dashboardPhotos = (rows ?? []).map((row) => ({
+        id: row.id,
+        url: buildProviderPhotoPublicUrl(row.storage_path),
+        caption: row.caption,
+      }))
+    }
   } else {
     overview = {
       profileViews: 0,
@@ -131,7 +148,15 @@ export default async function ProviderDashboardPage() {
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="pt-6">
             <p className="text-sm text-foreground">
-              Complete your profile in <Link href="/dashboard/provider/listing" className="font-medium text-primary underline underline-offset-2">Manage Listing &amp; Tour</Link> and submit it for admin approval. After submitting, add photos in the Photos section to showcase your space. You&apos;ll be notified once your listing is live.
+              {isSproutPlan ? (
+                <>
+                  Complete your basic profile in <Link href="/dashboard/provider/listing" className="font-medium text-primary underline underline-offset-2">Manage Listing &amp; Tour</Link> and submit it for admin approval. You&apos;ll be notified once your listing is live.
+                </>
+              ) : (
+                <>
+                  Complete your profile in <Link href="/dashboard/provider/listing" className="font-medium text-primary underline underline-offset-2">Manage Listing &amp; Tour</Link> and submit it for admin approval. After submitting, add photos in the Photos section to showcase your space. You&apos;ll be notified once your listing is live.
+                </>
+              )}
             </p>
           </CardContent>
         </Card>
@@ -140,7 +165,9 @@ export default async function ProviderDashboardPage() {
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="pt-6">
             <p className="text-sm text-foreground">
-              Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live. In the meantime, add photos in the Photos section,photos help families see your space.
+              {isSproutPlan
+                ? "Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live."
+                : "Thank you. Your listing has been submitted and is awaiting admin approval. Editing is locked until approval, and we&apos;ll notify you when it&apos;s live. In the meantime, add photos in the Photos section,photos help families see your space."}
             </p>
           </CardContent>
         </Card>
@@ -151,6 +178,34 @@ export default async function ProviderDashboardPage() {
         <h1 className="text-2xl font-bold text-foreground">Dashboard Overview</h1>
         <p className="text-muted-foreground">Welcome back! Here&apos;s what&apos;s happening with your listing.</p>
       </div>
+
+      {isSproutPlan ? (
+        <>
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader>
+              <CardTitle>Sprout Plan</CardTitle>
+              <CardDescription>
+                Your free plan includes a basic directory listing with admin review.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                On Sprout, you can manage your basic listing details, submit verification documents, review your subscription, and update account settings.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button asChild>
+                  <Link href="/dashboard/provider/listing">Manage Listing</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/dashboard/provider/subscription">View Plans</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+        </>
+      ) : (
+        <>
 
       {/* Photos prompt when none uploaded */}
       {dashboardPhotos.length === 0 && (
@@ -311,6 +366,8 @@ export default async function ProviderDashboardPage() {
           </Table>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
     </RequireAuth>
   )

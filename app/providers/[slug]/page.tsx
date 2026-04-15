@@ -119,6 +119,54 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
       ) : null}
       <div className="min-h-screen bg-background">
         <ProviderProfileViewTracker slug={p.slug} />
+      {p.isSproutPlan ? (
+        <>
+          <section className="relative h-64 md:h-80 bg-muted overflow-hidden">
+            <Image
+              src={p.image}
+              alt={p.name}
+              fill
+              className="object-cover"
+              priority
+              sizes="100vw"
+            />
+            <div className="absolute inset-0 bg-linear-to-t from-background/80 to-transparent" />
+          </section>
+
+          <div className="mx-auto max-w-4xl px-4 lg:px-8 -mt-20 relative z-10">
+            <Card className="mb-8">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                      {p.name}
+                    </h1>
+                    <div className="mt-3 flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>{p.address || "Location coming soon"}</span>
+                    </div>
+                  </div>
+                  {p.providerTypes.length > 0 ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Tags className="h-4 w-4" />
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.providerTypes.map((type) => (
+                          <Badge key={type} variant="outline" className="text-xs font-medium">
+                            {type
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : (
+        <>
       {/* Hero Image */}
       <section className="relative h-64 md:h-80 lg:h-96 bg-muted overflow-hidden">
         <Image
@@ -616,6 +664,8 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
           </div>
         </div>
       </div>
+        </>
+      )}
       </div>
     </AuthProviderClient>
   )

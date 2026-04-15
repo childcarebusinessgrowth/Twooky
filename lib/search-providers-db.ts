@@ -18,6 +18,7 @@ import { buildProviderCardImageUrl } from "./provider-card-image"
 import {
   formatAgeGroupLabel,
 } from "@/lib/age-groups-to-program-labels"
+import { normalizeProviderPlanId } from "@/lib/provider-plan-access"
 import {
   hasFreshCachedGoogleReviews,
   readCachedGooglePlaceSummary,
@@ -29,16 +30,16 @@ import {
 } from "@/lib/provider-program-types"
 
 const PROVIDER_PROFILE_SELECT_WITH_COORDS_AND_GOOGLE_CACHE =
-  "profile_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+  "profile_id, plan_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const PROVIDER_PROFILE_SELECT_WITH_GOOGLE_CACHE =
-  "profile_id, provider_slug, business_name, city, address, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+  "profile_id, plan_id, provider_slug, business_name, city, address, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const PROVIDER_PROFILE_SELECT_LEGACY =
-  "profile_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+  "profile_id, plan_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const PROVIDER_PROFILE_SELECT_MINIMAL_LEGACY =
-  "profile_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
+  "profile_id, plan_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const HOME_FEATURED_SELECT_WITH_GOOGLE_CACHE =
   "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at"
@@ -74,6 +75,7 @@ function withGoogleCacheFallbackFields<
 
 export type ActiveProviderRow = {
   profile_id: string
+  plan_id: ReturnType<typeof normalizeProviderPlanId>
   provider_slug: string | null
   business_name: string | null
   city: string | null
@@ -285,6 +287,7 @@ export async function getActiveProvidersFromDb(
 
     return {
       profile_id: p.profile_id,
+      plan_id: normalizeProviderPlanId((p as { plan_id?: string | null }).plan_id),
       provider_slug: p.provider_slug,
       business_name: p.business_name,
       city: p.city,
@@ -334,7 +337,7 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v7-program-types"],
+  ["directory-active-providers-v8-plan-ranking"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 

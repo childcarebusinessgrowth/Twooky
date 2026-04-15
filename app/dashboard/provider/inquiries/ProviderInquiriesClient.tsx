@@ -107,6 +107,8 @@ type Props = {
   guestInquiries: GuestInquiryPreviewRow[]
   favoriteLeads: ProviderFavoriteLeadRow[]
   initialOpenId: string | null
+  canUseCrmTools: boolean
+  canAccessFavoriteLeads: boolean
 }
 
 function getParentDisplayName(inquiry: ProviderInquiryPreviewRow): string {
@@ -211,6 +213,8 @@ export function ProviderInquiriesClient({
   guestInquiries,
   favoriteLeads,
   initialOpenId,
+  canUseCrmTools,
+  canAccessFavoriteLeads,
 }: Props) {
   const router = useRouter()
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -282,35 +286,37 @@ export function ProviderInquiriesClient({
           source: g.source ?? null,
           programInterest: g.program_interest ?? null,
         })),
-        ...localFavoriteLeads.map((f) => ({
-          type: "favorite" as const,
-          id: f.id,
-          label: f.parent_display_name?.trim() || "Parent",
-          email: f.parent_email ?? null,
-          date: f.created_at,
-          leadStatus: f.lead_status ?? "new",
-          source: "favorite" as const,
-          childAge: formatChildAgeGroup(f.child_age_group),
-          phone: f.parent_phone ?? null,
-          location:
-            [f.parent_city_name, f.parent_country_name].filter((value) => Boolean(value)).join(", ") || null,
-          preferredStartDate: f.preferred_start_date ?? null,
-        })),
+        ...(canAccessFavoriteLeads
+          ? localFavoriteLeads.map((f) => ({
+              type: "favorite" as const,
+              id: f.id,
+              label: f.parent_display_name?.trim() || "Parent",
+              email: f.parent_email ?? null,
+              date: f.created_at,
+              leadStatus: f.lead_status ?? "new",
+              source: "favorite" as const,
+              childAge: formatChildAgeGroup(f.child_age_group),
+              phone: f.parent_phone ?? null,
+              location:
+                [f.parent_city_name, f.parent_country_name].filter((value) => Boolean(value)).join(", ") || null,
+              preferredStartDate: f.preferred_start_date ?? null,
+            }))
+          : []),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [localInquiries, localGuestInquiries, localFavoriteLeads, leadStatusOverrides]
+    [canAccessFavoriteLeads, localInquiries, localGuestInquiries, localFavoriteLeads, leadStatusOverrides]
   )
 
   const listItems = useMemo(() => {
     let items = allListItems
-    if (statusFilter !== "all") {
+    if (canUseCrmTools && statusFilter !== "all") {
       items = items.filter(
         (item) => (item.type !== "thread" && item.type !== "favorite") || item.leadStatus === statusFilter
       )
     }
-    if (sourceFilter !== "all") {
+    if (canUseCrmTools && sourceFilter !== "all") {
       items = items.filter((item) => (item.source ?? "directory") === sourceFilter)
     }
-    if (searchQuery.trim()) {
+    if (canUseCrmTools && searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
       items = items.filter(
         (item) =>
@@ -319,7 +325,7 @@ export function ProviderInquiriesClient({
       )
     }
     return items
-  }, [allListItems, statusFilter, sourceFilter, searchQuery])
+  }, [allListItems, canUseCrmTools, statusFilter, sourceFilter, searchQuery])
 
   const fetchThread = useCallback(async (inquiryId: string) => {
     setLoadingThread(true)
@@ -396,7 +402,7 @@ export function ProviderInquiriesClient({
   }, [selectedId, selectedType])
 
   const fetchNotes = useCallback(async () => {
-    if (!selectedId || !selectedType) return
+    if (!canUseCrmTools || !selectedId || !selectedType) return
     setNotesLoading(true)
     try {
       const leadType =
@@ -421,11 +427,11 @@ export function ProviderInquiriesClient({
     } finally {
       setNotesLoading(false)
     }
-  }, [selectedId, selectedType])
+  }, [canUseCrmTools, selectedId, selectedType])
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedId || !selectedType || !newNoteText.trim() || addingNote) return
+    if (!canUseCrmTools || !selectedId || !selectedType || !newNoteText.trim() || addingNote) return
     setAddingNote(true)
     try {
       const leadType =
@@ -449,7 +455,7 @@ export function ProviderInquiriesClient({
   }
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!selectedId || !selectedType || deletingNoteId) return
+    if (!canUseCrmTools || !selectedId || !selectedType || deletingNoteId) return
     setDeletingNoteId(noteId)
     try {
       const leadType =
@@ -470,7 +476,7 @@ export function ProviderInquiriesClient({
   }
 
   const handleExport = async () => {
-    if (exporting) return
+    if (!canUseCrmTools || exporting) return
     setExporting(true)
     try {
       const res = await fetch("/api/provider/leads/export")
@@ -491,24 +497,27 @@ export function ProviderInquiriesClient({
     if (selectedType === "thread" && selectedId) {
       setGuestDetail(null)
       void fetchThread(selectedId)
-      void fetchNotes()
+      if (canUseCrmTools) void fetchNotes()
+      else setNotes([])
     } else if (selectedType === "guest" && selectedId) {
       setMessages([])
       setInquiryMeta(null)
       void fetchGuestDetail(selectedId)
-      void fetchNotes()
+      if (canUseCrmTools) void fetchNotes()
+      else setNotes([])
     } else if (selectedType === "favorite" && selectedId) {
       setMessages([])
       setInquiryMeta(null)
       setGuestDetail(null)
-      void fetchNotes()
+      if (canUseCrmTools) void fetchNotes()
+      else setNotes([])
     } else {
       setMessages([])
       setInquiryMeta(null)
       setGuestDetail(null)
       setNotes([])
     }
-  }, [selectedType, selectedId, fetchThread, fetchGuestDetail, fetchNotes])
+  }, [canUseCrmTools, selectedType, selectedId, fetchThread, fetchGuestDetail, fetchNotes])
 
   useEffect(() => {
     let cancelled = false
@@ -612,7 +621,7 @@ export function ProviderInquiriesClient({
   }
 
   const handleLeadStatusChange = async (value: string) => {
-    if (!selectedId || updatingOutcome) return
+    if (!canUseCrmTools || !selectedId || updatingOutcome) return
     setUpdatingOutcome(true)
     try {
       if (selectedType === "thread" && inquiryMeta) {
@@ -648,70 +657,80 @@ export function ProviderInquiriesClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          disabled={exporting || allListItems.length === 0}
-          className="shrink-0"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </Button>
-      </div>
+      {canUseCrmTools ? (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting || allListItems.length === 0}
+            className="shrink-0"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1.5fr)] lg:gap-6">
         {/* Left: list */}
         <Card className="border border-border/60 rounded-2xl overflow-hidden shadow-sm">
           <CardHeader className="space-y-3 pb-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-8 w-[130px] text-xs">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="tour_booked">Tour Booked</SelectItem>
-                  <SelectItem value="waitlist">Waitlist</SelectItem>
-                  <SelectItem value="enrolled">Enrolled</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="h-8 w-[120px] text-xs">
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All sources</SelectItem>
-                  <SelectItem value="directory">Directory</SelectItem>
-                  <SelectItem value="compare">Compare</SelectItem>
-                  <SelectItem value="microsite">Website</SelectItem>
-                  <SelectItem value="favorite">Saved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {canUseCrmTools ? (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-8 w-[130px] text-xs">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="contacted">Contacted</SelectItem>
+                      <SelectItem value="tour_booked">Tour Booked</SelectItem>
+                      <SelectItem value="waitlist">Waitlist</SelectItem>
+                      <SelectItem value="enrolled">Enrolled</SelectItem>
+                      <SelectItem value="lost">Lost</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                    <SelectTrigger className="h-8 w-[120px] text-xs">
+                      <SelectValue placeholder="Source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All sources</SelectItem>
+                      <SelectItem value="directory">Directory</SelectItem>
+                      <SelectItem value="compare">Compare</SelectItem>
+                      <SelectItem value="microsite">Website</SelectItem>
+                      <SelectItem value="favorite">Saved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : null}
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Leads ({listItems.length})
+              {canUseCrmTools ? "Leads" : "Inbox"} ({listItems.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {listItems.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 {allListItems.length === 0
-                  ? "No leads yet. Parents will appear here when they send you a message."
-                  : "No leads match your filters."}
+                  ? canUseCrmTools
+                    ? "No leads yet. Parents will appear here when they send you a message."
+                    : "No inquiries yet. Parent messages and contact requests will appear here."
+                  : canUseCrmTools
+                    ? "No leads match your filters."
+                    : "No inquiries yet."}
               </div>
             ) : (
               <ul className="divide-y divide-border/60 max-h-[calc(100vh-420px)] overflow-y-auto">
@@ -741,14 +760,14 @@ export function ProviderInquiriesClient({
                         {formatDate(item.date)}
                       </span>
                       <div className="flex flex-wrap gap-1 pt-0.5">
-                        {(item.type === "thread" || item.type === "favorite") && (
+                        {canUseCrmTools && (item.type === "thread" || item.type === "favorite") ? (
                           <Badge
                             variant="outline"
                             className={`text-[10px] font-medium ${getLeadStatusBadgeClass(item.leadStatus)}`}
                           >
                             {getLeadStatusLabel(item.leadStatus)}
                           </Badge>
-                        )}
+                        ) : null}
                         {(item.source === "directory" ||
                           item.source === "compare" ||
                           item.source === "microsite" ||
@@ -782,7 +801,7 @@ export function ProviderInquiriesClient({
                     : inquiryMeta?.parentDisplayName?.trim() ||
                       (selectedThread ? getParentDisplayName(selectedThread) : "Parent")}
                 </CardTitle>
-                {inquiryMeta && (
+                {canUseCrmTools && inquiryMeta ? (
                   <Select
                     value={inquiryMeta.leadStatus}
                     onValueChange={handleLeadStatusChange}
@@ -800,7 +819,7 @@ export function ProviderInquiriesClient({
                       <SelectItem value="lost">Lost</SelectItem>
                     </SelectContent>
                   </Select>
-                )}
+                ) : null}
               </div>
               <CardDescription className="space-y-1">
                 {inquiryMeta?.parentEmail ? (
@@ -826,14 +845,14 @@ export function ProviderInquiriesClient({
                 )}
                 {inquiryMeta?.inquirySubject && <div>{inquiryMeta.inquirySubject}</div>}
                 <div className="flex flex-wrap gap-1">
-                  {inquiryMeta?.leadStatus && (
+                  {canUseCrmTools && inquiryMeta?.leadStatus ? (
                     <Badge
                       variant="outline"
                       className={`text-[10px] font-medium ${getLeadStatusBadgeClass(inquiryMeta.leadStatus)}`}
                     >
                       {getLeadStatusLabel(inquiryMeta.leadStatus)}
                     </Badge>
-                  )}
+                  ) : null}
                   {(inquiryMeta?.source === "directory" ||
                     inquiryMeta?.source === "compare" ||
                     inquiryMeta?.source === "microsite") && (
@@ -872,64 +891,65 @@ export function ProviderInquiriesClient({
                   ))
                 )}
               </div>
-              {/* Lead notes */}
-              <div className="border-t border-border/60 p-4 space-y-3">
-                <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
-                  <StickyNote className="h-3.5 w-3.5" />
-                  Notes
-                </h4>
-                {notesLoading ? (
-                  <p className="text-xs text-muted-foreground">Loading notes…</p>
-                ) : (
-                  <>
-                    {notes.length > 0 && (
-                      <ul className="space-y-2 pb-2">
-                        {notes.map((n) => (
-                          <li
-                            key={n.id}
-                            className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
-                          >
-                            <div className="flex gap-2 justify-between items-start">
-                              <div className="min-w-0 flex-1">
-                                <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                  {formatDate(n.createdAt)}
-                                </p>
+              {canUseCrmTools ? (
+                <div className="border-t border-border/60 p-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                    <StickyNote className="h-3.5 w-3.5" />
+                    Notes
+                  </h4>
+                  {notesLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading notes…</p>
+                  ) : (
+                    <>
+                      {notes.length > 0 && (
+                        <ul className="space-y-2 pb-2">
+                          {notes.map((n) => (
+                            <li
+                              key={n.id}
+                              className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
+                            >
+                              <div className="flex gap-2 justify-between items-start">
+                                <div className="min-w-0 flex-1">
+                                  <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    {formatDate(n.createdAt)}
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => void handleDeleteNote(n.id)}
+                                  disabled={deletingNoteId !== null}
+                                  aria-label="Delete note"
+                                >
+                                  <Trash2
+                                    className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
+                                  />
+                                </Button>
                               </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                onClick={() => void handleDeleteNote(n.id)}
-                                disabled={deletingNoteId !== null}
-                                aria-label="Delete note"
-                              >
-                                <Trash2
-                                  className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
-                                />
-                              </Button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <form onSubmit={handleAddNote} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add a note…"
-                        value={newNoteText}
-                        onChange={(e) => setNewNoteText(e.target.value)}
-                        disabled={addingNote}
-                        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      />
-                      <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
-                        Add
-                      </Button>
-                    </form>
-                  </>
-                )}
-              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <form onSubmit={handleAddNote} className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Add a note…"
+                          value={newNoteText}
+                          onChange={(e) => setNewNoteText(e.target.value)}
+                          disabled={addingNote}
+                          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                        <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
+                          Add
+                        </Button>
+                      </form>
+                    </>
+                  )}
+                </div>
+              ) : null}
               <form
                 onSubmit={handleSendReply}
                 className="border-t border-border/60 p-4 flex gap-2"
@@ -959,7 +979,7 @@ export function ProviderInquiriesClient({
                   </CardTitle>
                   <CardDescription>Parent saved your profile to favorites</CardDescription>
                 </div>
-                {selectedFavorite && (
+                {canUseCrmTools && selectedFavorite ? (
                   <Select
                     value={selectedFavorite.lead_status ?? "new"}
                     onValueChange={handleLeadStatusChange}
@@ -977,19 +997,21 @@ export function ProviderInquiriesClient({
                       <SelectItem value="lost">Lost</SelectItem>
                     </SelectContent>
                   </Select>
-                )}
+                ) : null}
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-6 space-y-4">
               {selectedFavorite ? (
                 <>
                   <div className="flex flex-wrap gap-1">
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-medium ${getLeadStatusBadgeClass(selectedFavorite.lead_status ?? "new")}`}
-                    >
-                      {getLeadStatusLabel(selectedFavorite.lead_status ?? "new")}
-                    </Badge>
+                    {canUseCrmTools ? (
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] font-medium ${getLeadStatusBadgeClass(selectedFavorite.lead_status ?? "new")}`}
+                      >
+                        {getLeadStatusLabel(selectedFavorite.lead_status ?? "new")}
+                      </Badge>
+                    ) : null}
                     <Badge variant="outline" className={`text-[10px] ${getSourceBadgeClass("favorite")}`}>
                       {getSourceLabel("favorite")}
                     </Badge>
@@ -1043,63 +1065,65 @@ export function ProviderInquiriesClient({
                     Saved on {formatDate(selectedFavorite.created_at)}
                   </p>
 
-                  <div className="border-t border-border/60 pt-4 space-y-3">
-                    <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
-                      <StickyNote className="h-3.5 w-3.5" />
-                      Notes
-                    </h4>
-                    {notesLoading ? (
-                      <p className="text-xs text-muted-foreground">Loading notes…</p>
-                    ) : (
-                      <>
-                        {notes.length > 0 && (
-                          <ul className="space-y-2 pb-2">
-                            {notes.map((n) => (
-                              <li
-                                key={n.id}
-                                className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
-                              >
-                                <div className="flex gap-2 justify-between items-start">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
-                                    <p className="text-[10px] text-muted-foreground mt-1">
-                                      {formatDate(n.createdAt)}
-                                    </p>
+                  {canUseCrmTools ? (
+                    <div className="border-t border-border/60 pt-4 space-y-3">
+                      <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                        <StickyNote className="h-3.5 w-3.5" />
+                        Notes
+                      </h4>
+                      {notesLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading notes…</p>
+                      ) : (
+                        <>
+                          {notes.length > 0 && (
+                            <ul className="space-y-2 pb-2">
+                              {notes.map((n) => (
+                                <li
+                                  key={n.id}
+                                  className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
+                                >
+                                  <div className="flex gap-2 justify-between items-start">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
+                                      <p className="text-[10px] text-muted-foreground mt-1">
+                                        {formatDate(n.createdAt)}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                      onClick={() => void handleDeleteNote(n.id)}
+                                      disabled={deletingNoteId !== null}
+                                      aria-label="Delete note"
+                                    >
+                                      <Trash2
+                                        className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
+                                      />
+                                    </Button>
                                   </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => void handleDeleteNote(n.id)}
-                                    disabled={deletingNoteId !== null}
-                                    aria-label="Delete note"
-                                  >
-                                    <Trash2
-                                      className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
-                                    />
-                                  </Button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <form onSubmit={handleAddNote} className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Add a note…"
-                            value={newNoteText}
-                            onChange={(e) => setNewNoteText(e.target.value)}
-                            disabled={addingNote}
-                            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          />
-                          <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
-                            Add
-                          </Button>
-                        </form>
-                      </>
-                    )}
-                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <form onSubmit={handleAddNote} className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Add a note…"
+                              value={newNoteText}
+                              onChange={(e) => setNewNoteText(e.target.value)}
+                              disabled={addingNote}
+                              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            />
+                            <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
+                              Add
+                            </Button>
+                          </form>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">Could not load favorite lead details.</p>
@@ -1170,64 +1194,65 @@ export function ProviderInquiriesClient({
                   <p className="text-xs text-muted-foreground">
                     Received {formatDate(guestDetail.createdAt)}
                   </p>
-                  {/* Lead notes for guest */}
-                  <div className="border-t border-border/60 pt-4 space-y-3">
-                    <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
-                      <StickyNote className="h-3.5 w-3.5" />
-                      Notes
-                    </h4>
-                    {notesLoading ? (
-                      <p className="text-xs text-muted-foreground">Loading notes…</p>
-                    ) : (
-                      <>
-                        {notes.length > 0 && (
-                          <ul className="space-y-2 pb-2">
-                            {notes.map((n) => (
-                              <li
-                                key={n.id}
-                                className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
-                              >
-                                <div className="flex gap-2 justify-between items-start">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
-                                    <p className="text-[10px] text-muted-foreground mt-1">
-                                      {formatDate(n.createdAt)}
-                                    </p>
+                  {canUseCrmTools ? (
+                    <div className="border-t border-border/60 pt-4 space-y-3">
+                      <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                        <StickyNote className="h-3.5 w-3.5" />
+                        Notes
+                      </h4>
+                      {notesLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading notes…</p>
+                      ) : (
+                        <>
+                          {notes.length > 0 && (
+                            <ul className="space-y-2 pb-2">
+                              {notes.map((n) => (
+                                <li
+                                  key={n.id}
+                                  className="text-xs rounded-lg bg-muted/50 p-2.5 border border-border/60"
+                                >
+                                  <div className="flex gap-2 justify-between items-start">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="whitespace-pre-wrap text-foreground">{n.noteText}</p>
+                                      <p className="text-[10px] text-muted-foreground mt-1">
+                                        {formatDate(n.createdAt)}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                      onClick={() => void handleDeleteNote(n.id)}
+                                      disabled={deletingNoteId !== null}
+                                      aria-label="Delete note"
+                                    >
+                                      <Trash2
+                                        className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
+                                      />
+                                    </Button>
                                   </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => void handleDeleteNote(n.id)}
-                                    disabled={deletingNoteId !== null}
-                                    aria-label="Delete note"
-                                  >
-                                    <Trash2
-                                      className={`h-3.5 w-3.5 ${deletingNoteId === n.id ? "opacity-50" : ""}`}
-                                    />
-                                  </Button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <form onSubmit={handleAddNote} className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Add a note…"
-                            value={newNoteText}
-                            onChange={(e) => setNewNoteText(e.target.value)}
-                            disabled={addingNote}
-                            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          />
-                          <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
-                            Add
-                          </Button>
-                        </form>
-                      </>
-                    )}
-                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <form onSubmit={handleAddNote} className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Add a note…"
+                              value={newNoteText}
+                              onChange={(e) => setNewNoteText(e.target.value)}
+                              disabled={addingNote}
+                              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            />
+                            <Button type="submit" size="sm" disabled={addingNote || !newNoteText.trim()}>
+                              Add
+                            </Button>
+                          </form>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">Could not load details.</p>
@@ -1238,8 +1263,12 @@ export function ProviderInquiriesClient({
           <CardContent className="flex-1 flex items-center justify-center text-center text-muted-foreground text-sm">
             <div>
               <MessageCircle className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>Select a lead to view details.</p>
-              <p className="text-xs mt-1">Guest and saved-profile leads are CRM-lite (no thread).</p>
+              <p>{canUseCrmTools ? "Select a lead to view details." : "Select an inquiry to view details."}</p>
+              <p className="text-xs mt-1">
+                {canUseCrmTools
+                  ? "Guest and saved-profile leads are CRM-lite (no thread)."
+                  : "Reply to parent messages here. Guest contact requests include email and phone details."}
+              </p>
             </div>
           </CardContent>
         )}

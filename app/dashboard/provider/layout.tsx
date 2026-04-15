@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
+import type { LucideIcon } from "lucide-react"
 import { 
   LayoutDashboard, 
   FileEdit, 
@@ -34,6 +35,13 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { getSupabaseClient } from "@/lib/supabaseClient"
+import {
+  canAccessProviderDashboardSection,
+  getProviderPlanAccess,
+  type ProviderPlanAccess,
+} from "@/lib/provider-plan-access"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { cn } from "@/lib/utils"
 import { isProviderWebsiteBuilderEnabled } from "@/lib/website-builder/feature-flag"
 import { RequireAuth } from "@/components/RequireAuth"
@@ -41,26 +49,42 @@ import { useAuth } from "@/components/AuthProvider"
 import { getUserIdentity } from "@/lib/userIdentity"
 import type { ProviderNotificationItem } from "@/app/api/provider/notifications/route"
 import { ProviderWebsiteNavSection } from "@/components/provider/ProviderWebsiteNavSection"
+import type { ProviderDashboardSection } from "@/lib/provider-plan-access"
 
-const sidebarItemsAll = [
-  { label: "Overview", href: "/dashboard/provider", icon: LayoutDashboard },
-  { label: "Manage Listing & Tour", href: "/dashboard/provider/listing", icon: FileEdit },
-  { label: "Availability", href: "/dashboard/provider/availability", icon: CheckCircle },
-  { label: "Reviews", href: "/dashboard/provider/reviews", icon: Star },
-  { label: "Leads (CRM)", href: "/dashboard/provider/inquiries", icon: MessageSquare },
-  { label: "Photos", href: "/dashboard/provider/photos", icon: ImageIcon },
-  { label: "FAQs", href: "/dashboard/provider/faqs", icon: HelpCircle },
-  { label: "Website", href: "/dashboard/provider/website", icon: LayoutTemplate },
-  { label: "Analytics", href: "/dashboard/provider/analytics", icon: BarChart3 },
-  { label: "Subscription", href: "/dashboard/provider/subscription", icon: CreditCard },
-  { label: "Settings", href: "/dashboard/provider/settings", icon: Settings },
+type SidebarItem = {
+  label: string
+  href: string
+  icon: LucideIcon
+  section: ProviderDashboardSection
+}
+
+const sidebarItemsAll: SidebarItem[] = [
+  { label: "Overview", href: "/dashboard/provider", icon: LayoutDashboard, section: "overview" },
+  { label: "Manage Listing & Tour", href: "/dashboard/provider/listing", icon: FileEdit, section: "listing" },
+  { label: "Availability", href: "/dashboard/provider/availability", icon: CheckCircle, section: "availability" },
+  { label: "Reviews", href: "/dashboard/provider/reviews", icon: Star, section: "reviews" },
+  { label: "Inquiries", href: "/dashboard/provider/inquiries", icon: MessageSquare, section: "inquiries" },
+  { label: "Photos", href: "/dashboard/provider/photos", icon: ImageIcon, section: "photos" },
+  { label: "FAQs", href: "/dashboard/provider/faqs", icon: HelpCircle, section: "faqs" },
+  { label: "Website", href: "/dashboard/provider/website", icon: LayoutTemplate, section: "website" },
+  { label: "Analytics", href: "/dashboard/provider/analytics", icon: BarChart3, section: "analytics" },
+  { label: "Subscription", href: "/dashboard/provider/subscription", icon: CreditCard, section: "subscription" },
+  { label: "Settings", href: "/dashboard/provider/settings", icon: Settings, section: "settings" },
 ]
 
-function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
+function SidebarNav({
+  onItemClick,
+  planAccess,
+}: {
+  onItemClick?: () => void
+  planAccess: ProviderPlanAccess
+}) {
   const pathname = usePathname()
   const builderOn = isProviderWebsiteBuilderEnabled()
   const sidebarItems = sidebarItemsAll.filter(
-    (item) => item.href !== "/dashboard/provider/website" || builderOn,
+    (item) =>
+      canAccessProviderDashboardSection(planAccess.planId, item.section) &&
+      (item.href !== "/dashboard/provider/website" || builderOn),
   )
 
   return (
@@ -69,6 +93,8 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
         if (item.href === "/dashboard/provider/website" && builderOn) {
           return <ProviderWebsiteNavSection key="website" onItemClick={onItemClick} />
         }
+        const label =
+          item.href === "/dashboard/provider/inquiries" && planAccess.isThriveTier ? "Leads (CRM)" : item.label
         const isActive = pathname === item.href
         return (
           <Link
@@ -84,7 +110,7 @@ function SidebarNav({ onItemClick }: { onItemClick?: () => void }) {
             )}
           >
             <item.icon className="h-5 w-5" />
-            {item.label}
+            {label}
           </Link>
         )
       })}
@@ -107,6 +133,7 @@ export default function ProviderDashboardLayout({
   const { signOut, user } = useAuth()
   const identity = getUserIdentity(user, "provider")
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [planAccess, setPlanAccess] = useState<ProviderPlanAccess>(() => getProviderPlanAccess("sprout"))
 
   const unreadCount = notifications.filter((n) => !n.readAt).length
 
@@ -202,6 +229,41 @@ export default function ProviderDashboardLayout({
     }
   }, [pathname])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPlanAccess() {
+      if (!user) {
+        if (!cancelled) setPlanAccess(getProviderPlanAccess("sprout"))
+        return
+      }
+
+      try {
+        const supabase = getSupabaseClient()
+        const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+        const { data } = await supabase
+          .from("provider_profiles")
+          .select("plan_id")
+          .eq("profile_id", providerProfileId)
+          .maybeSingle()
+
+        if (!cancelled) {
+          setPlanAccess(getProviderPlanAccess(data?.plan_id))
+        }
+      } catch {
+        if (!cancelled) {
+          setPlanAccess(getProviderPlanAccess("sprout"))
+        }
+      }
+    }
+
+    void loadPlanAccess()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const q = (e.currentTarget.querySelector('input[name="search"]') as HTMLInputElement | null)
@@ -261,7 +323,7 @@ export default function ProviderDashboardLayout({
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-4">
-          <SidebarNav />
+          <SidebarNav planAccess={planAccess} />
         </div>
 
         {/* User section */}
@@ -302,25 +364,29 @@ export default function ProviderDashboardLayout({
                 />
               </div>
               <div className="py-4">
-                <SidebarNav onItemClick={() => setMobileMenuOpen(false)} />
+                <SidebarNav planAccess={planAccess} onItemClick={() => setMobileMenuOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>
 
           {/* Search */}
-          <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                name="search"
-                type="search"
-                placeholder="Search inquiries and reviews..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-muted/50 border-0 focus-visible:ring-1"
-              />
-            </div>
-          </form>
+          {planAccess.canAccessProviderSearch ? (
+            <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  name="search"
+                  type="search"
+                  placeholder="Search inquiries and reviews..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-muted/50 border-0 focus-visible:ring-1"
+                />
+              </div>
+            </form>
+          ) : (
+            <div className="flex-1" />
+          )}
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-2">
@@ -441,24 +507,28 @@ export default function ProviderDashboardLayout({
                       Mark all as read
                     </Button>
                   )}
-                  <DropdownMenuItem asChild className="rounded-md py-2.5">
-                    <Link
-                      href="/dashboard/provider/inquiries"
-                      className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
-                    >
-                      <MessageSquare className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                      View all inquiries
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="rounded-md py-2.5">
-                    <Link
-                      href="/dashboard/provider/reviews"
-                      className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
-                    >
-                      <Star className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                      View all reviews
-                    </Link>
-                  </DropdownMenuItem>
+                  {planAccess.canAccessInquiries ? (
+                    <DropdownMenuItem asChild className="rounded-md py-2.5">
+                      <Link
+                        href="/dashboard/provider/inquiries"
+                        className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                        View all inquiries
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  {planAccess.canAccessReviews ? (
+                    <DropdownMenuItem asChild className="rounded-md py-2.5">
+                      <Link
+                        href="/dashboard/provider/reviews"
+                        className="flex items-center gap-2 text-sm font-medium text-foreground w-full"
+                      >
+                        <Star className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        View all reviews
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>

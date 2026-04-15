@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import { getFavoriteLeadsByProviderProfileId } from "@/lib/parent-engagement"
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -35,7 +35,10 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const { providerProfileId, canAccessFavoriteLeads } = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!canAccessFavoriteLeads) {
+      return NextResponse.json({ error: "Saved leads are only available on Thrive and higher plans." }, { status: 403 })
+    }
     const rows = await getFavoriteLeadsByProviderProfileId(supabase, providerProfileId)
     const lead = rows.find((row) => row.id === id)
     if (!lead) {
@@ -76,6 +79,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     const resolution = await resolveRoleForUser(supabase, user)
     if (resolution.role !== "provider") {
       return NextResponse.json({ error: "Forbidden. Only providers can update favorite leads." }, { status: 403 })
+    }
+
+    const { canAccessFavoriteLeads } = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!canAccessFavoriteLeads) {
+      return NextResponse.json({ error: "Saved leads are only available on Thrive and higher plans." }, { status: 403 })
     }
 
     const { data, error } = await supabase.rpc("update_provider_favorite_lead_status", {

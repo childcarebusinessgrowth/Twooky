@@ -3,7 +3,7 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { notifyFavoritingParentsOfAvailabilityChange } from "@/lib/email/favoriteProviderAvailabilityNotification"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 
 export type ProviderAvailabilityStatus = "openings" | "waitlist" | "full"
 
@@ -25,7 +25,10 @@ export async function getProviderAvailability(): Promise<{
   if (userError || !user) {
     return { data: null, error: userError?.message ?? "Not authenticated" }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessAvailability } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessAvailability) {
+    return { data: null, error: "Availability is not available on the Sprout plan." }
+  }
 
   const { data, error } = await supabase
     .from("provider_profiles")
@@ -83,7 +86,10 @@ export async function updateProviderAvailability(input: {
   if (userError || !user) {
     return { error: userError?.message ?? "Not authenticated" }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessAvailability } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessAvailability) {
+    return { error: "Availability is not available on the Sprout plan." }
+  }
 
   const normalizedSpots =
     input.availabilityStatus === "openings"

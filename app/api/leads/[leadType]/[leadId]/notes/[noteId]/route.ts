@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 
 type RouteContext = {
   params: Promise<{ leadType: string; leadId: string; noteId: string }>
@@ -45,7 +45,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     const dbLeadType = toDbLeadType(leadType)
-    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const { providerProfileId, canManageLeadNotes } = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!canManageLeadNotes) {
+      return NextResponse.json({ error: "Lead notes are only available on Thrive and higher plans." }, { status: 403 })
+    }
 
     if (dbLeadType === "inquiry") {
       const { data: inquiry } = await supabase

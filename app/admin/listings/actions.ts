@@ -7,6 +7,7 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { assertAdminPermission } from "@/lib/authzServer"
 import { deleteProviderPhotoStorage } from "@/lib/provider-photo-storage"
 import { startPerfTimer } from "@/lib/perf-metrics"
+import { shouldAutoGrantVerifiedBadgeOnApproval } from "@/lib/provider-plan-access"
 import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
@@ -473,12 +474,14 @@ export async function updateListingStatus(
   const supabase = getSupabaseAdminClient()
   const { data: before } = await supabase
     .from("provider_profiles")
-    .select("listing_status")
+    .select("listing_status, plan_id")
     .eq("profile_id", profileId)
     .maybeSingle()
   const previousStatus = before?.listing_status ?? "pending"
   const shouldVerify =
-    status === "active" && (previousStatus === "pending" || previousStatus === "draft")
+    status === "active" &&
+    (previousStatus === "pending" || previousStatus === "draft") &&
+    shouldAutoGrantVerifiedBadgeOnApproval(before?.plan_id)
   const { data, error } = await supabase
     .from("provider_profiles")
     .update({

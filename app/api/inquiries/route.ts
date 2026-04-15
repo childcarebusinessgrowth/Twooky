@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { getProviderPlanAccess } from "@/lib/provider-plan-access"
 import { publicMessageForError } from "@/lib/publicErrors"
 import { notifyProviderNewInquiry } from "@/lib/email/providerInquiryNotification"
 import { buildInquiryNotification, insertProviderNotification } from "@/lib/providerNotifications"
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     const { data: providerRow, error: providerLookupError } = await supabase
       .from("provider_profiles")
-      .select("profile_id, is_admin_managed, owner_profile_id")
+      .select("profile_id, plan_id, is_admin_managed, owner_profile_id")
       .ilike("provider_slug", providerSlug)
       .eq("listing_status", "active")
       .maybeSingle()
@@ -87,6 +88,12 @@ export async function POST(request: Request) {
     }
     const isClaimed =
       typeof providerRow.owner_profile_id === "string" && providerRow.owner_profile_id.trim().length > 0
+    if (!getProviderPlanAccess(providerRow.plan_id).canReceivePublicInquiries) {
+      return NextResponse.json(
+        { error: "Inquiries are not available for this provider." },
+        { status: 403 }
+      )
+    }
     if (providerRow.is_admin_managed && !isClaimed) {
       return NextResponse.json(
         { error: "Inquiries are not available for this provider." },

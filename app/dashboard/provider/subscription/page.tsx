@@ -72,18 +72,22 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
   const intervalLabel = formatProviderBillingInterval(currentInterval)
   const checkoutState = params.checkout === "success" ? "success" : params.checkout === "canceled" ? "canceled" : null
   const selectablePlans = PRICING_PLANS.filter((plan) => plan.id !== "kinderpathPro")
+  const isStripeManagedAssignedPlan = providerPlanId === "grow" || providerPlanId === "thrive"
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Subscription</h1>
-        <p className="text-muted-foreground">Manage your provider plan, renewals, and Stripe billing.</p>
+        <p className="text-muted-foreground">
+          Review your assigned provider plan and any Stripe billing attached to it.
+        </p>
       </div>
 
       {checkoutState === "success" ? (
         <Card className="border-green-500/40 bg-green-500/5">
           <CardContent className="py-5 text-sm text-foreground">
-            Stripe checkout completed. Your plan will update here as soon as Stripe confirms the subscription.
+            Stripe checkout completed. Billing status will update here as soon as Stripe confirms the
+            subscription.
           </CardContent>
         </Card>
       ) : checkoutState === "canceled" ? (
@@ -97,21 +101,38 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
       <Card className="border-primary/40 bg-primary/5">
         <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Current plan</p>
+            <p className="text-sm text-muted-foreground">Assigned plan</p>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xl font-bold text-foreground">{providerPlanName}</p>
+              {isStripeManagedAssignedPlan ? (
+                <Badge variant={hasPaidPlan ? "default" : "secondary"}>
+                  {hasPaidPlan ? "Billing active" : "Not paid in Stripe"}
+                </Badge>
+              ) : null}
               {statusLabel ? <Badge variant="outline">{statusLabel}</Badge> : null}
               {intervalLabel ? <Badge variant="secondary">{intervalLabel}</Badge> : null}
             </div>
-            {billing?.cancel_at_period_end && renewalDate ? (
+            {providerPlanId === "sprout" ? (
+              <p className="text-sm text-muted-foreground">
+                You are currently on the free provider plan.
+              </p>
+            ) : providerPlanId === "kinderpathPro" ? (
+              <p className="text-sm text-muted-foreground">
+                This plan is managed outside Stripe by your account manager.
+              </p>
+            ) : billing?.cancel_at_period_end && renewalDate && hasPaidPlan ? (
               <p className="text-sm text-muted-foreground">Access ends on {renewalDate}</p>
             ) : renewalDate && hasPaidPlan ? (
               <p className="text-sm text-muted-foreground">Renews on {renewalDate}</p>
+            ) : billing?.stripe_subscription_id ? (
+              <p className="text-sm text-muted-foreground">
+                Your features come from the plan assigned to this provider. Stripe billing is currently{" "}
+                {statusLabel?.toLowerCase() ?? "inactive"}.
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {providerPlanId === "sprout"
-                  ? "You are currently on the free provider plan."
-                  : "This plan is managed outside Stripe."}
+                Your features come from the plan assigned to this provider. No active Stripe
+                subscription is attached yet.
               </p>
             )}
           </div>

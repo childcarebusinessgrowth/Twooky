@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -88,20 +89,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       )
     }
 
-    const { data: inquiry, error: fetchError } = await supabase
-      .from("inquiries")
-      .select("id, provider_profile_id")
-      .eq("id", inquiryId)
-      .is("deleted_at", null)
-      .single()
-
-    if (fetchError || !inquiry) {
-      return NextResponse.json({ error: "Inquiry not found." }, { status: 404 })
-    }
-
-    if (inquiry.provider_profile_id !== user.id) {
+    const { providerProfileId, canManageInquiryStatuses } = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!canManageInquiryStatuses) {
       return NextResponse.json(
-        { error: "Forbidden. Only the provider can set lead status." },
+        { error: "Lead statuses are only available on Thrive and higher plans." },
         { status: 403 }
       )
     }
@@ -110,6 +101,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       .from("inquiries")
       .update({ lead_status: leadStatus })
       .eq("id", inquiryId)
+      .eq("provider_profile_id", providerProfileId)
 
     if (updateError) {
       return NextResponse.json({ error: "Failed to update lead status." }, { status: 500 })

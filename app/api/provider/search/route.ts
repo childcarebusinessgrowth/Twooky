@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import {
   getInquiriesByProviderProfileId,
   getReviewsByProviderProfileId,
@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ inquiries: [], guestInquiries: [], reviews: [] })
     }
 
-    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const { providerProfileId, canAccessProviderSearch } = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!canAccessProviderSearch) {
+      return NextResponse.json({ error: "Search is only available on Thrive and higher plans." }, { status: 403 })
+    }
     const guestPattern = toIlikePattern(q)
 
     const [inquiries, guestRows, reviews] = await Promise.all([

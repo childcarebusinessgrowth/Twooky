@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { CheckCircle, Loader2, Save } from "lucide-react"
+import { useAuth } from "@/components/AuthProvider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { getProviderPlanAccess } from "@/lib/provider-plan-access"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getSupabaseClient } from "@/lib/supabaseClient"
 import {
   getProviderAvailability,
   updateProviderAvailability,
@@ -38,14 +43,53 @@ const AVAILABILITY_OPTIONS: Array<{
 ]
 
 export default function ProviderAvailabilityPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availabilityStatus, setAvailabilityStatus] = useState<ProviderAvailabilityStatus | null>(null)
   const [availableSpotsCount, setAvailableSpotsCount] = useState<string>("")
+  const [canAccessAvailability, setCanAccessAvailability] = useState<boolean | null>(null)
 
   useEffect(() => {
+    let mounted = true
+
+    async function loadAccess() {
+      if (!user) {
+        if (mounted) setCanAccessAvailability(null)
+        return
+      }
+
+      const supabase = getSupabaseClient()
+      const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+      const { data } = await supabase
+        .from("provider_profiles")
+        .select("plan_id")
+        .eq("profile_id", providerProfileId)
+        .maybeSingle()
+      const access = getProviderPlanAccess(data?.plan_id)
+
+      if (!mounted) return
+      if (!access.canAccessAvailability) {
+        setCanAccessAvailability(false)
+        router.replace("/dashboard/provider/subscription")
+        return
+      }
+
+      setCanAccessAvailability(true)
+    }
+
+    void loadAccess()
+
+    return () => {
+      mounted = false
+    }
+  }, [router, user])
+
+  useEffect(() => {
+    if (canAccessAvailability !== true) return
     let mounted = true
 
     getProviderAvailability().then(({ data, error: loadError }) => {
@@ -63,7 +107,7 @@ export default function ProviderAvailabilityPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [canAccessAvailability])
 
   const parsedSpots = Number.parseInt(availableSpotsCount, 10)
   const spotsValue = Number.isNaN(parsedSpots) ? null : parsedSpots
@@ -106,6 +150,13 @@ export default function ProviderAvailabilityPage() {
 
   return (
     <div className="w-full space-y-6">
+      {canAccessAvailability !== true && (
+        <div className="flex min-h-[240px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {canAccessAvailability === true && (
+        <>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Availability</h1>
@@ -202,6 +253,8 @@ export default function ProviderAvailabilityPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   )
 }

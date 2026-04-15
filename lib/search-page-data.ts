@@ -17,6 +17,7 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { CACHE_TAGS } from "@/lib/cache-tags"
 import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
+import { getDirectoryPlanPriority } from "@/lib/provider-plan-access"
 import { resolveLocationTextFromQuery } from "@/lib/search-location-query"
 import type { SearchFilterOptions } from "@/components/filter-sidebar"
 
@@ -344,6 +345,9 @@ export async function getSearchPageData(options: {
       if (distanceA !== null && distanceB === null) return -1
       if (distanceA === null && distanceB !== null) return 1
     }
+
+    const planPriorityDiff = getDirectoryPlanPriority(b.plan_id) - getDirectoryPlanPriority(a.plan_id)
+    if (planPriorityDiff !== 0) return planPriorityDiff
 
     const featuredDiff = Number(b.featured) - Number(a.featured)
     if (featuredDiff !== 0) return featuredDiff

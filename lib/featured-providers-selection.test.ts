@@ -5,6 +5,7 @@ import type { ActiveProviderRow } from "./search-providers-db"
 function row(p: Partial<ActiveProviderRow> & { profile_id: string }): ActiveProviderRow {
   return {
     profile_id: p.profile_id,
+    plan_id: p.plan_id ?? "sprout",
     provider_slug: p.provider_slug ?? "slug",
     business_name: p.business_name ?? "Biz",
     city: p.city ?? null,

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 
 async function revalidateProviderPublicProfileForFaqs(profileId: string) {
   const admin = getSupabaseAdminClient()
@@ -42,7 +42,10 @@ export async function addProviderFaq(
   if (!trimmedAnswer) {
     return { error: "Answer is required." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessFaqs } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessFaqs) {
+    return { error: "FAQs are not available on the Sprout plan." }
+  }
 
   const { data: existing } = await supabase
     .from("provider_faqs")
@@ -101,7 +104,10 @@ export async function updateProviderFaq(
   if (!trimmedAnswer) {
     return { error: "Answer is required." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessFaqs } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessFaqs) {
+    return { error: "FAQs are not available on the Sprout plan." }
+  }
 
   const { error } = await supabase
     .from("provider_faqs")
@@ -131,7 +137,10 @@ export async function deleteProviderFaq(id: string): Promise<DeleteProviderFaqRe
   if (authError || !user) {
     return { error: "You must be signed in to delete FAQs." }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessFaqs } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessFaqs) {
+    return { error: "FAQs are not available on the Sprout plan." }
+  }
 
   const { error } = await supabase
     .from("provider_faqs")
@@ -165,7 +174,10 @@ export async function reorderProviderFaqs(ids: string[]): Promise<ReorderProvide
   if (ids.length === 0) {
     return { ok: true }
   }
-  const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+  const { providerProfileId, canAccessFaqs } = await getProviderPlanAccessForUser(supabase, user.id)
+  if (!canAccessFaqs) {
+    return { error: "FAQs are not available on the Sprout plan." }
+  }
 
   for (let i = 0; i < ids.length; i++) {
     const { error } = await supabase

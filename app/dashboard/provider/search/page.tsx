@@ -4,8 +4,12 @@ import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { MessageSquare, Star, Loader2 } from "lucide-react"
+import { useAuth } from "@/components/AuthProvider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { getProviderPlanAccess } from "@/lib/provider-plan-access"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getSupabaseClient } from "@/lib/supabaseClient"
 
 type SearchResult = {
   inquiries: Array<{
@@ -63,13 +67,43 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ProviderSearchPage() {
+  const { user } = useAuth()
   const searchParams = useSearchParams()
   const q = searchParams.get("q")?.trim() ?? ""
   const [result, setResult] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [hasSearchAccess, setHasSearchAccess] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (!q) return
+    let mounted = true
+
+    async function loadAccess() {
+      if (!user) {
+        if (mounted) setHasSearchAccess(null)
+        return
+      }
+
+      const supabase = getSupabaseClient()
+      const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+      const { data } = await supabase
+        .from("provider_profiles")
+        .select("plan_id")
+        .eq("profile_id", providerProfileId)
+        .maybeSingle()
+
+      if (!mounted) return
+      setHasSearchAccess(getProviderPlanAccess(data?.plan_id).canAccessProviderSearch)
+    }
+
+    void loadAccess()
+
+    return () => {
+      mounted = false
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!q || hasSearchAccess !== true) return
     const fetchSearchResults = async () => {
       setLoading(true)
       try {
@@ -87,7 +121,7 @@ export default function ProviderSearchPage() {
       }
     }
     void fetchSearchResults()
-  }, [q])
+  }, [hasSearchAccess, q])
 
   const hasResults =
     q.length > 0 &&
@@ -109,7 +143,16 @@ export default function ProviderSearchPage() {
         </p>
       </div>
 
-      {!q && (
+      {hasSearchAccess === false && (
+        <Card className="border-border/50">
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <p className="font-medium text-foreground">Search is not available on your plan</p>
+            <p className="mt-1 text-sm">Upgrade to Thrive to search across inquiries, guest leads, and reviews.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasSearchAccess !== false && !q && (
         <Card className="border-border/50">
           <CardContent className="py-12 text-center text-muted-foreground">
             <p className="font-medium text-foreground">Enter a search term</p>
@@ -121,13 +164,13 @@ export default function ProviderSearchPage() {
         </Card>
       )}
 
-      {loading && (
+      {hasSearchAccess === true && loading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       )}
 
-      {hasNoResults && (
+      {hasSearchAccess === true && hasNoResults && (
         <Card className="border-border/50">
           <CardContent className="py-12 text-center text-muted-foreground">
             <p className="font-medium text-foreground">No results found</p>
@@ -138,7 +181,7 @@ export default function ProviderSearchPage() {
         </Card>
       )}
 
-      {hasResults && result && (
+      {hasSearchAccess === true && hasResults && result && (
         <div className="space-y-6">
           {(result.inquiries.length > 0 || result.guestInquiries.length > 0) && (
             <Card className="border-border/50">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Upload, Pencil, Trash2, MoreVertical, ImageIcon, Loader2, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +25,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/components/AuthProvider"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
+import { getProviderPlanAccess } from "@/lib/provider-plan-access"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { useToast } from "@/hooks/use-toast"
@@ -116,6 +118,7 @@ function PhotoCard({
 }
 
 export default function PhotosPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -137,6 +140,7 @@ export default function PhotosPage() {
   const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null)
   const [listingStatus, setListingStatus] = useState<string | null>(null)
   const [providerProfileId, setProviderProfileId] = useState<string | null>(null)
+  const [canAccessPhotos, setCanAccessPhotos] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -148,17 +152,22 @@ export default function PhotosPage() {
       setProviderProfileId(resolvedId)
       supabase
         .from("provider_profiles")
-        .select("listing_status")
+        .select("listing_status, plan_id")
         .eq("profile_id", resolvedId)
         .maybeSingle()
         .then(({ data }) => {
           setListingStatus(data?.listing_status ?? null)
+          const access = getProviderPlanAccess(data?.plan_id)
+          setCanAccessPhotos(access.canAccessPhotos)
+          if (!access.canAccessPhotos) {
+            router.replace("/dashboard/provider/subscription")
+          }
         })
     })
-  }, [user])
+  }, [router, user])
 
   const fetchPhotos = useCallback(async () => {
-    if (!providerProfileId) {
+    if (!providerProfileId || canAccessPhotos !== true) {
       setPhotos([])
       setLoading(false)
       return
@@ -194,7 +203,7 @@ export default function PhotosPage() {
     } finally {
       setLoading(false)
     }
-  }, [providerProfileId])
+  }, [canAccessPhotos, providerProfileId])
 
   useEffect(() => {
     fetchPhotos()
@@ -428,6 +437,12 @@ export default function PhotosPage() {
 
   return (
     <div className="space-y-6">
+      {canAccessPhotos !== true ? (
+        <div className="flex min-h-[240px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
       {showPhotosInstructionBanner && (
         <Alert className="border-amber-500/40 bg-amber-500/5">
           <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -599,6 +614,8 @@ export default function PhotosPage() {
           variant="delete"
           onConfirm={handleDeleteConfirm}
         />
+      )}
+        </>
       )}
     </div>
   )

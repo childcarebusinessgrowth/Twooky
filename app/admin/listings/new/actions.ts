@@ -11,6 +11,7 @@ import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { startPerfTimer } from "@/lib/perf-metrics"
+import { shouldAutoGrantVerifiedBadgeOnApproval } from "@/lib/provider-plan-access"
 import { syncProviderProgramTypes } from "@/lib/provider-program-types"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
@@ -287,7 +288,6 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   const city = asTrimmedText(formData.get("city"))
   const listingStatus = asTrimmedText(formData.get("listingStatus")) || "active"
   /** Bulk import sets this so new rows stay unverified until an admin enables the badge. */
-  const skipVerifiedBadgeOnCreate = asTrimmedText(formData.get("skipVerifiedBadgeOnCreate")) === "true"
   const featured = parseBooleanCheckbox(formData.get("featured"))
   const curriculumTypes = formData
     .getAll("curriculumTypes")
@@ -519,7 +519,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       total_capacity: totalCapacity,
       currency_id: resolvedCurrencyId,
       listing_status: listingStatus,
-      verified_provider_badge: skipVerifiedBadgeOnCreate ? false : listingStatus === "active",
+      verified_provider_badge: false,
       featured,
       is_admin_managed: true,
       country_id: resolvedCountryId,
@@ -841,7 +841,7 @@ export async function updateAdminProvider(
 
   const { data: existingProfile, error: fetchError } = await supabase
     .from("provider_profiles")
-    .select("profile_id, provider_slug, listing_status, google_place_id")
+    .select("profile_id, provider_slug, listing_status, google_place_id, plan_id")
     .eq("profile_id", profileId)
     .maybeSingle()
 
@@ -855,7 +855,8 @@ export async function updateAdminProvider(
   const previousStatus = (existingProfile.listing_status ?? "pending") as string
   const shouldVerify =
     listingStatus === "active" &&
-    (previousStatus === "pending" || previousStatus === "draft")
+    (previousStatus === "pending" || previousStatus === "draft") &&
+    shouldAutoGrantVerifiedBadgeOnApproval(existingProfile.plan_id)
 
   const { error: updateProfileError } = await supabase
     .from("provider_profiles")

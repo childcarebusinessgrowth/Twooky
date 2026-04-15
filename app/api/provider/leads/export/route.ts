@@ -6,7 +6,7 @@ import {
   getGuestInquiriesByProviderProfileId,
   getFavoriteLeadsByProviderProfileId,
 } from "@/lib/parent-engagement"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 
 function escapeCsv(value: string): string {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
@@ -48,7 +48,10 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+    const { providerProfileId, canExportLeads } = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!canExportLeads) {
+      return NextResponse.json({ error: "Lead export is only available on Thrive and higher plans." }, { status: 403 })
+    }
     const [inquiries, guestInquiries, favoriteLeads, guestData] = await Promise.all([
       getInquiriesByProviderProfileId(supabase, providerProfileId),
       getGuestInquiriesByProviderProfileId(supabase, providerProfileId),

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { resolveRoleForUser } from "@/lib/authz"
 import { notifyParentOfFirstProviderReply } from "@/lib/email/parentFirstReplyNotification"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -19,6 +20,14 @@ export async function GET(
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const resolution = await resolveRoleForUser(supabase, user)
+    if (resolution.role === "provider") {
+      const access = await getProviderPlanAccessForUser(supabase, user.id)
+      if (!access.canAccessInquiries) {
+        return NextResponse.json({ error: "Inquiries are not available on your plan." }, { status: 403 })
+      }
     }
 
     const { data: rows, error: rpcError } = await supabase.rpc(
@@ -78,6 +87,16 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const resolution = await resolveRoleForUser(supabase, user)
+    let providerProfileId: string | null = null
+    if (resolution.role === "provider") {
+      const access = await getProviderPlanAccessForUser(supabase, user.id)
+      if (!access.canAccessInquiries) {
+        return NextResponse.json({ error: "Inquiries are not available on your plan." }, { status: 403 })
+      }
+      providerProfileId = access.providerProfileId
+    }
+
     const body = (await request.json()) as PostPayload
     const message =
       typeof body.message === "string" ? body.message.trim() : ""
@@ -105,11 +124,12 @@ export async function POST(
       )
     }
 
-    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
-    void notifyParentOfFirstProviderReply({
-      inquiryId,
-      providerProfileId,
-    })
+    if (providerProfileId) {
+      void notifyParentOfFirstProviderReply({
+        inquiryId,
+        providerProfileId,
+      })
+    }
 
     return NextResponse.json({ id: replyId }, { status: 201 })
   } catch (e) {

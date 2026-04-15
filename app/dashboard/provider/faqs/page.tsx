@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Plus, Pencil, Trash2, Loader2, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +23,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { useAuth } from "@/components/AuthProvider"
+import { getProviderPlanAccess } from "@/lib/provider-plan-access"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { useToast } from "@/hooks/use-toast"
@@ -40,6 +42,7 @@ type FaqItem = {
 }
 
 export default function FaqsPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -56,9 +59,42 @@ export default function FaqsPage() {
   const [saving, setSaving] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [faqToDelete, setFaqToDelete] = useState<FaqItem | null>(null)
+  const [canAccessFaqs, setCanAccessFaqs] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadAccess() {
+      if (!user) {
+        if (mounted) setCanAccessFaqs(null)
+        return
+      }
+
+      const supabase = getSupabaseClient()
+      const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+      const { data } = await supabase
+        .from("provider_profiles")
+        .select("plan_id")
+        .eq("profile_id", providerProfileId)
+        .maybeSingle()
+      const access = getProviderPlanAccess(data?.plan_id)
+
+      if (!mounted) return
+      setCanAccessFaqs(access.canAccessFaqs)
+      if (!access.canAccessFaqs) {
+        router.replace("/dashboard/provider/subscription")
+      }
+    }
+
+    void loadAccess()
+
+    return () => {
+      mounted = false
+    }
+  }, [router, user])
 
   const fetchFaqs = useCallback(async () => {
-    if (!user) {
+    if (!user || canAccessFaqs !== true) {
       setFaqs([])
       setLoading(false)
       return
@@ -87,7 +123,7 @@ export default function FaqsPage() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [canAccessFaqs, user])
 
   useEffect(() => {
     fetchFaqs()
@@ -150,6 +186,12 @@ export default function FaqsPage() {
 
   return (
     <div className="space-y-6">
+      {canAccessFaqs !== true ? (
+        <div className="flex min-h-[240px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">FAQs</h1>
@@ -338,6 +380,8 @@ export default function FaqsPage() {
           variant="delete"
           onConfirm={handleDeleteConfirm}
         />
+      )}
+        </>
       )}
     </div>
   )

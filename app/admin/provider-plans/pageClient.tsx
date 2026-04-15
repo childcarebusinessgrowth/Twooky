@@ -43,6 +43,87 @@ function getStatusBadgeClassName(status: string) {
   return "bg-amber-500/90 text-white hover:bg-amber-500/90"
 }
 
+function formatBillingDateLabel(value: string | null, cancelAtPeriodEnd: boolean): string | null {
+  if (!value) return null
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  return `${cancelAtPeriodEnd ? "Access ends" : "Renews"} ${date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`
+}
+
+function joinDetailParts(parts: Array<string | null | undefined>): string | null {
+  const filtered = parts.map((part) => part?.trim()).filter(Boolean)
+  return filtered.length > 0 ? filtered.join(" • ") : null
+}
+
+function getPaymentBadgeClassName(row: AdminProviderPlanRow, isExactPaidMatch: boolean): string {
+  if (row.plan_id === "sprout" || row.plan_id === "kinderpathPro") {
+    return "bg-slate-100 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
+  }
+  if (isExactPaidMatch) {
+    return "bg-emerald-600/90 text-white hover:bg-emerald-600/90"
+  }
+  return "bg-amber-500/90 text-white hover:bg-amber-500/90"
+}
+
+function getPaymentSummary(row: AdminProviderPlanRow, planNameById: Record<PlanId, string>) {
+  const renewalLabel = formatBillingDateLabel(
+    row.billing_current_period_end,
+    row.billing_cancel_at_period_end,
+  )
+  const isExactPaidMatch = row.has_paid_subscription && row.billing_plan_id === row.plan_id
+
+  if (row.plan_id === "sprout") {
+    return {
+      label: "Free plan",
+      detail: "No Stripe payment required.",
+      className: getPaymentBadgeClassName(row, isExactPaidMatch),
+    }
+  }
+
+  if (row.plan_id === "kinderpathPro") {
+    return {
+      label: "Outside Stripe",
+      detail: "Managed outside Stripe.",
+      className: getPaymentBadgeClassName(row, isExactPaidMatch),
+    }
+  }
+
+  if (isExactPaidMatch) {
+    return {
+      label: "Paid",
+      detail: joinDetailParts([row.billing_status_label, row.billing_interval_label, renewalLabel]),
+      className: getPaymentBadgeClassName(row, isExactPaidMatch),
+    }
+  }
+
+  if (row.has_paid_subscription && row.billing_plan_id && row.billing_plan_id !== row.plan_id) {
+    return {
+      label: `Paid for ${planNameById[row.billing_plan_id]}`,
+      detail: joinDetailParts([
+        `Assigned ${planNameById[row.plan_id]}`,
+        row.billing_status_label,
+        row.billing_interval_label,
+        renewalLabel,
+      ]),
+      className: getPaymentBadgeClassName(row, isExactPaidMatch),
+    }
+  }
+
+  return {
+    label: "Not paid",
+    detail: row.has_stripe_subscription
+      ? joinDetailParts([row.billing_status_label ?? "Stripe subscription on file", renewalLabel])
+      : "No Stripe subscription on file.",
+    className: getPaymentBadgeClassName(row, isExactPaidMatch),
+  }
+}
+
 export function AdminProviderPlansPageClient({
   rows,
   total,
@@ -138,7 +219,7 @@ export function AdminProviderPlansPageClient({
           Provider Plans
         </h1>
         <p className="text-muted-foreground">
-          Assign Sprout, Grow, Thrive, or KinderPath Pro to providers and filter providers by plan.
+          Assign plans for provider features and review Stripe payment status separately.
         </p>
       </div>
 
@@ -210,18 +291,20 @@ export function AdminProviderPlansPageClient({
                   <TableHead>Status</TableHead>
                   <TableHead>Featured</TableHead>
                   <TableHead className="min-w-[220px]">Assigned plan</TableHead>
+                  <TableHead className="min-w-[220px]">Payment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                       No providers matched the current filters.
                     </TableCell>
                   </TableRow>
                 ) : (
                   rows.map((row) => {
                     const rowIsUpdating = isPending && updatingProfileId === row.profile_id
+                    const paymentSummary = getPaymentSummary(row, planNameById)
 
                     return (
                       <TableRow key={row.profile_id}>
@@ -266,6 +349,14 @@ export function AdminProviderPlansPageClient({
                               ))}
                             </SelectContent>
                           </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <Badge className={paymentSummary.className}>{paymentSummary.label}</Badge>
+                            {paymentSummary.detail ? (
+                              <p className="text-xs text-muted-foreground">{paymentSummary.detail}</p>
+                            ) : null}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )

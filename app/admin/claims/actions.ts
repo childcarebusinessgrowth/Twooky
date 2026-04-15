@@ -282,7 +282,7 @@ export async function approveClaim(claimId: string, notes?: string): Promise<Rev
 
   const { error: ownerAssignError } = await supabase
     .from("provider_profiles" as never)
-    .update({ owner_profile_id: accountResult.profileId } as never)
+    .update({ owner_profile_id: accountResult.profileId, plan_id: "sprout" } as never)
     .eq("profile_id", claim.matched_provider_profile_id)
   if (ownerAssignError) return { success: false, error: ownerAssignError.message }
 

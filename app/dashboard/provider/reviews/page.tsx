@@ -1,7 +1,8 @@
+import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import { getReviewsByProviderProfileId } from "@/lib/parent-engagement"
-import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { ProviderReviewsContent } from "./ProviderReviewsContent"
 
 export default async function ProviderReviewsPage() {
@@ -10,9 +11,14 @@ export default async function ProviderReviewsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const providerProfileId = user
-    ? await resolveOwnedProviderProfileId(supabase, user.id)
-    : ""
+  let providerProfileId = ""
+  if (user) {
+    const access = await getProviderPlanAccessForUser(supabase, user.id)
+    if (!access.canAccessReviews) {
+      redirect("/dashboard/provider/subscription")
+    }
+    providerProfileId = access.providerProfileId
+  }
   const admin = getSupabaseAdminClient()
   const reviews = providerProfileId
     ? await getReviewsByProviderProfileId(admin, providerProfileId)

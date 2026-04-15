@@ -35,6 +35,7 @@ import {
   PROVIDER_DOCUMENTS_BUCKET,
   MAX_FILE_SIZE_BYTES,
 } from "@/lib/provider-documents-constants"
+import { getProviderPlanAccess, type ProviderPlanAccess } from "@/lib/provider-plan-access"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
@@ -200,6 +201,9 @@ export default function ManageListingPage() {
   const [documentType, setDocumentType] = useState<string>("Business License")
   const [documentFiles, setDocumentFiles] = useState<File[]>([])
   const [providerProfileId, setProviderProfileId] = useState<string | null>(null)
+  const [providerPlanAccess, setProviderPlanAccess] = useState<ProviderPlanAccess>(() =>
+    getProviderPlanAccess("sprout"),
+  )
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
   async function fetchPhotoCount(profileId: string) {
@@ -281,9 +285,9 @@ export default function ManageListingPage() {
       setProviderProfileId(resolvedProviderProfileId)
 
       const selectWithStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id, listing_status"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id, listing_status, plan_id"
       const selectWithoutStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id, plan_id"
 
       try {
         const [profileResult, , currenciesRes, providerProgramTypesResult] = await Promise.all([
@@ -339,6 +343,7 @@ export default function ManageListingPage() {
           typeof rawPhoneFromSignup === "string" ? rawPhoneFromSignup.trim() : ""
 
         if (data?.listing_status) setListingStatus(data.listing_status)
+        setProviderPlanAccess(getProviderPlanAccess(data?.plan_id))
         if (error) {
           console.error("[Manage Listing] Profile load error:", error.message)
           setSaveError(
@@ -565,10 +570,21 @@ export default function ManageListingPage() {
   const isDraftListing = listingStatus === "draft"
   const isPendingListing = listingStatus === "pending"
   const isLiveListing = listingStatus === "active"
+  const isSproutPlan = providerPlanAccess.isSprout
   const primaryActionLabel = isDraftListing ? "Submit" : "Save Changes"
 
   const completionProgress = useMemo(() => {
     if (!isDraftListing) return 100
+    if (isSproutPlan) {
+      const checks = [
+        !!businessName.trim(),
+        !!address.trim() && address !== DEFAULT_ADDRESS,
+        providerTypes.length > 0,
+        documentFiles.length > 0,
+      ]
+      const filled = checks.filter(Boolean).length
+      return Math.round((filled / checks.length) * 100)
+    }
     const checks = [
       !!businessName.trim(),
       !!description.trim(),
@@ -609,6 +625,7 @@ export default function ManageListingPage() {
     dailyFeeTo,
     totalCapacity,
     documentFiles.length,
+    isSproutPlan,
   ])
 
   const [showStickySave, setShowStickySave] = useState(false)
@@ -663,6 +680,21 @@ export default function ManageListingPage() {
     return `Before submitting, please complete: ${missing.join(", ")}.`
   }
 
+  function validateSproutDraftSubmission(values: {
+    businessName: string
+    address: string
+    providerTypes: ProviderTypeId[]
+    documentFiles: File[]
+  }): string | null {
+    const missing: string[] = []
+    if (!values.businessName.trim()) missing.push("Business Name")
+    if (!values.address.trim() || values.address === DEFAULT_ADDRESS) missing.push("Location")
+    if (values.providerTypes.length === 0) missing.push("Provider Type")
+    if (values.documentFiles.length === 0) missing.push("Verification Documents")
+    if (missing.length === 0) return null
+    return `Before submitting, please complete: ${missing.join(", ")}.`
+  }
+
   const handleSave = async () => {
     if (!user || !providerProfileId) {
       setSaveError("You must be signed in to save listing changes.")
@@ -678,24 +710,25 @@ export default function ManageListingPage() {
       setSaveError("Business name is required.")
       return
     }
-    if (selectedProgramTypeIds.length === 0) {
+    if (!isSproutPlan && selectedProgramTypeIds.length === 0) {
       setSaveError("Select at least one program type.")
       return
     }
 
-    const enteredUrls = virtualTourUrls.map((url) => url.trim()).filter(Boolean)
     const normalizedVirtualTourUrls: string[] = []
-
-    for (let index = 0; index < enteredUrls.length; index += 1) {
-      const parsed = parseYouTubeUrl(enteredUrls[index])
-      if (!parsed) {
-        setVirtualTourError(
-          `Video ${index + 1} has an invalid YouTube link. Please use youtube.com or youtu.be.`,
-        )
-        return
-      }
-      if (!normalizedVirtualTourUrls.includes(parsed.normalizedUrl)) {
-        normalizedVirtualTourUrls.push(parsed.normalizedUrl)
+    if (!isSproutPlan) {
+      const enteredUrls = virtualTourUrls.map((url) => url.trim()).filter(Boolean)
+      for (let index = 0; index < enteredUrls.length; index += 1) {
+        const parsed = parseYouTubeUrl(enteredUrls[index])
+        if (!parsed) {
+          setVirtualTourError(
+            `Video ${index + 1} has an invalid YouTube link. Please use youtube.com or youtu.be.`,
+          )
+          return
+        }
+        if (!normalizedVirtualTourUrls.includes(parsed.normalizedUrl)) {
+          normalizedVirtualTourUrls.push(parsed.normalizedUrl)
+        }
       }
     }
 
@@ -710,15 +743,16 @@ export default function ManageListingPage() {
     const parsedMealsFee = parseOptionalInteger(mealsFee)
     const capacity = parseOptionalInteger(totalCapacity)
 
-    if (parsedDailyFeeFrom != null && parsedDailyFeeFrom < 0) {
+    if (!isSproutPlan && parsedDailyFeeFrom != null && parsedDailyFeeFrom < 0) {
       setSaveError("Daily fee (from) cannot be negative.")
       return
     }
-    if (parsedDailyFeeTo != null && parsedDailyFeeTo < 0) {
+    if (!isSproutPlan && parsedDailyFeeTo != null && parsedDailyFeeTo < 0) {
       setSaveError("Daily fee (to) cannot be negative.")
       return
     }
     if (
+      !isSproutPlan &&
       parsedDailyFeeFrom != null &&
       parsedDailyFeeTo != null &&
       parsedDailyFeeFrom > parsedDailyFeeTo
@@ -726,52 +760,57 @@ export default function ManageListingPage() {
       setSaveError("Daily fee (from) must be less than or equal to (to).")
       return
     }
-    if (parsedRegistrationFee != null && parsedRegistrationFee < 0) {
+    if (!isSproutPlan && parsedRegistrationFee != null && parsedRegistrationFee < 0) {
       setSaveError("Registration fee cannot be negative.")
       return
     }
-    if (parsedDepositFee != null && parsedDepositFee < 0) {
+    if (!isSproutPlan && parsedDepositFee != null && parsedDepositFee < 0) {
       setSaveError("Deposit cannot be negative.")
       return
     }
-    if (parsedMealsFee != null && parsedMealsFee < 0) {
+    if (!isSproutPlan && parsedMealsFee != null && parsedMealsFee < 0) {
       setSaveError("Meals fee cannot be negative.")
       return
     }
-    if (capacity != null && capacity < 0) {
+    if (!isSproutPlan && capacity != null && capacity < 0) {
       setSaveError("Total capacity cannot be negative.")
       return
     }
 
-      if (isDraftListing) {
-        const validationError = validateDraftSubmission({
-          businessName: trimmedBusinessName,
-          description,
-          phone,
-          website,
-          address,
-          providerTypes,
-          programTypeIds: selectedProgramTypeIds,
-          ageGroupsServed,
-          curriculumTypes,
-          languagesSpoken,
-          amenities,
-          openingTime,
-          closingTime,
-          dailyFeeFrom: parsedDailyFeeFrom,
-          dailyFeeTo: parsedDailyFeeTo,
-          capacity,
-          documentFiles,
-        })
+    if (isDraftListing) {
+      const validationError = isSproutPlan
+        ? validateSproutDraftSubmission({
+            businessName: trimmedBusinessName,
+            address,
+            providerTypes,
+            documentFiles,
+          })
+        : validateDraftSubmission({
+            businessName: trimmedBusinessName,
+            description,
+            phone,
+            website,
+            address,
+            providerTypes,
+            programTypeIds: selectedProgramTypeIds,
+            ageGroupsServed,
+            curriculumTypes,
+            languagesSpoken,
+            amenities,
+            openingTime,
+            closingTime,
+            dailyFeeFrom: parsedDailyFeeFrom,
+            dailyFeeTo: parsedDailyFeeTo,
+            capacity,
+            documentFiles,
+          })
       if (validationError) {
         setSaveError(validationError)
-        setIsSaving(false)
         return
       }
       for (const f of documentFiles) {
         if (f.size > MAX_FILE_SIZE_BYTES) {
           setSaveError(`File "${f.name}" exceeds 10MB limit.`)
-          setIsSaving(false)
           return
         }
       }
@@ -846,31 +885,35 @@ export default function ManageListingPage() {
         body: JSON.stringify({
           submitForReview: isDraftListing,
           businessName: trimmedBusinessName,
-          virtualTourUrls: normalizedVirtualTourUrls,
-          description,
-          phone,
-          website: normalizeProviderWebsiteUrl(website.trim()),
           googlePlaceId: resolvedGooglePlaceId,
           address,
           providerTypes,
-          ageGroupsServed: normalizedAgeGroupsServed,
-          curriculumTypes,
-          languagesSpoken,
-          amenities,
-          openingTime,
-          closingTime,
-          dailyFeeFrom: parsedDailyFeeFrom,
-          dailyFeeTo: parsedDailyFeeTo,
-          registrationFee: parsedRegistrationFee,
-          depositFee: parsedDepositFee,
-          mealsFee: parsedMealsFee,
-          serviceTransport,
-          serviceExtendedHours,
-          servicePickupDropoff,
-          serviceExtracurriculars,
-          currencyId,
-          totalCapacity: capacity,
-          programTypeIds: normalizedProgramTypeIds,
+          ...(isSproutPlan
+            ? {}
+            : {
+                virtualTourUrls: normalizedVirtualTourUrls,
+                description,
+                phone,
+                website: normalizeProviderWebsiteUrl(website.trim()),
+                ageGroupsServed: normalizedAgeGroupsServed,
+                curriculumTypes,
+                languagesSpoken,
+                amenities,
+                openingTime,
+                closingTime,
+                dailyFeeFrom: parsedDailyFeeFrom,
+                dailyFeeTo: parsedDailyFeeTo,
+                registrationFee: parsedRegistrationFee,
+                depositFee: parsedDepositFee,
+                mealsFee: parsedMealsFee,
+                serviceTransport,
+                serviceExtendedHours,
+                servicePickupDropoff,
+                serviceExtracurriculars,
+                currencyId,
+                totalCapacity: capacity,
+                programTypeIds: normalizedProgramTypeIds,
+              }),
         }),
       })
       const savePayload = (await saveResponse.json().catch(() => null)) as
@@ -907,9 +950,13 @@ export default function ManageListingPage() {
       }
       clearDraftFromStorage()
       let successMessage = isDraftListing
-        ? "Thank you. Your profile has been submitted and is now under admin review."
-        : "All listing details have been saved."
-      if (photoCount === 0)
+        ? isSproutPlan
+          ? "Thank you. Your basic profile has been submitted and is now under admin review."
+          : "Thank you. Your profile has been submitted and is now under admin review."
+        : isSproutPlan
+          ? "Your basic listing details have been saved."
+          : "All listing details have been saved."
+      if (!isSproutPlan && photoCount === 0)
         successMessage += " Important: Add photos in the Photos section to complete your listing."
       setSaveSuccess(successMessage)
       toast({
@@ -983,7 +1030,7 @@ export default function ManageListingPage() {
   return (
     <div className="w-full space-y-6 pb-24">
       <Suspense fallback={null}>
-        <ProfileTour isReady={!isLoadingProfile} />
+        <ProfileTour isReady={!isLoadingProfile} variant={isSproutPlan ? "sprout" : "full"} />
       </Suspense>
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1007,10 +1054,14 @@ export default function ManageListingPage() {
           </div>
           <p className="text-muted-foreground mt-1">
             {isDraftListing
-              ? "Complete your profile and submit for admin approval."
+              ? isSproutPlan
+                ? "Complete your basic profile and submit it for admin approval."
+                : "Complete your profile and submit for admin approval."
               : isPendingListing
                 ? "Your submission is under review. Editing is locked until approval."
-                : "Update your business information and program details"}
+                : isSproutPlan
+                  ? "Update your basic business details."
+                  : "Update your business information and program details"}
           </p>
           {isDraftListing && !isLoadingProfile && (
             <div className="mt-3 space-y-1.5">
@@ -1019,7 +1070,7 @@ export default function ManageListingPage() {
                 <span className="font-medium">{completionProgress}%</span>
               </div>
               <Progress value={completionProgress} className="h-2" />
-              {photoCount === 0 && (
+              {!isSproutPlan && photoCount === 0 && (
                 <p className="text-xs text-muted-foreground">
                   After submitting, add photos in{" "}
                   <Link href="/dashboard/provider/photos" className="text-primary hover:underline">
@@ -1059,14 +1110,18 @@ export default function ManageListingPage() {
           <Info className="h-4 w-4 text-primary" />
           <AlertTitle>Under review</AlertTitle>
           <AlertDescription>
-            Thank you. Your listing is under review. We&apos;ll notify you when it&apos;s live on the directory. Next step: Add photos in the Photos section to showcase your facility.
+            {isSproutPlan
+              ? "Thank you. Your basic listing is under review. We&apos;ll notify you when it&apos;s live on the directory."
+              : "Thank you. Your listing is under review. We&apos;ll notify you when it&apos;s live on the directory. Next step: Add photos in the Photos section to showcase your facility."}
           </AlertDescription>
         </Alert>
       )}
-      <PostSubmitPhotosTour
-        show={isPendingListing && photoCount === 0}
-        isReady={!isLoadingProfile}
-      />
+      {!isSproutPlan ? (
+        <PostSubmitPhotosTour
+          show={isPendingListing && photoCount === 0}
+          isReady={!isLoadingProfile}
+        />
+      ) : null}
 
       {isLoadingProfile ? (
         <div className="space-y-6">
@@ -1074,6 +1129,168 @@ export default function ManageListingPage() {
           <Skeleton className="h-80 rounded-xl" />
           <Skeleton className="h-48 rounded-xl" />
         </div>
+      ) : isSproutPlan ? (
+        <fieldset disabled={isPendingListing || isSaving || isLoadingProfile} className="space-y-6">
+          <Card className="border-border/50 border-l-4 border-l-primary">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Basic Listing Details</CardTitle>
+                  <CardDescription>
+                    Sprout includes only the basics: name, location, provider type, and verification documents.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                <Field data-tour-business-name>
+                  <FieldLabel>Business Name</FieldLabel>
+                  <Input value={businessName} onChange={(event) => setBusinessName(event.target.value)} />
+                </Field>
+
+                <Field data-tour-location>
+                  <FieldLabel>Location</FieldLabel>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={address}
+                        onChange={(event) => setAddress(event.target.value)}
+                        className="pl-10 pr-10"
+                      />
+                      {isDetectingAddress && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={detectAddressFromCurrentLocation}
+                      disabled={isDetectingAddress}
+                      className="shrink-0"
+                    >
+                      {isDetectingAddress ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <MapPin className="h-4 w-4 mr-1.5" />
+                          Use location
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {(addressError || !mapsApiKey) && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {addressError ??
+                        "Google Maps API key is not configured. We can detect coordinates but not city/state."}
+                    </p>
+                  )}
+                </Field>
+
+                <Field data-tour-provider-type>
+                  <FieldLabel>Provider Type</FieldLabel>
+                  <FieldDescription>Select the provider types you want displayed on your basic listing.</FieldDescription>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {PROVIDER_TYPES.map((type) => {
+                      const selected = providerTypes.includes(type.id)
+                      return (
+                        <Badge
+                          key={type.id}
+                          variant={selected ? "default" : "outline"}
+                          className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                          onClick={() =>
+                            setProviderTypes((prev) =>
+                              selected ? prev.filter((id) => id !== type.id) : [...prev, type.id],
+                            )
+                          }
+                        >
+                          {type.label}
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                </Field>
+
+                {isDraftListing ? (
+                  <>
+                    <Separator />
+                    <Field data-tour-verification>
+                      <FieldLabel>
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Verification Documents (required to submit)
+                        </span>
+                      </FieldLabel>
+                      <FieldDescription>
+                        Upload at least one document for admin verification. PDF or images (JPEG, PNG, WebP). Max 10MB per file.
+                      </FieldDescription>
+                      <div className="mt-2 space-y-2">
+                        <div>
+                          <label
+                            htmlFor="document_type"
+                            className="text-xs font-medium text-muted-foreground mb-1.5 block"
+                          >
+                            Document Type
+                          </label>
+                          <select
+                            id="document_type"
+                            value={documentType}
+                            onChange={(e) => setDocumentType(e.target.value)}
+                            disabled={isPendingListing}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {DOCUMENT_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Input
+                            id="documents"
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                            multiple
+                            className="cursor-pointer"
+                            onChange={(e) => {
+                              const files = e.target.files
+                              if (files) setDocumentFiles(Array.from(files))
+                            }}
+                          />
+                          {documentFiles.length > 0 ? (
+                            <p className="text-xs text-muted-foreground mt-1.5">
+                              {documentFiles.length} file{documentFiles.length !== 1 ? "s" : ""} selected
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Field>
+                  </>
+                ) : null}
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-muted/20">
+            <CardHeader>
+              <CardTitle>Upgrade For More</CardTitle>
+              <CardDescription>
+                Upgrade to Grow or Thrive to unlock availability, leads, photos, FAQs, website tools, analytics, and your full enhanced profile.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" asChild>
+                <Link href="/dashboard/provider/subscription">Compare plans</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </fieldset>
       ) : (
       <fieldset disabled={isPendingListing || isSaving || isLoadingProfile} className="space-y-6">
       <Tabs defaultValue="business" className="w-full">
