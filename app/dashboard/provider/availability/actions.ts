@@ -1,6 +1,7 @@
 "use server"
 
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { notifyFavoritingParentsOfAvailabilityChange } from "@/lib/email/favoriteProviderAvailabilityNotification"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
@@ -28,7 +29,7 @@ export async function getProviderAvailability(): Promise<{
 
   const { data, error } = await supabase
     .from("provider_profiles")
-    .select("availability_status, available_spots_count")
+    .select("availability_status, available_spots_count, total_capacity")
     .eq("profile_id", providerProfileId)
     .maybeSingle()
 
@@ -49,11 +50,15 @@ export async function getProviderAvailability(): Promise<{
     data.availability_status === "waitlist" || data.availability_status === "full"
       ? data.availability_status
       : "openings"
+  const availableSpotsCount =
+    availabilityStatus === "openings" && data.available_spots_count == null
+      ? data.total_capacity ?? null
+      : data.available_spots_count ?? null
 
   return {
     data: {
       availabilityStatus,
-      availableSpotsCount: data.available_spots_count ?? null,
+      availableSpotsCount,
     },
   }
 }
@@ -91,7 +96,9 @@ export async function updateProviderAvailability(input: {
     return { error: "Enter a valid number of available spots greater than 0." }
   }
 
-  const { data: existingRow } = await supabase
+  const admin = getSupabaseAdminClient()
+
+  const { data: existingRow } = await admin
     .from("provider_profiles")
     .select("availability_status")
     .eq("profile_id", providerProfileId)
@@ -99,18 +106,22 @@ export async function updateProviderAvailability(input: {
 
   const previousStatus = normalizeAvailabilityStatus(existingRow?.availability_status ?? null)
 
-  const { data: updatedRow, error } = await supabase
-    .from("provider_profiles")
-    .update({
-      availability_status: input.availabilityStatus,
-      available_spots_count: normalizedSpots,
-    })
-    .eq("profile_id", providerProfileId)
+  const { data: updatedRow, error } = await admin
+    .from("provider_profiles" as never)
+    .upsert(
+      {
+        profile_id: providerProfileId,
+        owner_profile_id: user.id,
+        availability_status: input.availabilityStatus,
+        available_spots_count: normalizedSpots,
+      } as never,
+      { onConflict: "profile_id" }
+    )
     .select("profile_id")
     .maybeSingle()
 
   if (error) return { error: error.message }
-  if (!updatedRow) return { error: "Provider profile not found." }
+  if (!updatedRow) return { error: "Unable to save provider availability." }
 
   const nextStatus = input.availabilityStatus
   if (nextStatus === "full" && previousStatus !== "full") {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { Plus, Save, Trash2, Loader2, MapPin, Building2, GraduationCap, Clock, CheckCircle, AlertCircle, Info, ChevronUp, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +21,6 @@ import { AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { parseYouTubeUrl } from "@/lib/youtube"
-import { deriveProviderSlug } from "@/lib/provider-slug"
 import {
   GeolocationError,
   getCurrentPosition,
@@ -37,7 +37,6 @@ import {
 } from "@/lib/provider-documents-constants"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
-import { syncProviderProgramTypes } from "@/lib/provider-program-types"
 
 const DOCUMENT_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"] as const
 
@@ -61,8 +60,15 @@ type ListingDraftSnapshot = {
   amenities: string[]
   openingTime: string
   closingTime: string
-  monthlyTuitionFrom: string
-  monthlyTuitionTo: string
+  dailyFeeFrom: string
+  dailyFeeTo: string
+  registrationFee: string
+  depositFee: string
+  mealsFee: string
+  serviceTransport: boolean
+  serviceExtendedHours: boolean
+  servicePickupDropoff: boolean
+  serviceExtracurriculars: boolean
   currencyId: string
   totalCapacity: string
   listingStatus: string
@@ -177,8 +183,15 @@ export default function ManageListingPage() {
   const [amenities, setAmenities] = useState<string[]>(["meals_included", "outdoor_play_area", "nap_room", "security_cameras", "parent_app"])
   const [openingTime, setOpeningTime] = useState("7:00")
   const [closingTime, setClosingTime] = useState("18:00")
-  const [monthlyTuitionFrom, setMonthlyTuitionFrom] = useState<string>("1200")
-  const [monthlyTuitionTo, setMonthlyTuitionTo] = useState<string>("2000")
+  const [dailyFeeFrom, setDailyFeeFrom] = useState<string>("")
+  const [dailyFeeTo, setDailyFeeTo] = useState<string>("")
+  const [registrationFee, setRegistrationFee] = useState<string>("")
+  const [depositFee, setDepositFee] = useState<string>("")
+  const [mealsFee, setMealsFee] = useState<string>("")
+  const [serviceTransport, setServiceTransport] = useState(false)
+  const [serviceExtendedHours, setServiceExtendedHours] = useState(false)
+  const [servicePickupDropoff, setServicePickupDropoff] = useState(false)
+  const [serviceExtracurriculars, setServiceExtracurriculars] = useState(false)
   const [currencyId, setCurrencyId] = useState<string>("")
   const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; name: string; symbol: string }>>([])
   const [totalCapacity, setTotalCapacity] = useState<string>("60")
@@ -268,9 +281,9 @@ export default function ManageListingPage() {
       setProviderProfileId(resolvedProviderProfileId)
 
       const selectWithStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id, listing_status"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id, listing_status"
       const selectWithoutStatus =
-        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, monthly_tuition_from, monthly_tuition_to, total_capacity, currency_id"
+        "business_name, virtual_tour_url, virtual_tour_urls, description, phone, website, address, provider_types, age_groups_served, curriculum_type, languages_spoken, amenities, opening_time, closing_time, daily_fee_from, daily_fee_to, registration_fee, deposit_fee, meals_fee, service_transport, service_extended_hours, service_pickup_dropoff, service_extracurriculars, total_capacity, currency_id"
 
       try {
         const [profileResult, , currenciesRes, providerProgramTypesResult] = await Promise.all([
@@ -373,8 +386,15 @@ export default function ManageListingPage() {
         if (data?.amenities && data.amenities.length > 0) setAmenities(data.amenities)
         if (data?.opening_time != null) setOpeningTime(data.opening_time)
         if (data?.closing_time != null) setClosingTime(data.closing_time)
-        if (data?.monthly_tuition_from != null) setMonthlyTuitionFrom(String(data.monthly_tuition_from))
-        if (data?.monthly_tuition_to != null) setMonthlyTuitionTo(String(data.monthly_tuition_to))
+        if (data?.daily_fee_from != null) setDailyFeeFrom(String(data.daily_fee_from))
+        if (data?.daily_fee_to != null) setDailyFeeTo(String(data.daily_fee_to))
+        if (data?.registration_fee != null) setRegistrationFee(String(data.registration_fee))
+        if (data?.deposit_fee != null) setDepositFee(String(data.deposit_fee))
+        if (data?.meals_fee != null) setMealsFee(String(data.meals_fee))
+        setServiceTransport(Boolean(data?.service_transport))
+        setServiceExtendedHours(Boolean(data?.service_extended_hours))
+        setServicePickupDropoff(Boolean(data?.service_pickup_dropoff))
+        setServiceExtracurriculars(Boolean(data?.service_extracurriculars))
         if (data?.currency_id != null) setCurrencyId(data.currency_id)
         if (data?.total_capacity != null) setTotalCapacity(String(data.total_capacity))
 
@@ -402,8 +422,15 @@ export default function ManageListingPage() {
             if (stored.amenities?.length) setAmenities(stored.amenities)
             if (stored.openingTime != null && stored.openingTime.trim()) setOpeningTime(stored.openingTime)
             if (stored.closingTime != null && stored.closingTime.trim()) setClosingTime(stored.closingTime)
-            if (stored.monthlyTuitionFrom != null && stored.monthlyTuitionFrom.trim()) setMonthlyTuitionFrom(stored.monthlyTuitionFrom)
-            if (stored.monthlyTuitionTo != null && stored.monthlyTuitionTo.trim()) setMonthlyTuitionTo(stored.monthlyTuitionTo)
+            if (stored.dailyFeeFrom != null && stored.dailyFeeFrom.trim()) setDailyFeeFrom(stored.dailyFeeFrom)
+            if (stored.dailyFeeTo != null && stored.dailyFeeTo.trim()) setDailyFeeTo(stored.dailyFeeTo)
+            if (stored.registrationFee != null && stored.registrationFee.trim()) setRegistrationFee(stored.registrationFee)
+            if (stored.depositFee != null && stored.depositFee.trim()) setDepositFee(stored.depositFee)
+            if (stored.mealsFee != null && stored.mealsFee.trim()) setMealsFee(stored.mealsFee)
+            setServiceTransport(Boolean(stored.serviceTransport))
+            setServiceExtendedHours(Boolean(stored.serviceExtendedHours))
+            setServicePickupDropoff(Boolean(stored.servicePickupDropoff))
+            setServiceExtracurriculars(Boolean(stored.serviceExtracurriculars))
             if (stored.currencyId != null && stored.currencyId.trim()) setCurrencyId(stored.currencyId)
             if (stored.totalCapacity != null && stored.totalCapacity.trim()) setTotalCapacity(stored.totalCapacity)
           }
@@ -455,8 +482,15 @@ export default function ManageListingPage() {
       amenities,
       openingTime,
       closingTime,
-      monthlyTuitionFrom,
-      monthlyTuitionTo,
+      dailyFeeFrom,
+      dailyFeeTo,
+      registrationFee,
+      depositFee,
+      mealsFee,
+      serviceTransport,
+      serviceExtendedHours,
+      servicePickupDropoff,
+      serviceExtracurriculars,
       currencyId,
       totalCapacity,
       listingStatus,
@@ -477,8 +511,15 @@ export default function ManageListingPage() {
       amenities,
       openingTime,
       closingTime,
-      monthlyTuitionFrom,
-      monthlyTuitionTo,
+      dailyFeeFrom,
+      dailyFeeTo,
+      registrationFee,
+      depositFee,
+      mealsFee,
+      serviceTransport,
+      serviceExtendedHours,
+      servicePickupDropoff,
+      serviceExtracurriculars,
       currencyId,
       totalCapacity,
       listingStatus,
@@ -542,8 +583,8 @@ export default function ManageListingPage() {
       amenities.length > 0,
       !!openingTime.trim(),
       !!closingTime.trim(),
-      parseOptionalInteger(monthlyTuitionFrom) != null,
-      parseOptionalInteger(monthlyTuitionTo) != null,
+      parseOptionalInteger(dailyFeeFrom) != null,
+      parseOptionalInteger(dailyFeeTo) != null,
       parseOptionalInteger(totalCapacity) != null,
       documentFiles.length > 0,
     ]
@@ -564,8 +605,8 @@ export default function ManageListingPage() {
     amenities.length,
     openingTime,
     closingTime,
-    monthlyTuitionFrom,
-    monthlyTuitionTo,
+    dailyFeeFrom,
+    dailyFeeTo,
     totalCapacity,
     documentFiles.length,
   ])
@@ -594,8 +635,8 @@ export default function ManageListingPage() {
       amenities: string[]
       openingTime: string
       closingTime: string
-      tuitionFrom: number | null
-      tuitionTo: number | null
+      dailyFeeFrom: number | null
+      dailyFeeTo: number | null
       capacity: number | null
       documentFiles: File[]
     },
@@ -614,8 +655,8 @@ export default function ManageListingPage() {
     if (values.amenities.length === 0) missing.push("Amenities & Features")
     if (!values.openingTime.trim()) missing.push("Opening Time")
     if (!values.closingTime.trim()) missing.push("Closing Time")
-    if (values.tuitionFrom == null) missing.push("Monthly Tuition (From)")
-    if (values.tuitionTo == null) missing.push("Monthly Tuition (To)")
+    if (values.dailyFeeFrom == null) missing.push("Daily Fee From")
+    if (values.dailyFeeTo == null) missing.push("Daily Fee To")
     if (values.capacity == null) missing.push("Total Capacity")
     if (values.documentFiles.length === 0) missing.push("Verification Documents")
     if (missing.length === 0) return null
@@ -661,11 +702,46 @@ export default function ManageListingPage() {
     setVirtualTourError(null)
     setSaveError(null)
     setSaveSuccess(null)
-    setIsSaving(true)
 
-    const tuitionFrom = parseOptionalInteger(monthlyTuitionFrom)
-    const tuitionTo = parseOptionalInteger(monthlyTuitionTo)
+    const parsedDailyFeeFrom = parseOptionalInteger(dailyFeeFrom)
+    const parsedDailyFeeTo = parseOptionalInteger(dailyFeeTo)
+    const parsedRegistrationFee = parseOptionalInteger(registrationFee)
+    const parsedDepositFee = parseOptionalInteger(depositFee)
+    const parsedMealsFee = parseOptionalInteger(mealsFee)
     const capacity = parseOptionalInteger(totalCapacity)
+
+    if (parsedDailyFeeFrom != null && parsedDailyFeeFrom < 0) {
+      setSaveError("Daily fee (from) cannot be negative.")
+      return
+    }
+    if (parsedDailyFeeTo != null && parsedDailyFeeTo < 0) {
+      setSaveError("Daily fee (to) cannot be negative.")
+      return
+    }
+    if (
+      parsedDailyFeeFrom != null &&
+      parsedDailyFeeTo != null &&
+      parsedDailyFeeFrom > parsedDailyFeeTo
+    ) {
+      setSaveError("Daily fee (from) must be less than or equal to (to).")
+      return
+    }
+    if (parsedRegistrationFee != null && parsedRegistrationFee < 0) {
+      setSaveError("Registration fee cannot be negative.")
+      return
+    }
+    if (parsedDepositFee != null && parsedDepositFee < 0) {
+      setSaveError("Deposit cannot be negative.")
+      return
+    }
+    if (parsedMealsFee != null && parsedMealsFee < 0) {
+      setSaveError("Meals fee cannot be negative.")
+      return
+    }
+    if (capacity != null && capacity < 0) {
+      setSaveError("Total capacity cannot be negative.")
+      return
+    }
 
       if (isDraftListing) {
         const validationError = validateDraftSubmission({
@@ -682,8 +758,8 @@ export default function ManageListingPage() {
           amenities,
           openingTime,
           closingTime,
-          tuitionFrom,
-          tuitionTo,
+          dailyFeeFrom: parsedDailyFeeFrom,
+          dailyFeeTo: parsedDailyFeeTo,
           capacity,
           documentFiles,
         })
@@ -700,6 +776,8 @@ export default function ManageListingPage() {
         }
       }
     }
+
+    setIsSaving(true)
 
     try {
       if (isDraftListing && documentFiles.length > 0) {
@@ -755,7 +833,6 @@ export default function ManageListingPage() {
         trimmedBusinessName,
         address,
       )
-      const supabase = getSupabaseClient()
       const normalizedAgeGroupsServed = Array.from(
         new Set(ageGroupsServed.map(normalizeAgeGroupTag).filter(Boolean)),
       )
@@ -763,52 +840,51 @@ export default function ManageListingPage() {
         new Set(selectedProgramTypeIds.map((value) => value.trim()).filter(Boolean)),
       )
 
-      const { error } = await supabase.from("provider_profiles" as never).upsert(
-        {
-          profile_id: providerProfileId,
-          owner_profile_id: user.id,
-          ...(isDraftListing ? { listing_status: "pending" } : {}),
-          provider_slug: deriveProviderSlug(trimmedBusinessName),
-          business_name: trimmedBusinessName,
-          virtual_tour_url: normalizedVirtualTourUrls[0] ?? null,
-          virtual_tour_urls: normalizedVirtualTourUrls.length > 0 ? normalizedVirtualTourUrls : null,
-          description: description.trim() || null,
-          phone: phone.trim() || null,
+      const saveResponse = await fetch("/api/provider/save-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submitForReview: isDraftListing,
+          businessName: trimmedBusinessName,
+          virtualTourUrls: normalizedVirtualTourUrls,
+          description,
+          phone,
           website: normalizeProviderWebsiteUrl(website.trim()),
-          google_place_id: resolvedGooglePlaceId,
-          address: address.trim() || null,
-          provider_types: providerTypes.length > 0 ? providerTypes : null,
-          age_groups_served: normalizedAgeGroupsServed.length > 0 ? normalizedAgeGroupsServed : null,
-          curriculum_type: curriculumTypes.length > 0 ? curriculumTypes : null,
-          languages_spoken: languagesSpoken || null,
-          amenities: amenities.length > 0 ? amenities : null,
-          opening_time: openingTime || null,
-          closing_time: closingTime || null,
-          monthly_tuition_from: tuitionFrom ?? null,
-          monthly_tuition_to: tuitionTo ?? null,
-          currency_id: currencyId || null,
-          total_capacity: capacity ?? null,
-        } as never,
-        { onConflict: "profile_id" },
-      )
+          googlePlaceId: resolvedGooglePlaceId,
+          address,
+          providerTypes,
+          ageGroupsServed: normalizedAgeGroupsServed,
+          curriculumTypes,
+          languagesSpoken,
+          amenities,
+          openingTime,
+          closingTime,
+          dailyFeeFrom: parsedDailyFeeFrom,
+          dailyFeeTo: parsedDailyFeeTo,
+          registrationFee: parsedRegistrationFee,
+          depositFee: parsedDepositFee,
+          mealsFee: parsedMealsFee,
+          serviceTransport,
+          serviceExtendedHours,
+          servicePickupDropoff,
+          serviceExtracurriculars,
+          currencyId,
+          totalCapacity: capacity,
+          programTypeIds: normalizedProgramTypeIds,
+        }),
+      })
+      const savePayload = (await saveResponse.json().catch(() => null)) as
+        | { success?: boolean; error?: string }
+        | null
 
-      if (error) {
-        console.error("[Manage Listing] Save error:", error.message)
+      if (!saveResponse.ok || !savePayload?.success) {
+        const errorMessage = savePayload?.error ?? "Unable to save changes right now. Please try again."
+        console.error("[Manage Listing] Save error:", errorMessage)
         setSaveError(
-          process.env.NODE_ENV === "development" && error.message
-            ? `Save failed: ${error.message}`
+          process.env.NODE_ENV === "development" && errorMessage
+            ? `Save failed: ${errorMessage}`
             : "Unable to save changes right now. Please try again."
         )
-        return
-      }
-
-      const syncProgramTypesResult = await syncProviderProgramTypes(
-        supabase,
-        providerProfileId,
-        normalizedProgramTypeIds,
-      )
-      if (syncProgramTypesResult.error) {
-        setSaveError(syncProgramTypesResult.error)
         return
       }
 
@@ -905,7 +981,7 @@ export default function ManageListingPage() {
   }, [address, detectAddressFromCurrentLocation])
 
   return (
-    <div className="space-y-6 max-w-4xl pb-24">
+    <div className="w-full space-y-6 pb-24">
       <Suspense fallback={null}>
         <ProfileTour isReady={!isLoadingProfile} />
       </Suspense>
@@ -1013,10 +1089,6 @@ export default function ManageListingPage() {
           <TabsTrigger value="operating" className="flex items-center gap-2" data-tour-tab-operating>
             <Clock className="h-4 w-4" />
             Operating Details
-          </TabsTrigger>
-          <TabsTrigger value="availability" className="flex items-center gap-2" data-tour-tab-availability>
-            <CheckCircle className="h-4 w-4" />
-            Availability
           </TabsTrigger>
         </TabsList>
 
@@ -1395,7 +1467,7 @@ export default function ManageListingPage() {
             </div>
             <div>
               <CardTitle>Operating Details</CardTitle>
-              <CardDescription>Hours and monthly tuition</CardDescription>
+              <CardDescription>Hours, daily fees, and pricing details</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -1438,23 +1510,61 @@ export default function ManageListingPage() {
             <Separator />
 
             <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
-              <p className="text-sm font-medium text-foreground">Pricing</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Pricing and Capacity</p>
+                <p className="text-sm text-muted-foreground">
+                  Select the currency for fee amounts. Daily fee and pricing components will be displayed with the
+                  selected symbol.
+                </p>
+              </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Field>
-                  <FieldLabel>Monthly Tuition (From)</FieldLabel>
+                  <FieldLabel>Daily Fee From</FieldLabel>
                   <Input
                     type="number"
-                    value={monthlyTuitionFrom}
-                    onChange={(e) => setMonthlyTuitionFrom(e.target.value)}
+                    min={0}
+                    value={dailyFeeFrom}
+                    onChange={(e) => setDailyFeeFrom(e.target.value)}
                   />
                 </Field>
 
                 <Field>
-                  <FieldLabel>Monthly Tuition (To)</FieldLabel>
+                  <FieldLabel>Daily Fee To</FieldLabel>
                   <Input
                     type="number"
-                    value={monthlyTuitionTo}
-                    onChange={(e) => setMonthlyTuitionTo(e.target.value)}
+                    min={0}
+                    value={dailyFeeTo}
+                    onChange={(e) => setDailyFeeTo(e.target.value)}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel>Registration Fee</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={registrationFee}
+                    onChange={(e) => setRegistrationFee(e.target.value)}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel>Deposit</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={depositFee}
+                    onChange={(e) => setDepositFee(e.target.value)}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel>Meals Fee</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={mealsFee}
+                    onChange={(e) => setMealsFee(e.target.value)}
                   />
                 </Field>
 
@@ -1475,6 +1585,60 @@ export default function ManageListingPage() {
                   </Select>
                 </Field>
 
+                <Field>
+                  <FieldLabel>Total Capacity</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={totalCapacity}
+                    onChange={(e) => setTotalCapacity(e.target.value)}
+                    placeholder="e.g. 60"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3">
+                  <Checkbox checked={serviceTransport} onCheckedChange={(checked) => setServiceTransport(Boolean(checked))} />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Transport</p>
+                    <p className="text-sm text-muted-foreground">Offer transport as an additional paid service.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3">
+                  <Checkbox
+                    checked={serviceExtendedHours}
+                    onCheckedChange={(checked) => setServiceExtendedHours(Boolean(checked))}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Extended Hours</p>
+                    <p className="text-sm text-muted-foreground">Show that families can book care beyond standard hours.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3">
+                  <Checkbox
+                    checked={servicePickupDropoff}
+                    onCheckedChange={(checked) => setServicePickupDropoff(Boolean(checked))}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Pickup / Drop-off</p>
+                    <p className="text-sm text-muted-foreground">Indicate whether pickup and drop-off support is available.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3">
+                  <Checkbox
+                    checked={serviceExtracurriculars}
+                    onCheckedChange={(checked) => setServiceExtracurriculars(Boolean(checked))}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Extracurriculars</p>
+                    <p className="text-sm text-muted-foreground">Highlight extra paid activities offered alongside the core program.</p>
+                  </div>
+                </label>
               </div>
             </div>
           </FieldGroup>
@@ -1482,43 +1646,6 @@ export default function ManageListingPage() {
       </Card>
         </TabsContent>
 
-        <TabsContent value="availability" className="mt-6">
-      <Card className="border-border/50">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <CheckCircle className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle>Availability</CardTitle>
-              <CardDescription>
-                Set your total capacity (number of available places for enrollment planning).
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Total Capacity</FieldLabel>
-              <FieldDescription>
-                Enter the total number of places your center can host.
-              </FieldDescription>
-              <div className="mt-3 max-w-xs">
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={totalCapacity}
-                  onChange={(e) => setTotalCapacity(e.target.value)}
-                  placeholder="e.g. 60"
-                />
-              </div>
-            </Field>
-          </FieldGroup>
-        </CardContent>
-      </Card>
-        </TabsContent>
       </Tabs>
       </fieldset>
       )}
@@ -1540,7 +1667,7 @@ export default function ManageListingPage() {
           role="region"
           aria-label="Save actions"
         >
-          <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex w-full items-center justify-between gap-4">
             <Button
               variant="ghost"
               size="sm"

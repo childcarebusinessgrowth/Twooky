@@ -74,7 +74,8 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
   const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
 
   // Ensure provider_profiles row exists (e.g. user may not have saved listing yet)
-  const { error: profileError } = await supabase.from("provider_profiles" as never).upsert(
+  const admin = getSupabaseAdminClient()
+  const { error: profileError } = await admin.from("provider_profiles" as never).upsert(
     { profile_id: providerProfileId, owner_profile_id: user.id } as never,
     { onConflict: "profile_id" }
   )
@@ -113,7 +114,6 @@ export async function uploadProviderPhoto(formData: FormData): Promise<UploadPro
 
   try {
     await ensureProviderPhotosBucket()
-    const admin = getSupabaseAdminClient()
 
     const safeName = sanitizeFilename(file.name || "image")
     const storagePath = `${providerProfileId}/${randomUUID()}-${safeName}`
