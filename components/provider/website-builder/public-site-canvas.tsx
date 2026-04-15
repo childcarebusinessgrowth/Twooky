@@ -1,6 +1,6 @@
 "use client"
 
-import { useLayoutEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { CanvasNodeContent } from "@/components/provider/website-builder/canvas-node-content"
 import { flexJustifyContent } from "@/lib/website-builder/alignment"
 import { ARTBOARD, pickLayoutWithMobileResolver, resolveMobileLayoutMap } from "@/lib/website-builder/layout-helpers"
@@ -64,6 +64,12 @@ function renderNode(
   bp: WebsiteBuilderBreakpoint,
   artH: number,
   mobileMap: Map<string, { x: number; y: number; w: number; h: number }> | null,
+  opts?: {
+    contactFormNodeId?: string
+    footerNodeId?: string
+    footerTopOverride?: string | null
+    onContactFormMount?: (el: HTMLDivElement | null) => void
+  },
 ) {
   const artW = ARTBOARD[bp].w
   const isMobileBreakpoint = bp === "mobile"
@@ -234,7 +240,14 @@ function renderNode(
       )
     case "footer":
       return (
-        <div key={n.id} style={outer}>
+        <div
+          key={n.id}
+          style={
+            opts?.footerNodeId === n.id && opts.footerTopOverride
+              ? { ...outer, top: opts.footerTopOverride }
+              : outer
+          }
+        >
           <CanvasNodeContent
             node={n}
             siteBase={siteBase}
@@ -269,7 +282,11 @@ function renderNode(
         minHeight: 0,
       } as const
       return (
-        <div key={n.id} style={contactOuter}>
+        <div
+          key={n.id}
+          ref={opts?.contactFormNodeId === n.id ? opts.onContactFormMount : undefined}
+          style={contactOuter}
+        >
           <CanvasNodeContent
             node={n}
             siteBase={siteBase}
@@ -297,8 +314,11 @@ export function PublicSiteRenderer({
   page: PublishedPageSnapshot
 }) {
   const [bp, setBp] = useState<WebsiteBuilderBreakpoint>("desktop")
+  const [footerTopOverride, setFooterTopOverride] = useState<string | null>(null)
+  const artboardRef = useRef<HTMLDivElement | null>(null)
+  const contactFormRef = useRef<HTMLDivElement | null>(null)
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     function tick() {
       setBp(viewportBreakpoint())
     }
@@ -325,10 +345,65 @@ export function PublicSiteRenderer({
     [bp, pageForRender.nodes],
   )
   const h = artboardHeightPx(pageForRender, bp, mobileMap)
+  const contactFormNode = useMemo(
+    () => pageForRender.nodes.find((node) => node.type === "contactForm") ?? null,
+    [pageForRender.nodes],
+  )
+  const footerNode = useMemo(
+    () => pageForRender.nodes.find((node) => node.type === "footer") ?? null,
+    [pageForRender.nodes],
+  )
+
+  useEffect(() => {
+    if (page.path_slug !== "contact" || !contactFormNode || !footerNode) {
+      setFooterTopOverride(null)
+      return
+    }
+
+    const artboardEl = artboardRef.current
+    const contactEl = contactFormRef.current
+    if (!artboardEl || !contactEl) return
+
+    const updateFooterPosition = () => {
+      const renderedArtboardWidth = artboardEl.clientWidth
+      if (renderedArtboardWidth <= 0) {
+        setFooterTopOverride(null)
+        return
+      }
+
+      const scale = renderedArtboardWidth / ARTBOARD[bp].w
+      if (!Number.isFinite(scale) || scale <= 0) {
+        setFooterTopOverride(null)
+        return
+      }
+
+      const contactLayout = pickLayoutWithMobileResolver(contactFormNode, bp, mobileMap)
+      const footerLayout = pickLayoutWithMobileResolver(footerNode, bp, mobileMap)
+      const renderedContactHeight = contactEl.getBoundingClientRect().height
+      const logicalContactHeight = renderedContactHeight / scale
+      const desiredFooterY = Math.max(contactLayout.y + logicalContactHeight + 16, contactLayout.y + 24)
+      const nextTop = pct(desiredFooterY, h)
+
+      if (Math.abs(desiredFooterY - footerLayout.y) < 2) {
+        setFooterTopOverride(null)
+        return
+      }
+
+      setFooterTopOverride(nextTop)
+    }
+
+    updateFooterPosition()
+
+    const observer = new ResizeObserver(() => updateFooterPosition())
+    observer.observe(artboardEl)
+    observer.observe(contactEl)
+
+    return () => observer.disconnect()
+  }, [bp, contactFormNode, footerNode, h, mobileMap, page.path_slug])
 
   return (
     <div
-      className="w-full overflow-x-clip"
+      className="relative w-full overflow-x-clip"
       style={{
         width: "100%",
         maxWidth: "100%",
@@ -336,8 +411,17 @@ export function PublicSiteRenderer({
         fontFamily: theme.fontFamily ?? "system-ui, sans-serif",
       }}
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-64"
+        style={{
+          background:
+            "radial-gradient(circle at top center, color-mix(in oklab, var(--background, #fff) 72%, transparent) 0%, transparent 72%)",
+        }}
+      />
       <div className="w-full">
         <div
+          ref={artboardRef}
           className="relative w-full overflow-hidden"
           style={{
             paddingBottom: `${(h / artW) * 100}%`,
@@ -345,10 +429,23 @@ export function PublicSiteRenderer({
         >
           <div
             className="pointer-events-none absolute inset-0 z-0"
-            style={{ backgroundColor: theme.backgroundColor ?? "#f8fafc" }}
+            style={{
+              backgroundColor: theme.backgroundColor ?? "#f8fafc",
+              backgroundImage:
+                "linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 22%, rgba(255,255,255,0) 100%)",
+            }}
           />
           <div className="absolute inset-0 z-1">
-            {sorted.map((n) => renderNode(n, siteBase, theme, snapshot.subdomain_slug, bp, h, mobileMap))}
+            {sorted.map((n) =>
+              renderNode(n, siteBase, theme, snapshot.subdomain_slug, bp, h, mobileMap, {
+                contactFormNodeId: contactFormNode?.id,
+                footerNodeId: footerNode?.id,
+                footerTopOverride,
+                onContactFormMount: (el) => {
+                  contactFormRef.current = el
+                },
+              }),
+            )}
           </div>
         </div>
       </div>

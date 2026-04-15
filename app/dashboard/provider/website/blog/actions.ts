@@ -9,6 +9,7 @@ import {
   type BlogInput,
   type BlogStatus,
 } from "@/lib/blog-shared"
+import { resolveOwnedProviderProfileIds } from "@/lib/provider-ownership"
 import { uploadProviderWebsiteAsset } from "@/app/dashboard/provider/website/actions"
 
 const DASH_PATH = "/dashboard/provider/website/blog"
@@ -22,11 +23,23 @@ async function getWebsiteForCurrentUser() {
   if (authError || !user) {
     throw new Error("You must be signed in.")
   }
-  const { data: website, error: wErr } = await supabase
+  const ownedProfileIds = await resolveOwnedProviderProfileIds(supabase, user.id)
+  let { data: website, error: wErr } = await supabase
     .from("provider_websites")
     .select("id, subdomain_slug")
-    .eq("profile_id", user.id)
+    .eq("profile_id", ownedProfileIds[0])
     .maybeSingle()
+
+  if (!website && !wErr && ownedProfileIds.length > 1) {
+    const fallbackWebsiteResult = await supabase
+      .from("provider_websites")
+      .select("id, subdomain_slug")
+      .eq("profile_id", ownedProfileIds[1])
+      .maybeSingle()
+    website = fallbackWebsiteResult.data
+    wErr = fallbackWebsiteResult.error
+  }
+
   if (wErr) throw new Error(wErr.message)
   return { supabase, user, website }
 }

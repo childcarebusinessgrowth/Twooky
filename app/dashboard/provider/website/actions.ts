@@ -21,6 +21,8 @@ import {
   PROVIDER_WEBSITE_ASSETS_BUCKET,
 } from "./constants"
 
+type AdminClient = ReturnType<typeof getSupabaseAdminClient>
+
 function sanitizeSubdomainBase(raw: string): string {
   return raw
     .toLowerCase()
@@ -43,7 +45,7 @@ function sanitizeSubdomainInput(raw: string): string {
     .slice(0, SUBDOMAIN_MAX_LENGTH)
 }
 
-async function uniqueSubdomain(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, base: string) {
+async function uniqueSubdomain(supabase: AdminClient, base: string) {
   let candidate = base || `site-${randomUUID().slice(0, 8)}`
   if (!/^[a-z0-9]/.test(candidate)) candidate = `s-${candidate}`
   for (let i = 0; i < 20; i++) {
@@ -56,6 +58,102 @@ async function uniqueSubdomain(supabase: Awaited<ReturnType<typeof createSupabas
     if (!data) return trySlug
   }
   return `${candidate}-${randomUUID().slice(0, 6)}`
+}
+
+async function getOwnedWebsite(
+  supabase: AdminClient,
+  ownedProfileIds: string[]
+) {
+  for (const profileId of ownedProfileIds) {
+    const result = await supabase.from("provider_websites").select("*").eq("profile_id", profileId).maybeSingle()
+    if (result.error || result.data) return result
+  }
+  return { data: null, error: null }
+}
+
+function canManageWebsiteProfile(siteProfileId: string, ownedProfileIds: string[]) {
+  return ownedProfileIds.includes(siteProfileId)
+}
+
+async function getOwnedProviderProfileIds(
+  admin: AdminClient,
+  userId: string,
+): Promise<{ ok: true; ids: string[] } | { error: string }> {
+  const { data, error } = await admin
+    .from("provider_profiles")
+    .select("profile_id")
+    .or(`owner_profile_id.eq.${userId},profile_id.eq.${userId}`)
+
+  if (error) return { error: error.message }
+
+  const claimedIds = Array.from(
+    new Set((data ?? []).map((row) => row.profile_id).filter((profileId) => profileId && profileId !== userId)),
+  )
+
+  if (claimedIds.length > 0) {
+    return { ok: true, ids: claimedIds }
+  }
+
+  const selfOwnedIds = Array.from(new Set((data ?? []).map((row) => row.profile_id).filter(Boolean)))
+  return { ok: true, ids: selfOwnedIds.length > 0 ? selfOwnedIds : [userId] }
+}
+
+async function ensureProviderProfileForWebsiteCreation(
+  admin: AdminClient,
+  user: { id: string; email?: string | null },
+): Promise<{ ok: true; profileId: string } | { error: string }> {
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+  const providerProfileId = ownedProfileIds.ids[0]
+
+  const { data: existingProfile, error: existingProfileError } = await admin
+    .from("provider_profiles")
+    .select("profile_id, owner_profile_id")
+    .eq("profile_id", providerProfileId)
+    .maybeSingle()
+
+  if (existingProfileError) return { error: existingProfileError.message }
+  if (existingProfile?.profile_id) {
+    if (providerProfileId === user.id && existingProfile.owner_profile_id !== user.id) {
+      const { error: repairProfileError } = await admin
+        .from("provider_profiles")
+        .update({ owner_profile_id: user.id })
+        .eq("profile_id", user.id)
+      if (repairProfileError) return { error: repairProfileError.message }
+    }
+    return { ok: true, profileId: existingProfile.profile_id }
+  }
+
+  if (providerProfileId !== user.id) {
+    return { error: "The claimed provider listing could not be found. Please contact support." }
+  }
+
+  const { data: baseProfile, error: baseProfileError } = await admin
+    .from("profiles")
+    .select("display_name, email")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (baseProfileError) return { error: baseProfileError.message }
+
+  const fallbackBusinessName =
+    baseProfile?.display_name?.trim() ||
+    baseProfile?.email?.split("@")[0]?.trim() ||
+    user.email?.split("@")[0]?.trim() ||
+    "Your nursery"
+
+  const { error: createProfileError } = await admin.from("provider_profiles").upsert(
+    {
+      profile_id: user.id,
+      owner_profile_id: user.id,
+      business_name: fallbackBusinessName,
+      listing_status: "draft",
+    },
+    { onConflict: "profile_id" },
+  )
+
+  if (createProfileError) return { error: createProfileError.message }
+  return { ok: true, profileId: user.id }
 }
 
 export type WebsitePageRow = {
@@ -91,16 +189,15 @@ export async function loadProviderWebsiteState(): Promise<
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: website, error: wErr } = await supabase
-    .from("provider_websites")
-    .select("*")
-    .eq("profile_id", user.id)
-    .maybeSingle()
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+  const { data: website, error: wErr } = await getOwnedWebsite(admin, ownedProfileIds.ids)
 
   if (wErr) return { error: wErr.message }
   if (!website) return { ok: true, state: null }
 
-  const { data: pages, error: pErr } = await supabase
+  const { data: pages, error: pErr } = await admin
     .from("provider_website_pages")
     .select("*")
     .eq("website_id", website.id)
@@ -149,11 +246,10 @@ export async function getProviderWebsiteNavSummary(): Promise<
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: website, error: wErr } = await supabase
-    .from("provider_websites")
-    .select("subdomain_slug, published_version_id")
-    .eq("profile_id", user.id)
-    .maybeSingle()
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+  const { data: website, error: wErr } = await getOwnedWebsite(admin, ownedProfileIds.ids)
 
   if (wErr) return { error: wErr.message }
   if (!website) return { ok: true, summary: null }
@@ -177,16 +273,23 @@ export async function createProviderWebsite(
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: existing } = await supabase.from("provider_websites").select("id").eq("profile_id", user.id).maybeSingle()
+  const admin = getSupabaseAdminClient()
+  const providerProfileResolution = await ensureProviderProfileForWebsiteCreation(admin, user)
+  if ("error" in providerProfileResolution) return providerProfileResolution
+  const providerProfileId = providerProfileResolution.profileId
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+  const { data: existing, error: existingError } = await getOwnedWebsite(admin, ownedProfileIds.ids)
+  if (existingError) return { error: existingError.message }
   if (existing) return { error: "You already have a website. Reload the page." }
 
-  const { data: profile } = await supabase
+  const { data: profile } = await admin
     .from("provider_profiles")
     .select("provider_slug, business_name")
-    .eq("profile_id", user.id)
+    .eq("profile_id", providerProfileId)
     .maybeSingle()
 
-  const base = sanitizeSubdomainBase(profile?.provider_slug ?? profile?.business_name ?? user.id.slice(0, 8))
+  const base = sanitizeSubdomainBase(profile?.provider_slug ?? profile?.business_name ?? providerProfileId.slice(0, 8))
   const subdomain = await uniqueSubdomain(supabase, base)
 
   const newId = () => randomUUID()
@@ -195,10 +298,10 @@ export async function createProviderWebsite(
       ? getBlankDraft(newId)
       : getTemplateDraft(templateKey as TemplateKey, newId)
 
-  const { data: website, error: wIns } = await supabase
+  const { data: website, error: wIns } = await admin
     .from("provider_websites")
     .insert({
-      profile_id: user.id,
+      profile_id: providerProfileId,
       subdomain_slug: subdomain,
       template_key: draft.template_key === "blank" ? null : draft.template_key,
       theme_tokens: draft.theme_tokens as Json,
@@ -220,10 +323,10 @@ export async function createProviderWebsite(
     canvas_nodes: p.canvas_nodes as unknown as Json,
   }))
 
-  const { data: insertedPages, error: pIns } = await supabase.from("provider_website_pages").insert(pageRows).select("*")
+  const { data: insertedPages, error: pIns } = await admin.from("provider_website_pages").insert(pageRows).select("*")
 
   if (pIns || !insertedPages) {
-    await supabase.from("provider_websites").delete().eq("id", website.id)
+    await admin.from("provider_websites").delete().eq("id", website.id)
     return { error: pIns?.message ?? "Failed to create pages." }
   }
 
@@ -276,16 +379,20 @@ export async function saveProviderWebsiteDraft(input: {
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: site } = await supabase
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+
+  const { data: site } = await admin
     .from("provider_websites")
     .select("id, profile_id")
     .eq("id", input.websiteId)
     .maybeSingle()
 
-  if (!site || site.profile_id !== user.id) return { error: "Website not found." }
+  if (!site || !canManageWebsiteProfile(site.profile_id, ownedProfileIds.ids)) return { error: "Website not found." }
 
   if (input.theme_tokens !== undefined || input.nav_items !== undefined) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("provider_websites")
       .update({
         ...(input.theme_tokens !== undefined ? { theme_tokens: input.theme_tokens as Json } : {}),
@@ -306,7 +413,7 @@ export async function saveProviderWebsiteDraft(input: {
       if (p.meta_description !== undefined) patch.meta_description = p.meta_description
       if (p.path_slug !== undefined) patch.path_slug = p.path_slug
 
-      const { error } = await supabase.from("provider_website_pages").update(patch).eq("id", p.id).eq("website_id", input.websiteId)
+      const { error } = await admin.from("provider_website_pages").update(patch).eq("id", p.id).eq("website_id", input.websiteId)
       if (error) return { error: error.message }
     }
   }
@@ -326,18 +433,22 @@ export async function addProviderWebsitePage(input: {
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+
   const slug = sanitizeSubdomainBase(input.path_slug.replace(/\//g, ""))
   if (!slug) return { error: "Invalid path." }
 
-  const { data: site } = await supabase
+  const { data: site } = await admin
     .from("provider_websites")
     .select("id, profile_id")
     .eq("id", input.websiteId)
     .maybeSingle()
 
-  if (!site || site.profile_id !== user.id) return { error: "Website not found." }
+  if (!site || !canManageWebsiteProfile(site.profile_id, ownedProfileIds.ids)) return { error: "Website not found." }
 
-  const { data: maxRow } = await supabase
+  const { data: maxRow } = await admin
     .from("provider_website_pages")
     .select("sort_order")
     .eq("website_id", input.websiteId)
@@ -358,7 +469,7 @@ export async function addProviderWebsitePage(input: {
     },
   ]
 
-  const { data: row, error } = await supabase
+  const { data: row, error } = await admin
     .from("provider_website_pages")
     .insert({
       website_id: input.websiteId,
@@ -384,18 +495,22 @@ export async function deleteProviderWebsitePage(pageId: string): Promise<{ ok: t
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: page } = await supabase.from("provider_website_pages").select("id, website_id, is_home").eq("id", pageId).maybeSingle()
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+
+  const { data: page } = await admin.from("provider_website_pages").select("id, website_id, is_home").eq("id", pageId).maybeSingle()
   if (!page) return { error: "Page not found." }
   if (page.is_home) return { error: "Cannot delete the home page." }
 
-  const { data: site } = await supabase
+  const { data: site } = await admin
     .from("provider_websites")
     .select("profile_id")
     .eq("id", page.website_id)
     .maybeSingle()
-  if (!site || site.profile_id !== user.id) return { error: "Not allowed." }
+  if (!site || !canManageWebsiteProfile(site.profile_id, ownedProfileIds.ids)) return { error: "Not allowed." }
 
-  const { error } = await supabase.from("provider_website_pages").delete().eq("id", pageId)
+  const { error } = await admin.from("provider_website_pages").delete().eq("id", pageId)
   if (error) return { error: error.message }
   revalidatePath("/dashboard/provider/website")
   return { ok: true }
@@ -419,10 +534,14 @@ export async function applyProviderWebsiteTemplate(templateKey: string): Promise
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: website } = await supabase.from("provider_websites").select("*").eq("profile_id", user.id).maybeSingle()
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+  const { data: website, error: websiteError } = await getOwnedWebsite(admin, ownedProfileIds.ids)
+  if (websiteError) return { error: websiteError.message }
   if (!website) return { error: "Create a website first." }
 
-  const { error: delErr } = await supabase.from("provider_website_pages").delete().eq("website_id", website.id)
+  const { error: delErr } = await admin.from("provider_website_pages").delete().eq("website_id", website.id)
   if (delErr) return { error: delErr.message }
 
   const pageRows = draft.pages.map((p) => ({
@@ -436,10 +555,10 @@ export async function applyProviderWebsiteTemplate(templateKey: string): Promise
     canvas_nodes: p.canvas_nodes as unknown as Json,
   }))
 
-  const { data: insertedPages, error: pIns } = await supabase.from("provider_website_pages").insert(pageRows).select("*")
+  const { data: insertedPages, error: pIns } = await admin.from("provider_website_pages").insert(pageRows).select("*")
   if (pIns || !insertedPages) return { error: pIns?.message ?? "Failed to apply template." }
 
-  const { data: updatedSite, error: uErr } = await supabase
+  const { data: updatedSite, error: uErr } = await admin
     .from("provider_websites")
     .update({
       template_key: draft.template_key === "blank" ? null : draft.template_key,
@@ -494,10 +613,14 @@ export async function publishProviderWebsite(
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: website } = await supabase.from("provider_websites").select("*").eq("id", websiteId).maybeSingle()
-  if (!website || website.profile_id !== user.id) return { error: "Website not found." }
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
 
-  const { data: pages } = await supabase
+  const { data: website } = await admin.from("provider_websites").select("*").eq("id", websiteId).maybeSingle()
+  if (!website || !canManageWebsiteProfile(website.profile_id, ownedProfileIds.ids)) return { error: "Website not found." }
+
+  const { data: pages } = await admin
     .from("provider_website_pages")
     .select("*")
     .eq("website_id", websiteId)
@@ -542,7 +665,7 @@ export async function publishProviderWebsite(
     })),
   })
 
-  const { data: version, error: vErr } = await supabase
+  const { data: version, error: vErr } = await admin
     .from("provider_website_published_versions")
     .insert({
       website_id: websiteId,
@@ -553,7 +676,7 @@ export async function publishProviderWebsite(
 
   if (vErr || !version) return { error: vErr?.message ?? "Publish failed." }
 
-  const { error: uErr } = await supabase
+  const { error: uErr } = await admin
     .from("provider_websites")
     .update({ published_version_id: version.id })
     .eq("id", websiteId)
@@ -577,23 +700,27 @@ export async function updateProviderWebsiteSubdomain(input: {
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+
   const normalized = sanitizeSubdomainInput(input.subdomain)
   if (!normalized) return { error: "Subdomain cannot be empty." }
   if (!SUBDOMAIN_REGEX.test(normalized)) {
     return { error: "Subdomain must use only letters, numbers, or hyphens, and cannot start or end with a hyphen." }
   }
 
-  const { data: website } = await supabase
+  const { data: website } = await admin
     .from("provider_websites")
     .select("id, profile_id, subdomain_slug")
     .eq("id", input.websiteId)
     .maybeSingle()
-  if (!website || website.profile_id !== user.id) return { error: "Website not found." }
+  if (!website || !canManageWebsiteProfile(website.profile_id, ownedProfileIds.ids)) return { error: "Website not found." }
 
   const currentSlug = website.subdomain_slug?.toLowerCase().trim()
   if (currentSlug === normalized) return { ok: true, subdomain_slug: normalized }
 
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("provider_websites")
     .select("id")
     .ilike("subdomain_slug", normalized)
@@ -601,7 +728,7 @@ export async function updateProviderWebsiteSubdomain(input: {
     .maybeSingle()
   if (existing) return { error: "That subdomain is already taken." }
 
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = await admin
     .from("provider_websites")
     .update({ subdomain_slug: normalized })
     .eq("id", input.websiteId)
@@ -661,12 +788,16 @@ export async function uploadProviderWebsiteAsset(
   } = await supabase.auth.getUser()
   if (authError || !user) return { error: "You must be signed in." }
 
-  const { data: site } = await supabase
+  const admin = getSupabaseAdminClient()
+  const ownedProfileIds = await getOwnedProviderProfileIds(admin, user.id)
+  if ("error" in ownedProfileIds) return ownedProfileIds
+
+  const { data: site } = await admin
     .from("provider_websites")
     .select("id, profile_id")
     .eq("id", websiteId)
     .maybeSingle()
-  if (!site || site.profile_id !== user.id) return { error: "Website not found." }
+  if (!site || !canManageWebsiteProfile(site.profile_id, ownedProfileIds.ids)) return { error: "Website not found." }
 
   const file = formData.get("file") as File | null
   if (!file || file.size === 0) return { error: "No file provided." }
@@ -675,7 +806,6 @@ export async function uploadProviderWebsiteAsset(
 
   try {
     await ensureWebsiteAssetsBucket()
-    const admin = getSupabaseAdminClient()
     const safeName = sanitizeFilename(file.name || "image")
     const storagePath = `${websiteId}/${randomUUID()}-${safeName}`
     const { error: uploadError } = await admin.storage
@@ -687,7 +817,7 @@ export async function uploadProviderWebsiteAsset(
       })
     if (uploadError) return { error: uploadError.message }
 
-    const { error: insErr } = await supabase.from("provider_website_assets").insert({
+    const { error: insErr } = await admin.from("provider_website_assets").insert({
       website_id: websiteId,
       storage_path: storagePath,
       content_type: file.type,

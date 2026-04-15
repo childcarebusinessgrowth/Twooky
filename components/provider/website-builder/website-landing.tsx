@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   applyProviderWebsiteTemplate,
   createProviderWebsite,
   loadProviderWebsiteState,
+  type WebsiteState,
 } from "@/app/dashboard/provider/website/actions"
 import { TEMPLATE_KEYS, TEMPLATE_LANDING, type TemplateKey } from "@/lib/website-builder/templates/presets"
 import {
@@ -20,12 +20,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { PENDING_OPEN_STORAGE_KEY, persistWebsiteLaunchState } from "@/components/provider/website-builder/launch-handoff"
 import { TemplatePreviewCard } from "@/components/provider/website-builder/template-preview-card"
 import { toast } from "sonner"
-import { ArrowRight, CheckCircle2, HeartHandshake, LayoutTemplate, Loader2, Pencil } from "lucide-react"
+import { ArrowRight, LayoutTemplate, Loader2, Pencil } from "lucide-react"
 
 export default function WebsiteLanding() {
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [hasSite, setHasSite] = useState(false)
   const [subdomain, setSubdomain] = useState<string | null>(null)
@@ -51,7 +51,10 @@ export default function WebsiteLanding() {
     }
   }, [])
 
-  async function goToEditorAfter(fn: () => Promise<{ error: string } | { ok: true }>, busyKey: string) {
+  async function goToEditorAfter(
+    fn: () => Promise<{ error: string } | { ok: true; state?: WebsiteState }>,
+    busyKey: string,
+  ) {
     setBusy(busyKey)
     try {
       const r = await fn()
@@ -59,8 +62,14 @@ export default function WebsiteLanding() {
         toast.error(r.error)
         return
       }
-      router.push("/dashboard/provider/website/build")
-      router.refresh()
+      if (typeof window !== "undefined") {
+        if (r.state) {
+          persistWebsiteLaunchState(r.state)
+        } else {
+          sessionStorage.setItem(PENDING_OPEN_STORAGE_KEY, "1")
+        }
+        window.location.assign(`/dashboard/provider/website/build?open=${Date.now()}`)
+      }
     } finally {
       setBusy(null)
     }
@@ -164,23 +173,6 @@ export default function WebsiteLanding() {
             </div>
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 backdrop-blur-sm">
-            <p className="text-sm font-semibold">What families care about most</p>
-            <div className="space-y-2.5 text-sm">
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>Clear daily routine, safety communication, and responsive contact details.</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <HeartHandshake className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>Warm tone and parent-friendly language across every starter page.</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>Strong “book a tour” calls-to-action to support enquiries.</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

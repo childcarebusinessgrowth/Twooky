@@ -33,6 +33,11 @@ import {
 import { STANDARD_NAV, TEMPLATE_KEYS, TEMPLATE_LANDING } from "@/lib/website-builder/templates/presets"
 import type { CanvasNode, CanvasNodeProps, CanvasNodeType, NavItem, WebsiteBuilderBreakpoint } from "@/lib/website-builder/types"
 import { CanvasNodeContent } from "@/components/provider/website-builder/canvas-node-content"
+import {
+  clearWebsiteLaunchState,
+  consumeWebsiteLaunchState,
+  PENDING_OPEN_STORAGE_KEY,
+} from "@/components/provider/website-builder/launch-handoff"
 import { TemplatePreviewCard } from "@/components/provider/website-builder/template-preview-card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -294,34 +299,48 @@ export default function WebsiteBuilderClient() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const res = await loadProviderWebsiteState()
-      if (cancelled) return
-      if ("error" in res) {
-        toast.error(res.error)
+      const handoffState = consumeWebsiteLaunchState()
+      const hasPendingOpen =
+        typeof window !== "undefined" && sessionStorage.getItem(PENDING_OPEN_STORAGE_KEY) === "1"
+
+      if (handoffState) {
+        replaceWebsiteStateFromServer(handoffState)
+        clearWebsiteLaunchState()
         setLoading(false)
         return
       }
-      setState(res.state)
-      setSubdomainDraft(res.state?.website.subdomain_slug ?? "")
-      if (res.state?.pages.length) {
-        setActivePageId(res.state.pages[0].id)
+
+      for (let attempt = 0; attempt < (hasPendingOpen ? 4 : 1); attempt += 1) {
+        const res = await loadProviderWebsiteState()
+        if (cancelled) return
+        if ("error" in res) {
+          clearWebsiteLaunchState()
+          toast.error(res.error)
+          setLoading(false)
+          return
+        }
+        if (res.state || attempt === (hasPendingOpen ? 3 : 0)) {
+          if (res.state) replaceWebsiteStateFromServer(res.state)
+          else {
+            setState(null)
+            setSubdomainDraft("")
+            setActivePageId(null)
+            setSelectedId(null)
+            clearWebsiteLaunchState()
+          }
+          if (res.state) {
+            clearWebsiteLaunchState()
+          }
+          setLoading(false)
+          return
+        }
+        await new Promise((resolve) => setTimeout(resolve, 350))
       }
-      if (res.state) {
-        history.current = [
-          {
-            pages: deepClonePages(res.state.pages),
-            theme: { ...res.state.website.theme_tokens },
-            nav: [...res.state.website.nav_items],
-          },
-        ]
-        histIndex.current = 0
-      }
-      setLoading(false)
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [replaceWebsiteStateFromServer])
 
   const activePage = useMemo(
     () => state?.pages.find((p) => p.id === activePageId) ?? null,

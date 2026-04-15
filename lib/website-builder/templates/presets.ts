@@ -13,7 +13,7 @@ export const STANDARD_NAV: NavItem[] = [
   { label: "Fees", path: "fees" },
   { label: "Gallery", path: "gallery" },
   { label: "Blog", path: "blog" },
-  { label: "Contact", path: "contact" },
+  { label: "Contact", path: "contact", variant: "button" },
 ]
 
 /** Must match `next/font` variables in app/layout.tsx */
@@ -22,20 +22,20 @@ export const FONT_STACKS: Record<
   { heading: string; body: string }
 > = {
   montessori: {
-    heading: 'var(--font-cormorant), "Georgia", serif',
-    body: 'var(--font-source-sans), system-ui, sans-serif',
+    heading: 'var(--font-fraunces), "Georgia", serif',
+    body: 'var(--font-nunito), system-ui, sans-serif',
   },
   premium: {
-    heading: 'var(--font-playfair), "Georgia", serif',
-    body: 'var(--font-lato), system-ui, sans-serif',
+    heading: 'var(--font-fraunces), "Georgia", serif',
+    body: 'var(--font-dm-sans), system-ui, sans-serif',
   },
   community: {
     heading: 'var(--font-nunito), system-ui, sans-serif',
     body: 'var(--font-nunito), system-ui, sans-serif',
   },
   sports: {
-    heading: 'var(--font-oswald), system-ui, sans-serif',
-    body: 'var(--font-open-sans), system-ui, sans-serif',
+    heading: 'var(--font-dm-sans), system-ui, sans-serif',
+    body: 'var(--font-nunito), system-ui, sans-serif',
   },
 }
 
@@ -58,58 +58,58 @@ interface ThemePack {
 const THEMES: Record<TemplateKey, ThemePack> = {
   montessori: {
     key: "montessori",
-    primary: "#2f7d5a",
-    secondary: "#1f4f3c",
-    background: "#f6f4ed",
-    surface: "#e9f7f0",
-    text: "#1f4f3c",
-    muted: "#4e7a6a",
-    accent: "#4ea97a",
-    heroTitle: "Calm starts, confident little learners",
-    heroSub: "A nurturing Montessori-inspired environment where independence, care, and curiosity grow every day.",
-    footerBlurb: "© Your nursery name · Montessori-inspired early years",
+    primary: "#7d8f63",
+    secondary: "#243728",
+    background: "#fbf8f2",
+    surface: "#eef2e5",
+    text: "#243728",
+    muted: "#6f7d68",
+    accent: "#d9aa7b",
+    heroTitle: "A calm, beautifully prepared start for little learners",
+    heroSub: "Warm guidance, natural spaces, and confident routines that help children feel secure from the very first day.",
+    footerBlurb: "© Your nursery name · Calm Montessori-inspired childcare",
     navBrandLabel: "Little Roots Montessori",
   },
   premium: {
     key: "premium",
-    primary: "#d4a93d",
-    secondary: "#0f1f3a",
-    background: "#f9f8f4",
-    surface: "#f7f1e8",
-    text: "#0f172a",
-    muted: "#475569",
-    accent: "#c56b26",
-    heroTitle: "Boutique care with exceptional family support",
-    heroSub: "Small group sizes, thoughtful learning plans, and warm daily communication parents can rely on.",
-    footerBlurb: "© Your nursery name · Premium early learning",
+    primary: "#d7a86e",
+    secondary: "#1e2d46",
+    background: "#fffaf6",
+    surface: "#f7efe7",
+    text: "#172033",
+    muted: "#5d6880",
+    accent: "#c97b63",
+    heroTitle: "Boutique early years care with a polished family experience",
+    heroSub: "Elegant spaces, warm educators, and clear daily communication designed to give parents confidence and children a joyful start.",
+    footerBlurb: "© Your nursery name · Boutique early learning",
     navBrandLabel: "Little Scholars House",
   },
   community: {
     key: "community",
-    primary: "#ea7a62",
-    secondary: "#3f466b",
-    background: "#fff8e7",
-    surface: "#fbeed1",
-    text: "#3f466b",
-    muted: "#61688c",
-    accent: "#7fb7a0",
-    heroTitle: "A welcoming place where every family belongs",
-    heroSub: "Community-led early learning with inclusive values, playful discovery, and strong parent partnerships.",
-    footerBlurb: "© Your nursery name · Community-led childcare",
+    primary: "#dd8d74",
+    secondary: "#36415c",
+    background: "#fff8f4",
+    surface: "#fff0e6",
+    text: "#36415c",
+    muted: "#6b748e",
+    accent: "#8db8a3",
+    heroTitle: "A welcoming setting where children thrive and families feel at home",
+    heroSub: "Inclusive care, joyful learning, and meaningful parent partnerships in a warm community-focused environment.",
+    footerBlurb: "© Your nursery name · Family-first childcare",
     navBrandLabel: "Sunflower Community Preschool",
   },
   sports: {
     key: "sports",
-    primary: "#1f4d82",
-    secondary: "#1e3a8a",
-    background: "#eef6ff",
-    surface: "#d8eafe",
-    text: "#1c3f76",
-    muted: "#2358a5",
-    accent: "#f5822a",
-    heroTitle: "Big energy, kind routines, happy progress",
-    heroSub: "Movement-rich days, outdoor adventures, and confidence-building learning for active children.",
-    footerBlurb: "© Your nursery name · Active play and learning",
+    primary: "#4d83c4",
+    secondary: "#193454",
+    background: "#f4f8ff",
+    surface: "#e5efff",
+    text: "#193454",
+    muted: "#4c6584",
+    accent: "#f0a35f",
+    heroTitle: "Active days, kind routines, and confident little explorers",
+    heroSub: "Movement-rich learning, outdoor adventure, and child-friendly structure that helps energetic children flourish.",
+    footerBlurb: "© Your nursery name · Active early learning",
     navBrandLabel: "Move & Grow Kids",
   },
 }
@@ -816,8 +816,8 @@ function buildMontessoriPages(nid: () => string, t: ThemePack, f: (typeof FONT_S
       },
       layout: layoutTriple(48, 168, 700, 80),
     },
-    contactFormBlock(nid, 48, 248, 1104, 640, ""),
-    footerNode(nid(), 200, 888, t.secondary, "#f8fafc", t.footerBlurb, f.body),
+    contactFormBlock(nid, 48, 248, 1104, 520, ""),
+    footerNode(nid(), 200, 792, t.secondary, "#f8fafc", t.footerBlurb, f.body),
   ]
 
   return pageMeta(home, about, programs, fees, gallery, contact)
@@ -832,7 +832,22 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
       parentId: null,
       zIndex: 5,
       props: { backgroundColor: t.secondary },
-      layout: layoutTriple(0, 72, 1200, 420),
+      layout: layoutTriple(0, 72, 1200, 470),
+    },
+    {
+      id: nid(),
+      type: "text",
+      parentId: null,
+      zIndex: 11,
+      props: {
+        text: "Boutique admissions",
+        color: t.primary,
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: f.body,
+        textAlign: "left",
+      },
+      layout: layoutTriple(72, 132, 240, 24),
     },
     {
       id: nid(),
@@ -845,9 +860,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         fontSize: 46,
         fontWeight: 700,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(80, 140, 1040, 110),
+      layout: layoutTriple(72, 170, 430, 160),
     },
     {
       id: nid(),
@@ -859,9 +874,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         color: t.primary,
         fontSize: 19,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 250, 960, 90),
+      layout: layoutTriple(72, 346, 420, 96),
     },
     {
       id: nid(),
@@ -876,7 +891,19 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         borderRadius: 4,
         fontSize: 15,
       },
-      layout: layoutTriple(460, 360, 280, 50),
+      layout: layoutTriple(72, 454, 240, 50),
+    },
+    {
+      id: nid(),
+      type: "image",
+      parentId: null,
+      zIndex: 15,
+      props: {
+        src: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=900&q=80",
+        alt: "Boutique early learning studio",
+        borderRadius: 18,
+      },
+      layout: layoutTriple(592, 126, 540, 368),
     },
     {
       id: nid(),
@@ -884,7 +911,7 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
       parentId: null,
       zIndex: 6,
       props: { backgroundColor: t.surface },
-      layout: layoutTriple(0, 492, 1200, 420),
+      layout: layoutTriple(0, 572, 1200, 420),
     },
     {
       id: nid(),
@@ -899,7 +926,7 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         fontFamily: f.heading,
         textAlign: "left",
       },
-      layout: layoutTriple(64, 540, 520, 44),
+      layout: layoutTriple(64, 624, 420, 44),
     },
     {
       id: nid(),
@@ -914,7 +941,22 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         fontFamily: f.body,
         textAlign: "left",
       },
-      layout: layoutTriple(64, 596, 520, 140),
+      layout: layoutTriple(64, 682, 420, 148),
+    },
+    {
+      id: nid(),
+      type: "text",
+      parentId: null,
+      zIndex: 21,
+      props: {
+        text: "Private tours\nLow-ratio rooms\nDedicated family liaison",
+        color: t.primary,
+        fontSize: 16,
+        fontWeight: 700,
+        fontFamily: f.body,
+        textAlign: "left",
+      },
+      layout: layoutTriple(64, 842, 260, 88),
     },
     {
       id: nid(),
@@ -926,9 +968,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         alt: "Refined learning space",
         borderRadius: 4,
       },
-      layout: layoutTriple(620, 520, 520, 360),
+      layout: layoutTriple(540, 620, 600, 360),
     },
-    footerNode(nid(), 200, 1120, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
+    footerNode(nid(), 200, 1030, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
   ]
 
   const about: CanvasNode[] = [
@@ -944,9 +986,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         fontSize: 40,
         fontWeight: 700,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 120, 960, 56),
+      layout: layoutTriple(72, 120, 380, 56),
     },
     {
       id: nid(),
@@ -959,39 +1001,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 200, 960, 120),
-    },
-    {
-      id: nid(),
-      type: "text",
-      parentId: null,
-      zIndex: 12,
-      props: {
-        text: "Family partnership",
-        color: t.text,
-        fontSize: 24,
-        fontWeight: 700,
-        fontFamily: f.heading,
-        textAlign: "center",
-      },
-      layout: layoutTriple(120, 340, 960, 40),
-    },
-    {
-      id: nid(),
-      type: "text",
-      parentId: null,
-      zIndex: 13,
-      props: {
-        text:
-          "A dedicated family liaison coordinates tours, onboarding, and ongoing communication. Nutrition, wellness, and learning specialists collaborate with classroom teams so every detail feels considered.",
-        color: t.muted,
-        fontSize: 17,
-        fontFamily: f.body,
-        textAlign: "center",
-      },
-      layout: layoutTriple(120, 388, 960, 100),
+      layout: layoutTriple(72, 196, 400, 130),
     },
     {
       id: nid(),
@@ -1003,13 +1015,43 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         alt: "Refined classroom environment",
         borderRadius: 4,
       },
-      layout: layoutTriple(120, 508, 960, 280),
+      layout: layoutTriple(560, 120, 520, 316),
+    },
+    {
+      id: nid(),
+      type: "text",
+      parentId: null,
+      zIndex: 15,
+      props: {
+        text: "White-glove onboarding\nNutrition & wellness concierge\nElegant classrooms designed for focus",
+        color: t.primary,
+        fontSize: 18,
+        fontWeight: 700,
+        fontFamily: f.body,
+        textAlign: "left",
+      },
+      layout: layoutTriple(560, 472, 320, 110),
+    },
+    {
+      id: nid(),
+      type: "text",
+      parentId: null,
+      zIndex: 16,
+      props: {
+        text:
+          "A dedicated family liaison coordinates tours, onboarding, and ongoing communication. Nutrition, wellness, and learning specialists collaborate with classroom teams so every detail feels considered.",
+        color: t.muted,
+        fontSize: 17,
+        fontFamily: f.body,
+        textAlign: "left",
+      },
+      layout: layoutTriple(560, 604, 400, 116),
     },
     {
       id: nid(),
       type: "button",
       parentId: null,
-      zIndex: 15,
+      zIndex: 17,
       props: {
         label: "Request a private tour",
         href: "/contact",
@@ -1018,9 +1060,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         borderRadius: 4,
         fontSize: 15,
       },
-      layout: layoutTriple(460, 812, 280, 50),
+      layout: layoutTriple(560, 752, 260, 50),
     },
-    footerNode(nid(), 200, 920, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
+    footerNode(nid(), 200, 900, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
   ]
 
   const programs: CanvasNode[] = [
@@ -1036,9 +1078,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         fontSize: 38,
         fontWeight: 700,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(48, 110, 1100, 52),
+      layout: layoutTriple(72, 110, 420, 52),
     },
     {
       id: nid(),
@@ -1051,9 +1093,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 190, 960, 80),
+      layout: layoutTriple(72, 180, 420, 96),
     },
     {
       id: nid(),
@@ -1066,9 +1108,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 290, 960, 100),
+      layout: layoutTriple(72, 304, 420, 116),
     },
     {
       id: nid(),
@@ -1081,9 +1123,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         fontSize: 24,
         fontWeight: 700,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 410, 960, 40),
+      layout: layoutTriple(560, 132, 360, 40),
     },
     {
       id: nid(),
@@ -1096,9 +1138,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(120, 458, 960, 90),
+      layout: layoutTriple(560, 186, 420, 112),
     },
     {
       id: nid(),
@@ -1110,7 +1152,7 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         alt: "Children in a bright studio",
         borderRadius: 4,
       },
-      layout: layoutTriple(120, 568, 960, 260),
+      layout: layoutTriple(560, 328, 520, 280),
     },
     {
       id: nid(),
@@ -1125,9 +1167,9 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
         borderRadius: 4,
         fontSize: 15,
       },
-      layout: layoutTriple(460, 852, 280, 50),
+      layout: layoutTriple(72, 456, 250, 50),
     },
-    footerNode(nid(), 200, 960, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
+    footerNode(nid(), 200, 930, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
   ]
 
   const fees: CanvasNode[] = [
@@ -1335,8 +1377,8 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
       },
       layout: layoutTriple(120, 200, 960, 60),
     },
-    contactFormBlock(nid, 48, 280, 1104, 600, ""),
-    footerNode(nid(), 200, 880, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
+    contactFormBlock(nid, 48, 280, 1104, 500, ""),
+    footerNode(nid(), 200, 804, t.secondary, "#e2e8f0", t.footerBlurb, f.body),
   ]
 
   return pageMeta(home, about, programs, fees, gallery, contact)
@@ -1344,14 +1386,29 @@ function buildPremiumPages(nid: () => string, t: ThemePack, f: (typeof FONT_STAC
 
 function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACKS)["community"]): TemplateDraft["pages"] {
   const home: CanvasNode[] = [
-    navBar(nid(), 100, t.surface, t.text, f.body, { brandLabel: t.navBrandLabel, height: 70, textAlign: "center" }),
+    navBar(nid(), 100, t.surface, t.text, f.body, { brandLabel: t.navBrandLabel, height: 70, textAlign: "left" }),
     {
       id: nid(),
       type: "section",
       parentId: null,
       zIndex: 5,
       props: { backgroundColor: t.surface, borderRadius: 24 },
-      layout: layoutTriple(40, 88, 1120, 440),
+      layout: layoutTriple(40, 88, 1120, 580),
+    },
+    {
+      id: nid(),
+      type: "text",
+      parentId: null,
+      zIndex: 13,
+      props: {
+        text: "Neighbourhood-led care",
+        color: t.accent,
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: f.body,
+        textAlign: "center",
+      },
+      layout: layoutTriple(180, 132, 840, 24),
     },
     {
       id: nid(),
@@ -1366,7 +1423,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontFamily: f.heading,
         textAlign: "center",
       },
-      layout: layoutTriple(80, 140, 1040, 100),
+      layout: layoutTriple(150, 176, 900, 120),
     },
     {
       id: nid(),
@@ -1380,7 +1437,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontFamily: f.body,
         textAlign: "center",
       },
-      layout: layoutTriple(100, 240, 1000, 90),
+      layout: layoutTriple(180, 314, 840, 88),
     },
     {
       id: nid(),
@@ -1395,7 +1452,31 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         borderRadius: 999,
         fontSize: 16,
       },
-      layout: layoutTriple(470, 360, 260, 52),
+      layout: layoutTriple(470, 428, 260, 52),
+    },
+    {
+      id: nid(),
+      type: "image",
+      parentId: null,
+      zIndex: 17,
+      props: {
+        src: "https://images.unsplash.com/photo-1529390079861-591de354faf5?w=900&q=80",
+        alt: "Families gathering together",
+        borderRadius: 24,
+      },
+      layout: layoutTriple(120, 502, 390, 150),
+    },
+    {
+      id: nid(),
+      type: "image",
+      parentId: null,
+      zIndex: 18,
+      props: {
+        src: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=900&q=80",
+        alt: "Children laughing together",
+        borderRadius: 24,
+      },
+      layout: layoutTriple(546, 472, 534, 180),
     },
     {
       id: nid(),
@@ -1410,7 +1491,7 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontFamily: f.heading,
         textAlign: "center",
       },
-      layout: layoutTriple(48, 560, 1100, 40),
+      layout: layoutTriple(48, 714, 1100, 40),
     },
     {
       id: nid(),
@@ -1425,37 +1506,13 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontFamily: f.body,
         textAlign: "center",
       },
-      layout: layoutTriple(120, 620, 960, 100),
+      layout: layoutTriple(120, 772, 960, 100),
     },
-    {
-      id: nid(),
-      type: "image",
-      parentId: null,
-      zIndex: 22,
-      props: {
-        src: "https://images.unsplash.com/photo-1529390079861-591de354faf5?w=900&q=80",
-        alt: "Community gathering",
-        borderRadius: 20,
-      },
-      layout: layoutTriple(48, 740, 520, 320),
-    },
-    {
-      id: nid(),
-      type: "image",
-      parentId: null,
-      zIndex: 23,
-      props: {
-        src: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=900&q=80",
-        alt: "Children together",
-        borderRadius: 20,
-      },
-      layout: layoutTriple(600, 740, 552, 320),
-    },
-    footerNode(nid(), 200, 1120, t.secondary, "#fef3c7", t.footerBlurb, f.body),
+    footerNode(nid(), 200, 930, t.secondary, "#fef3c7", t.footerBlurb, f.body),
   ]
 
   const about: CanvasNode[] = [
-    navBar(nid(), 100, t.surface, t.text, f.body, { brandLabel: t.navBrandLabel, textAlign: "center" }),
+    navBar(nid(), 100, t.surface, t.text, f.body, { brandLabel: t.navBrandLabel, textAlign: "left" }),
     {
       id: nid(),
       type: "text",
@@ -1467,9 +1524,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontSize: 38,
         fontWeight: 800,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(48, 110, 1100, 52),
+      layout: layoutTriple(80, 110, 360, 52),
     },
     {
       id: nid(),
@@ -1482,9 +1539,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         color: t.muted,
         fontSize: 18,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(100, 180, 1000, 120),
+      layout: layoutTriple(80, 184, 380, 126),
     },
     {
       id: nid(),
@@ -1497,9 +1554,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontSize: 18,
         fontWeight: 700,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(100, 320, 1000, 80),
+      layout: layoutTriple(80, 334, 420, 96),
     },
     {
       id: nid(),
@@ -1512,9 +1569,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(100, 412, 1000, 80),
+      layout: layoutTriple(80, 448, 400, 100),
     },
     {
       id: nid(),
@@ -1526,13 +1583,25 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         alt: "Families at a community event",
         borderRadius: 20,
       },
-      layout: layoutTriple(100, 508, 1000, 260),
+      layout: layoutTriple(556, 124, 484, 260),
+    },
+    {
+      id: nid(),
+      type: "image",
+      parentId: null,
+      zIndex: 15,
+      props: {
+        src: "https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=900&q=80",
+        alt: "Children at a shared activity table",
+        borderRadius: 20,
+      },
+      layout: layoutTriple(556, 408, 484, 180),
     },
     {
       id: nid(),
       type: "button",
       parentId: null,
-      zIndex: 15,
+      zIndex: 16,
       props: {
         label: "Visit an open house",
         href: "/contact",
@@ -1541,13 +1610,13 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         borderRadius: 999,
         fontSize: 16,
       },
-      layout: layoutTriple(470, 792, 260, 52),
+      layout: layoutTriple(80, 588, 260, 52),
     },
-    footerNode(nid(), 200, 900, t.secondary, "#fef3c7", t.footerBlurb, f.body),
+    footerNode(nid(), 200, 760, t.secondary, "#fef3c7", t.footerBlurb, f.body),
   ]
 
   const programs: CanvasNode[] = [
-    navBar(nid(), 100, t.surface, t.text, f.body, { brandLabel: t.navBrandLabel, textAlign: "center" }),
+    navBar(nid(), 100, t.surface, t.text, f.body, { brandLabel: t.navBrandLabel, textAlign: "left" }),
     {
       id: nid(),
       type: "text",
@@ -1559,9 +1628,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontSize: 36,
         fontWeight: 800,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(48, 110, 1100, 48),
+      layout: layoutTriple(80, 110, 420, 48),
     },
     {
       id: nid(),
@@ -1574,9 +1643,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         color: t.muted,
         fontSize: 17,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(100, 180, 1000, 120),
+      layout: layoutTriple(80, 180, 420, 126),
     },
     {
       id: nid(),
@@ -1589,9 +1658,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         fontSize: 22,
         fontWeight: 800,
         fontFamily: f.heading,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(48, 320, 1100, 36),
+      layout: layoutTriple(80, 332, 420, 36),
     },
     {
       id: nid(),
@@ -1604,9 +1673,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         color: t.muted,
         fontSize: 16,
         fontFamily: f.body,
-        textAlign: "center",
+        textAlign: "left",
       },
-      layout: layoutTriple(100, 368, 1000, 100),
+      layout: layoutTriple(80, 380, 420, 110),
     },
     {
       id: nid(),
@@ -1618,13 +1687,25 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         alt: "Children learning together",
         borderRadius: 20,
       },
-      layout: layoutTriple(100, 488, 1000, 240),
+      layout: layoutTriple(560, 140, 500, 210),
+    },
+    {
+      id: nid(),
+      type: "image",
+      parentId: null,
+      zIndex: 15,
+      props: {
+        src: "https://images.unsplash.com/photo-1529390079861-591de354faf5?w=900&q=80",
+        alt: "Family program night",
+        borderRadius: 20,
+      },
+      layout: layoutTriple(560, 376, 500, 210),
     },
     {
       id: nid(),
       type: "button",
       parentId: null,
-      zIndex: 15,
+      zIndex: 16,
       props: {
         label: "Tell us what you need",
         href: "/contact",
@@ -1633,9 +1714,9 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
         borderRadius: 999,
         fontSize: 16,
       },
-      layout: layoutTriple(470, 752, 260, 52),
+      layout: layoutTriple(80, 524, 260, 52),
     },
-    footerNode(nid(), 200, 860, t.secondary, "#fef3c7", t.footerBlurb, f.body),
+    footerNode(nid(), 200, 700, t.secondary, "#fef3c7", t.footerBlurb, f.body),
   ]
 
   const fees: CanvasNode[] = [
@@ -1843,8 +1924,8 @@ function buildCommunityPages(nid: () => string, t: ThemePack, f: (typeof FONT_ST
       },
       layout: layoutTriple(100, 200, 1000, 60),
     },
-    contactFormBlock(nid, 48, 280, 1104, 620, ""),
-    footerNode(nid(), 200, 900, t.secondary, "#fef3c7", t.footerBlurb, f.body),
+    contactFormBlock(nid, 48, 280, 1104, 500, ""),
+    footerNode(nid(), 200, 804, t.secondary, "#fef3c7", t.footerBlurb, f.body),
   ]
 
   return pageMeta(home, about, programs, fees, gallery, contact)
@@ -2421,8 +2502,8 @@ function buildSportsPages(nid: () => string, t: ThemePack, f: (typeof FONT_STACK
       },
       layout: layoutTriple(80, 200, 1040, 40),
     },
-    contactFormBlock(nid, 48, 260, 1104, 620, ""),
-    footerNode(nid(), 200, 880, t.secondary, "#dbeafe", t.footerBlurb, f.body),
+    contactFormBlock(nid, 48, 260, 1104, 500, ""),
+    footerNode(nid(), 200, 784, t.secondary, "#dbeafe", t.footerBlurb, f.body),
   ]
 
   return pageMeta(home, about, programs, fees, gallery, contact)
@@ -2509,6 +2590,384 @@ function buildPagesForTemplate(key: TemplateKey, nid: () => string, t: ThemePack
       const _exhaustive: never = key
       return _exhaustive
     }
+  }
+}
+
+type TemplatePageDraft = TemplateDraft["pages"][number]
+
+function polishedMetaDescription(pathSlug: string, theme: ThemePack): string {
+  switch (pathSlug) {
+    case "":
+      return `${theme.navBrandLabel} offers warm childcare, beautiful learning spaces, and a parent-friendly experience for babies and young children.`
+    case "about":
+      return `Learn about ${theme.navBrandLabel}, our values, and the caring approach that helps children feel secure, curious, and confident.`
+    case "programs":
+      return `Explore age-based programs, daily routines, and learning experiences designed to support each child's growth with confidence and care.`
+    case "fees":
+      return `View fees, schedules, and enrollment information for families looking for a clear and supportive childcare journey.`
+    case "gallery":
+      return `See calm, joyful spaces, everyday activities, and thoughtful details that shape the experience at ${theme.navBrandLabel}.`
+    case "contact":
+      return `Book a tour, ask about availability, and get in touch with ${theme.navBrandLabel} for your child's next step.`
+    default:
+      return `Discover ${theme.navBrandLabel} and our warm early learning experience for children and families.`
+  }
+}
+
+function restyleTemplateNode(
+  key: TemplateKey,
+  node: CanvasNode,
+  page: TemplatePageDraft,
+  theme: ThemePack,
+  fonts: { heading: string; body: string },
+): CanvasNode {
+  const desktop = pickLayoutForBreakpoint(node, "desktop")
+  const isHeroBand = desktop.y < 220
+  const isHomeHeroZone = page.path_slug === "" && desktop.y < 620
+  const isHeadingText =
+    node.type === "text" &&
+    ((typeof node.props.fontSize === "number" && node.props.fontSize >= 28) ||
+      (typeof node.props.fontWeight === "number" && node.props.fontWeight >= 600))
+
+  switch (node.type) {
+    case "navbar":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          backgroundColor:
+            key === "premium" && page.path_slug === ""
+              ? "rgba(30, 45, 70, 0.92)"
+              : page.path_slug === ""
+                ? "rgba(255, 252, 248, 0.94)"
+                : "#ffffff",
+          color: key === "premium" && page.path_slug === "" ? "#fffaf6" : theme.text,
+          fontFamily: fonts.body,
+          fontSize: 14,
+          textAlign: key === "premium" ? "center" : key === "community" ? "left" : "left",
+          brandLabel: theme.navBrandLabel,
+          borderRadius: key === "premium" ? 22 : 28,
+          paddingTop: 12,
+          paddingRight: 24,
+          paddingBottom: 12,
+          paddingLeft: 24,
+          gap: key === "premium" ? 18 : 16,
+        },
+      }
+    case "section":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          backgroundColor:
+            key === "premium" && page.path_slug === "" && isHeroBand
+              ? theme.secondary
+              : key === "community" && page.path_slug === "" && isHeroBand
+                ? theme.surface
+                : page.path_slug === "contact"
+              ? "#ffffff"
+              : isHeroBand
+                ? theme.surface
+                : page.path_slug === "gallery"
+                  ? "#ffffff"
+                  : "rgba(255,255,255,0.82)",
+          borderRadius: key === "premium" ? (isHeroBand ? 30 : 22) : isHeroBand ? 36 : 28,
+          paddingTop: isHeroBand ? 20 : 16,
+          paddingRight: 18,
+          paddingBottom: isHeroBand ? 20 : 16,
+          paddingLeft: 18,
+          borderWidth: page.path_slug === "" && isHeroBand ? 1 : node.props.borderWidth,
+          borderColor:
+            key === "premium" && page.path_slug === "" && isHeroBand
+              ? "rgba(255, 250, 246, 0.12)"
+              : page.path_slug === "" && isHeroBand
+                ? "rgba(36, 55, 40, 0.08)"
+                : node.props.borderColor,
+          borderStyle: page.path_slug === "" && isHeroBand ? "solid" : node.props.borderStyle,
+        },
+      }
+    case "text": {
+      const rawSize = typeof node.props.fontSize === "number" ? node.props.fontSize : 16
+      const boostedSize = isHeadingText
+        ? Math.min(rawSize >= 38 ? 52 : rawSize + 2, 52)
+        : rawSize >= 18
+          ? rawSize + 1
+          : rawSize
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          color:
+            key === "premium" && isHomeHeroZone
+              ? (node.props.color ?? "#fffaf6")
+              : key === "community" && isHomeHeroZone && !isHeadingText
+                ? theme.muted
+                : page.path_slug === "contact" && isHeadingText
+              ? theme.secondary
+              : isHeadingText
+                ? theme.text
+                : node.props.color === "#fff"
+                  ? "#fff"
+                  : theme.muted,
+          fontFamily:
+            key === "community" && isHomeHeroZone && !isHeadingText ? fonts.body : isHeadingText ? fonts.heading : fonts.body,
+          fontWeight: isHeadingText ? 700 : node.props.fontWeight,
+          fontSize: boostedSize,
+        },
+      }
+    }
+    case "button":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          backgroundColor:
+            key === "premium" && isHomeHeroZone
+              ? theme.primary
+              : node.props.href === "/contact" || page.path_slug === ""
+              ? theme.secondary
+              : theme.primary,
+          color: key === "premium" && isHomeHeroZone ? theme.secondary : "#fffaf6",
+          borderRadius: key === "premium" ? 16 : 999,
+          fontFamily: fonts.body,
+          fontWeight: 700,
+          fontSize: typeof node.props.fontSize === "number" ? Math.max(node.props.fontSize, 15) : 15,
+          paddingTop: 8,
+          paddingRight: 10,
+          paddingBottom: 8,
+          paddingLeft: 10,
+        },
+      }
+    case "image":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          alt:
+            typeof node.props.alt === "string" && node.props.alt.trim().length > 0
+              ? node.props.alt
+              : `${theme.navBrandLabel} ${page.title.toLowerCase()} image`,
+          borderRadius: key === "premium" ? (isHeroBand ? 18 : 18) : isHeroBand ? 32 : 24,
+        },
+      }
+    case "gallery":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          backgroundColor: "#ffffff",
+          borderRadius: key === "premium" ? 20 : 28,
+          paddingTop: 16,
+          paddingRight: 16,
+          paddingBottom: 16,
+          paddingLeft: 16,
+          gap: 14,
+        },
+      }
+    case "contactForm":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          backgroundColor: "#ffffff",
+          borderRadius: 30,
+          paddingTop: 18,
+          paddingRight: 18,
+          paddingBottom: 18,
+          paddingLeft: 18,
+          introHint:
+            node.props.introHint?.trim() ||
+            "Tell us a little about your child and preferred start date. Our team will come back with thoughtful next steps.",
+        },
+      }
+    case "footer":
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          text: `${theme.footerBlurb} · Book a tour anytime with Twooky`,
+          backgroundColor: theme.secondary,
+          color: "#fdf8f3",
+          fontFamily: fonts.body,
+          borderRadius: 28,
+          paddingTop: 16,
+          paddingRight: 20,
+          paddingBottom: 16,
+          paddingLeft: 20,
+        },
+      }
+    default:
+      return node
+  }
+}
+
+function restyleTemplatePages(
+  key: TemplateKey,
+  pages: TemplateDraft["pages"],
+  theme: ThemePack,
+  fonts: { heading: string; body: string },
+): TemplateDraft["pages"] {
+  return pages.map((page) => {
+    const restyledNodes = page.canvas_nodes.map((node) => restyleTemplateNode(key, node, page, theme, fonts))
+    return {
+      ...page,
+      seo_title: page.seo_title || `${page.title} | ${theme.navBrandLabel}`,
+      meta_description: polishedMetaDescription(page.path_slug, theme),
+      canvas_nodes: rebalanceHomeHeroLayout({
+        ...page,
+        canvas_nodes: restyledNodes,
+      }).canvas_nodes,
+    }
+  })
+}
+
+function setNodeLayoutMetrics(
+  node: CanvasNode,
+  patch: Partial<Record<"y" | "h", number>>,
+): CanvasNode {
+  return {
+    ...node,
+    layout: {
+      desktop: node.layout.desktop
+        ? {
+            ...node.layout.desktop,
+            ...(patch.y !== undefined ? { y: patch.y } : {}),
+            ...(patch.h !== undefined ? { h: patch.h } : {}),
+          }
+        : node.layout.desktop,
+      tablet: node.layout.tablet
+        ? {
+            ...node.layout.tablet,
+            ...(patch.y !== undefined ? { y: patch.y } : {}),
+            ...(patch.h !== undefined ? { h: patch.h } : {}),
+          }
+        : node.layout.tablet,
+      mobile: node.layout.mobile
+        ? {
+            ...node.layout.mobile,
+            ...(patch.y !== undefined ? { y: patch.y } : {}),
+            ...(patch.h !== undefined ? { h: patch.h } : {}),
+          }
+        : node.layout.mobile,
+    },
+  }
+}
+
+function estimateDesktopTextHeight(text: string, width: number, fontSize: number, opts?: { maxLines?: number }): number {
+  const cleaned = text.trim()
+  if (!cleaned) return Math.max(36, Math.round(fontSize * 1.4))
+
+  const charsPerLine = Math.max(8, Math.floor(width / Math.max(8, fontSize * 0.52)))
+  const visualLines = cleaned.split("\n").reduce((sum, part) => {
+    const len = part.trim().length
+    return sum + Math.max(1, Math.ceil(len / charsPerLine))
+  }, 0)
+  const limitedLines = opts?.maxLines ? Math.min(visualLines, opts.maxLines) : visualLines
+  return Math.ceil(limitedLines * fontSize * 1.28 + 12)
+}
+
+function rebalanceHomeHeroLayout(page: TemplatePageDraft): TemplatePageDraft {
+  if (page.path_slug !== "") return page
+
+  const heroHeading = page.canvas_nodes.find((node) => {
+    if (node.type !== "text") return false
+    const rect = pickLayoutForBreakpoint(node, "desktop")
+    const fontSize = typeof node.props.fontSize === "number" ? node.props.fontSize : 16
+    return rect.y <= 180 && fontSize >= 36
+  })
+
+  if (!heroHeading) return page
+
+  const headingRect = pickLayoutForBreakpoint(heroHeading, "desktop")
+  const heroBody = page.canvas_nodes.find((node) => {
+    if (node.type !== "text" || node.id === heroHeading.id) return false
+    const rect = pickLayoutForBreakpoint(node, "desktop")
+    return rect.y > headingRect.y && rect.y <= headingRect.y + 180
+  })
+  const heroButton = page.canvas_nodes.find((node) => {
+    if (node.type !== "button") return false
+    const rect = pickLayoutForBreakpoint(node, "desktop")
+    return rect.y > headingRect.y && rect.y <= headingRect.y + 320
+  })
+
+  if (!heroBody && !heroButton) return page
+
+  const headingFontSize = typeof heroHeading.props.fontSize === "number" ? heroHeading.props.fontSize : 40
+  const headingText = typeof heroHeading.props.text === "string" ? heroHeading.props.text : ""
+  const nextHeadingHeight = Math.max(
+    headingRect.h,
+    estimateDesktopTextHeight(headingText, headingRect.w, headingFontSize, { maxLines: 6 }),
+  )
+  const bodyGap = 18
+  const buttonGap = 26
+  const heroSection = page.canvas_nodes.find((node) => {
+    if (node.type !== "section") return false
+    const rect = pickLayoutForBreakpoint(node, "desktop")
+    return rect.y <= headingRect.y && rect.y + rect.h >= headingRect.y + headingRect.h
+  })
+  const heroSectionRect = heroSection ? pickLayoutForBreakpoint(heroSection, "desktop") : null
+  const heroImage = page.canvas_nodes.find((node) => {
+    if (node.type !== "image") return false
+    const rect = pickLayoutForBreakpoint(node, "desktop")
+    return rect.y < (heroSectionRect?.y ?? headingRect.y) + (heroSectionRect?.h ?? 420)
+  })
+  const heroImageBottom = heroImage ? (() => {
+    const rect = pickLayoutForBreakpoint(heroImage, "desktop")
+    return rect.y + rect.h
+  })() : 0
+
+  const targetBodyY = headingRect.y + nextHeadingHeight + bodyGap
+  const nextBodyHeight = heroBody
+    ? Math.max(
+        pickLayoutForBreakpoint(heroBody, "desktop").h,
+        estimateDesktopTextHeight(
+          typeof heroBody.props.text === "string" ? heroBody.props.text : "",
+          pickLayoutForBreakpoint(heroBody, "desktop").w,
+          typeof heroBody.props.fontSize === "number" ? heroBody.props.fontSize : 18,
+          { maxLines: 5 },
+        ),
+      )
+    : 0
+  const bodyBottom = heroBody ? targetBodyY + nextBodyHeight : headingRect.y + nextHeadingHeight
+  const targetButtonY = heroButton ? bodyBottom + buttonGap : bodyBottom
+
+  let withButton = page.canvas_nodes.map((node) => {
+    if (node.id === heroHeading.id) return setNodeLayoutMetrics(node, { h: nextHeadingHeight })
+    if (heroBody && node.id === heroBody.id) return setNodeLayoutMetrics(node, { y: targetBodyY, h: nextBodyHeight })
+    if (heroButton && node.id === heroButton.id) return setNodeLayoutMetrics(node, { y: targetButtonY })
+    return node
+  })
+
+  if (heroSection && heroSectionRect) {
+    const updatedButton = heroButton ? withButton.find((node) => node.id === heroButton.id) ?? heroButton : null
+    const updatedButtonRect = updatedButton ? pickLayoutForBreakpoint(updatedButton, "desktop") : null
+    const oldSectionBottom = heroSectionRect.y + heroSectionRect.h
+    const desiredHeroBottom = Math.max(
+      heroImageBottom,
+      headingRect.y + nextHeadingHeight,
+      bodyBottom,
+      updatedButtonRect ? updatedButtonRect.y + updatedButtonRect.h : 0,
+    )
+    const sectionPaddingBottom = 28
+    const delta = Math.max(0, desiredHeroBottom + sectionPaddingBottom - oldSectionBottom)
+
+    if (delta > 0) {
+      withButton = withButton.map((node) => {
+        if (node.id === heroSection.id) {
+          return setNodeLayoutMetrics(node, { h: heroSectionRect.h + delta })
+        }
+        const rect = pickLayoutForBreakpoint(node, "desktop")
+        if (rect.y >= oldSectionBottom) {
+          return setNodeLayoutMetrics(node, { y: rect.y + delta })
+        }
+        return node
+      })
+    }
+  }
+
+  return {
+    ...page,
+    canvas_nodes: withButton,
   }
 }
 
@@ -2715,9 +3174,9 @@ export const TEMPLATE_LANDING: Record<
 > = {
   montessori: {
     title: "Montessori Calm",
-    tagline: "Calm rhythm · natural warmth",
-    description: "Peaceful layouts with gentle structure and reassuring copy for families seeking focus and care.",
-    bestFor: "settings that emphasize independence, calm routines, and thoughtful guidance",
+    tagline: "Natural warmth · parent trust",
+    description: "Soft editorial styling with grounded colour, calm structure, and reassuring family-first storytelling.",
+    bestFor: "settings that want a serene, nature-led look with premium warmth",
     primary: THEMES.montessori.primary,
     secondary: THEMES.montessori.secondary,
     background: THEMES.montessori.background,
@@ -2725,9 +3184,9 @@ export const TEMPLATE_LANDING: Record<
   },
   premium: {
     title: "Premium Studio",
-    tagline: "Editorial polish · high trust",
-    description: "Upscale design language with elegant typography and polished conversion sections for tours.",
-    bestFor: "boutique nurseries that want a premium feel and parent confidence",
+    tagline: "Editorial polish · refined care",
+    description: "Elegant layouts, boutique tones, and high-trust sections designed to convert parent visits into tours.",
+    bestFor: "boutique nurseries and premium childcare brands that want a luxury feel",
     primary: THEMES.premium.primary,
     secondary: THEMES.premium.secondary,
     background: THEMES.premium.background,
@@ -2735,9 +3194,9 @@ export const TEMPLATE_LANDING: Record<
   },
   community: {
     title: "Community Joy",
-    tagline: "Friendly colour · family-first",
-    description: "Playful, welcoming sections that highlight belonging, communication, and everyday moments.",
-    bestFor: "centres that lead with warmth, inclusion, and local community connection",
+    tagline: "Friendly colour · modern warmth",
+    description: "Warm, polished pages that blend playful family energy with clear information and confident design.",
+    bestFor: "centres that lead with belonging, communication, and an approachable modern brand",
     primary: THEMES.community.primary,
     secondary: THEMES.community.secondary,
     background: THEMES.community.background,
@@ -2745,9 +3204,9 @@ export const TEMPLATE_LANDING: Record<
   },
   sports: {
     title: "Active Explorers",
-    tagline: "Energetic flow · strong clarity",
-    description: "Bold playful layout focused on movement, confidence-building, and active learning stories.",
-    bestFor: "programs with outdoor play, movement-led learning, and energetic branding",
+    tagline: "Energetic flow · polished confidence",
+    description: "Bright, modern sections that showcase movement-rich days while still feeling trustworthy and premium.",
+    bestFor: "programs with outdoor play, active learning, and bold but parent-friendly branding",
     primary: THEMES.sports.primary,
     secondary: THEMES.sports.secondary,
     background: THEMES.sports.background,
@@ -2758,7 +3217,12 @@ export const TEMPLATE_LANDING: Record<
 export function getTemplateDraft(templateKey: TemplateKey, newId: () => string): TemplateDraft {
   const t = THEMES[templateKey]
   const f = FONT_STACKS[templateKey]
-  const pages = enrichNonContactPageContent(buildPagesForTemplate(templateKey, newId, t), newId, t, f)
+  const pages = restyleTemplatePages(
+    templateKey,
+    enrichNonContactPageContent(buildPagesForTemplate(templateKey, newId, t), newId, t, f),
+    t,
+    f,
+  )
   return {
     template_key: templateKey,
     theme_tokens: {
@@ -2777,11 +3241,14 @@ export function getBlankDraft(newId: () => string): TemplateDraft {
   const nid = newId
   const navId = nid()
   const footId = nid()
-  const body = FONT_STACKS.community.body
+  const body = 'var(--font-nunito), system-ui, sans-serif'
+  const heading = 'var(--font-fraunces), "Georgia", serif'
   const nodes: CanvasNode[] = [
-    navBar(navId, 100, "#ffffff", "#0f172a", "var(--font-nunito), system-ui, sans-serif", {
+    navBar(navId, 100, "#fffaf6", "#172033", body, {
       brandLabel: "Your nursery",
-      textAlign: "center",
+      textAlign: "left",
+      height: 72,
+      fontSize: 14,
     }),
     {
       id: nid(),
@@ -2790,11 +3257,11 @@ export function getBlankDraft(newId: () => string): TemplateDraft {
       zIndex: 10,
       props: {
         text: "Your nursery name",
-        color: "#0f172a",
-        fontSize: 40,
+        color: "#172033",
+        fontSize: 42,
         fontWeight: 700,
         textAlign: "center",
-        fontFamily: 'var(--font-nunito), system-ui, sans-serif',
+        fontFamily: heading,
       },
       layout: layoutTriple(100, 200, 1000, 60),
     },
@@ -2804,24 +3271,24 @@ export function getBlankDraft(newId: () => string): TemplateDraft {
       parentId: null,
       zIndex: 11,
       props: {
-        text: "Drag elements from the library, resize, and style your site. Add pages from the left panel.",
-        color: "#64748b",
+        text: "Start with a polished, parent-friendly homepage and shape each section into a beautiful microsite for your nursery.",
+        color: "#5d6880",
         fontSize: 18,
         textAlign: "center",
         fontFamily: body,
       },
       layout: layoutTriple(120, 280, 960, 80),
     },
-    footerNode(footId, 200, 1520, "#0f172a", "#e2e8f0", "© Your nursery · Built with Twooky", body),
+    footerNode(footId, 200, 1520, "#1e2d46", "#fdf8f3", "© Your nursery name · Build your beautiful site with Twooky", body),
   ]
   return {
     template_key: "blank",
     theme_tokens: {
-      primaryColor: "#203e68",
-      secondaryColor: "#0f172a",
-      backgroundColor: "#f8fafc",
+      primaryColor: "#d7a86e",
+      secondaryColor: "#1e2d46",
+      backgroundColor: "#fffaf6",
       fontFamily: body,
-      headingFontFamily: FONT_STACKS.community.heading,
+      headingFontFamily: heading,
     },
     nav_items: STANDARD_NAV,
     pages: [

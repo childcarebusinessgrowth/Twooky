@@ -53,6 +53,8 @@ function resolveNavbarBrandLabel(
 }
 
 const TWOOKY_SITE_URL = "http://twooky.com/"
+const MICROSITE_PANEL_SHADOW = "0 18px 45px rgba(15, 23, 42, 0.08)"
+const MICROSITE_PANEL_BORDER = "1px solid rgba(148, 163, 184, 0.18)"
 
 /** Credit line: every "Twooky" links to Twooky in a new tab (editor + published microsites). */
 function footerTextWithTwookyLink(text: string): ReactNode {
@@ -148,8 +150,11 @@ export function CanvasNodeContent({
           <div style={shellStyle}>
             <Link
               href={href}
-              className="inline-flex items-center justify-center px-4 py-2 font-medium transition-opacity hover:opacity-90"
-              style={btnStyle}
+              className="inline-flex min-h-11 items-center justify-center px-5 py-2.5 font-semibold tracking-[0.01em] transition duration-200 hover:-translate-y-0.5 hover:opacity-95"
+              style={{
+                ...btnStyle,
+                boxShadow: "0 12px 28px rgba(15, 23, 42, 0.14)",
+              }}
             >
               {p.label ?? "Button"}
             </Link>
@@ -191,11 +196,10 @@ export function CanvasNodeContent({
               variant === "published"
                 ? isMobileBreakpoint
                   ? "100vw"
-                  : "(max-width: 768px) 100vw, 800px"
+                  : "(max-width: 768px) 100vw, (max-width: 1280px) 66vw, 900px"
                 : undefined
             }
             style={{ objectPosition: imageObjectPosition(p.textAlign, "center") }}
-            unoptimized
           />
         </div>
       )
@@ -220,6 +224,8 @@ export function CanvasNodeContent({
             className="h-full w-full max-w-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
           />
         )
       }
@@ -252,11 +258,14 @@ export function CanvasNodeContent({
       const btnStyle = {
         backgroundColor: primary,
         color: "#fff",
-        borderRadius: 8,
-        padding: "0.35rem 0.85rem",
+        borderRadius: 999,
+        padding: "0.6rem 1rem",
         textDecoration: "none" as const,
         display: "inline-flex" as const,
         alignItems: "center" as const,
+        justifyContent: "center" as const,
+        fontWeight: 700,
+        boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)",
       }
       const navShellStyle = {
         ...innerBoxStyle(p, { navbarHorizontalDefaultPx: 16, navbarVerticalDefaultPx: 0 }),
@@ -264,13 +273,16 @@ export function CanvasNodeContent({
         color: p.color ?? "#0f172a",
         fontSize: p.fontSize ? `${p.fontSize}px` : 15,
         fontFamily: p.fontFamily,
+        border: MICROSITE_PANEL_BORDER,
+        boxShadow: MICROSITE_PANEL_SHADOW,
+        backdropFilter: "blur(12px)",
       } as const
       const sheetLinkClass =
         "flex min-h-11 w-full items-center rounded-md px-3 py-2 text-base font-medium no-underline"
       const brandText = resolveNavbarBrandLabel(p, subdomainSlug)
       const compactNavBarStyle = {
         ...navShellStyle,
-        boxShadow: "inset 0 -1px 0 0 rgba(15, 23, 42, 0.08)",
+        boxShadow: `${MICROSITE_PANEL_SHADOW}, inset 0 -1px 0 0 rgba(15, 23, 42, 0.06)`,
       } as const
       const safeNavClass =
         "pl-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))]"
@@ -294,7 +306,6 @@ export function CanvasNodeContent({
                     height={56}
                     className="w-auto max-w-48 object-contain"
                     style={{ height: `${mobileLogoHeight}px` }}
-                    unoptimized
                   />
                 </Link>
               ) : (
@@ -394,7 +405,6 @@ export function CanvasNodeContent({
                     height={56}
                     className="w-auto max-w-48 object-contain"
                     style={{ height: `${mobileLogoHeight}px` }}
-                    unoptimized
                   />
                 </span>
               ) : (
@@ -456,7 +466,7 @@ export function CanvasNodeContent({
       if (variant === "published") {
         return (
           <nav
-            className="flex h-full w-full min-w-0 items-center gap-3 overflow-x-auto text-sm"
+            className="flex h-full w-full min-w-0 items-center gap-4 overflow-x-auto text-sm"
             style={{
               ...navShellStyle,
             }}
@@ -470,7 +480,6 @@ export function CanvasNodeContent({
                   height={64}
                   className="w-auto max-w-56 object-contain"
                   style={{ height: `${desktopLogoHeight}px` }}
-                  unoptimized
                 />
               </Link>
             )}
@@ -490,8 +499,8 @@ export function CanvasNodeContent({
                 const isBtn = (it.variant ?? "link") === "button"
                 const isHttp = lower.startsWith("http://") || lower.startsWith("https://")
                 const newTab = Boolean(isExt && isHttp && it.openInNewTab)
-                const className = !isBtn && !isExt ? "hover:underline" : undefined
-                const style = isBtn ? btnStyle : ({ textDecoration: "none" } as const)
+                const className = !isBtn && !isExt ? "rounded-full px-1 py-1 hover:bg-black/4 hover:no-underline" : undefined
+                const style = isBtn ? btnStyle : ({ textDecoration: "none", color: p.color ?? "#0f172a", fontWeight: 600 } as const)
                 const displayLabel = decodeHtmlEntities(it.label)
 
                 if (isExt) {
@@ -520,7 +529,7 @@ export function CanvasNodeContent({
 
       return (
         <div
-          className="flex h-full w-full min-w-0 items-center gap-3 overflow-x-auto text-sm"
+          className="flex h-full w-full min-w-0 items-center gap-4 overflow-x-auto text-sm"
           style={{
             ...navShellStyle,
           }}
@@ -534,7 +543,6 @@ export function CanvasNodeContent({
                 height={64}
                 className="w-auto max-w-56 object-contain"
                 style={{ height: `${desktopLogoHeight}px` }}
-                unoptimized
               />
             </span>
           )}
@@ -575,6 +583,7 @@ export function CanvasNodeContent({
             backgroundColor: p.backgroundColor ?? "#0f172a",
             color: p.color ?? "#e2e8f0",
             fontFamily: p.fontFamily,
+            border: "1px solid rgba(255,255,255,0.08)",
             fontSize:
               isMobileBreakpoint && variant === "published"
                 ? `${Math.max(12, Math.min(15, p.fontSize ?? 14))}px`
@@ -584,6 +593,7 @@ export function CanvasNodeContent({
             justifyContent: flexJustifyContent(p.textAlign, "center"),
             textAlign: (p.textAlign ?? "center") as "left" | "center" | "right",
             overflow: isMobileBreakpoint ? "visible" : "hidden",
+            boxShadow: variant === "published" ? "0 24px 48px rgba(15, 23, 42, 0.18)" : undefined,
           }}
         >
           <span className="w-full wrap-break-word text-balance leading-relaxed">
@@ -600,6 +610,14 @@ export function CanvasNodeContent({
             ...innerBoxStyle(p),
             backgroundColor: p.backgroundColor ?? "transparent",
             overflow: "hidden",
+            border:
+              variant === "published" && p.backgroundColor && p.backgroundColor !== "transparent"
+                ? MICROSITE_PANEL_BORDER
+                : undefined,
+            boxShadow:
+              variant === "published" && p.backgroundColor && p.backgroundColor !== "transparent"
+                ? MICROSITE_PANEL_SHADOW
+                : undefined,
           }}
         />
       )
@@ -619,7 +637,11 @@ export function CanvasNodeContent({
       return (
         <div className="grid h-full w-full" style={gridStyle}>
           {items.map((it, i) => (
-            <div key={i} className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+            <div
+              key={i}
+              className="relative aspect-square overflow-hidden rounded-[1.35rem] bg-muted"
+              style={variant === "published" ? { boxShadow: "0 16px 34px rgba(15, 23, 42, 0.08)" } : undefined}
+            >
               {it.src ? (
                 <Image
                   src={it.src}
@@ -628,8 +650,7 @@ export function CanvasNodeContent({
                   draggable={false}
                   className={variant === "editor" ? "pointer-events-none object-cover" : "object-cover"}
                   loading={variant === "published" ? "lazy" : undefined}
-                  sizes={variant === "published" ? "200px" : undefined}
-                  unoptimized
+                  sizes={variant === "published" ? "(max-width: 768px) 50vw, 220px" : undefined}
                 />
               ) : null}
             </div>
@@ -642,12 +663,15 @@ export function CanvasNodeContent({
       if (variant === "published" && subdomainSlug) {
         return (
           <div
-            className="rounded-lg bg-card/95 shadow-sm"
+            className="rounded-[1.75rem] bg-card/95 shadow-sm"
             style={{
               ...innerBoxStyle(p, { allSidesFallback: 12 }),
               height: "auto",
               minHeight: 0,
               overflow: "visible",
+              border: MICROSITE_PANEL_BORDER,
+              boxShadow: MICROSITE_PANEL_SHADOW,
+              backgroundColor: p.backgroundColor ?? "#ffffff",
             }}
           >
             <MicrositeContactFormLazy

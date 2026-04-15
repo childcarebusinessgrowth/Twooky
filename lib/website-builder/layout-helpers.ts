@@ -5,13 +5,13 @@ export const MOBILE_W = 366
 export const MOBILE_X = 12
 
 /** Vertical gap between stacked nodes on mobile */
-const MOBILE_STACK_GAP = 14
+const MOBILE_STACK_GAP = 16
 /** Gap after navbar before first cluster */
-const MOBILE_NAV_GAP = 10
+const MOBILE_NAV_GAP = 16
 /** Gap between clusters */
-const MOBILE_CLUSTER_GAP = 22
+const MOBILE_CLUSTER_GAP = 28
 /** Gap before footer */
-const MOBILE_FOOTER_GAP = 16
+const MOBILE_FOOTER_GAP = 20
 
 /** Default artboard sizes (CSS px) */
 export const ARTBOARD: Record<WebsiteBuilderBreakpoint, { w: number; h: number }> = {
@@ -119,15 +119,15 @@ function mobileStackHeight(node: CanvasNode): number {
     case "button":
       return Math.max(24, Math.min(base, 56))
     case "image":
-      return Math.max(140, Math.min(base, 300))
+      return Math.max(180, Math.min(base, 340))
     case "video":
-      return Math.max(190, Math.min(base, 260))
+      return Math.max(210, Math.min(base, 290))
     case "gallery":
-      return Math.max(170, Math.min(base, 320))
+      return Math.max(210, Math.min(base, 360))
     case "contactForm":
-      return Math.max(340, Math.min(base, 560))
+      return Math.max(380, Math.min(base, 620))
     case "footer":
-      return Math.max(64, Math.min(base, 140))
+      return Math.max(76, Math.min(base, 160))
     default:
       return Math.max(24, base)
   }

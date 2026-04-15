@@ -55,9 +55,12 @@ export function ProviderWebsiteNavSection({ onItemClick }: Props) {
   }, [])
 
   const isPublished = Boolean(summary?.published_version_id)
+  const rootDomain = (process.env.NEXT_PUBLIC_SITE_ROOT_DOMAIN ?? "").trim().toLowerCase()
   const sitePath =
     summary?.subdomain_slug != null && summary.subdomain_slug !== ""
-      ? `/site/${encodeURIComponent(summary.subdomain_slug)}`
+      ? rootDomain
+        ? `https://${summary.subdomain_slug}.${rootDomain}`
+        : `/site/${encodeURIComponent(summary.subdomain_slug)}`
       : ""
 
   const parentActive = inWebsiteSection

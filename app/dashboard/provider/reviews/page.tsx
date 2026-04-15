@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { getReviewsByProviderProfileId } from "@/lib/parent-engagement"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { ProviderReviewsContent } from "./ProviderReviewsContent"
@@ -12,8 +13,9 @@ export default async function ProviderReviewsPage() {
   const providerProfileId = user
     ? await resolveOwnedProviderProfileId(supabase, user.id)
     : ""
+  const admin = getSupabaseAdminClient()
   const reviews = providerProfileId
-    ? await getReviewsByProviderProfileId(supabase, providerProfileId)
+    ? await getReviewsByProviderProfileId(admin, providerProfileId)
     : []
 
   return (

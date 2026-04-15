@@ -88,6 +88,11 @@ type ProviderReviewQueryOptions = {
   limit?: number
 }
 
+function normalizeProfileDisplayName(displayName: string | null | undefined): string | null {
+  const trimmed = displayName?.trim()
+  return trimmed ? trimmed : null
+}
+
 export async function getReviewsByProviderProfileId(
   supabase: TypedClient,
   providerProfileId: string,
@@ -110,7 +115,7 @@ export async function getReviewsByProviderProfileId(
     .from("profiles")
     .select("id, display_name")
     .in("id", parentIds)
-  const nameBy = new Map((profiles ?? []).map((p) => [p.id, p.display_name]))
+  const nameBy = new Map((profiles ?? []).map((p) => [p.id, normalizeProfileDisplayName(p.display_name)]))
   return rows.map((row) => ({
     id: row.id,
     parent_profile_id: row.parent_profile_id,

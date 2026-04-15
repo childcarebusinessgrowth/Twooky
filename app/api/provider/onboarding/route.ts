@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { publicMessageForError } from "@/lib/publicErrors"
 
 /**
@@ -24,10 +25,12 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+
     const { data: profile, error } = await supabase
       .from("provider_profiles")
       .select("onboarding_tour_shown_at, listing_status")
-      .eq("profile_id", user.id)
+      .eq("profile_id", providerProfileId)
       .maybeSingle()
 
     if (error) {
@@ -67,10 +70,12 @@ export async function PATCH() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
+
     const { error } = await supabase
       .from("provider_profiles")
       .update({ onboarding_tour_shown_at: new Date().toISOString() })
-      .eq("profile_id", user.id)
+      .eq("profile_id", providerProfileId)
 
     if (error) {
       console.error("Provider onboarding status update error:", error)

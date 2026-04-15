@@ -8,6 +8,8 @@ export async function GET(): Promise<Response> {
     { loc: toAbsoluteUrl("/sitemaps/providers.xml"), lastmod: now },
     { loc: toAbsoluteUrl("/sitemaps/locations.xml"), lastmod: now },
     { loc: toAbsoluteUrl("/sitemaps/programs.xml"), lastmod: now },
+    { loc: toAbsoluteUrl("/sitemaps/microsites.xml"), lastmod: now },
+    { loc: toAbsoluteUrl("/sitemaps/microsite-blog.xml"), lastmod: now },
   ])
 
   return xmlResponse(xml)

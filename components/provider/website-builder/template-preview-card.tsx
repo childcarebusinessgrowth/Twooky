@@ -5,7 +5,7 @@ import type { TemplateKey } from "@/lib/website-builder/templates/presets-consta
 import type { PublishedPageSnapshot, PublishedSiteSnapshot } from "@/lib/website-builder/types"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { Sparkles } from "lucide-react"
+import { Eye, Sparkles } from "lucide-react"
 
 type LandingMeta = (typeof TEMPLATE_LANDING)[TemplateKey]
 
@@ -48,7 +48,21 @@ const PREVIEW_SNAPSHOTS: Record<TemplateKey, { snapshot: PublishedSiteSnapshot; 
   community: templatePreviewSnapshot("community"),
   sports: templatePreviewSnapshot("sports"),
 }
-const PREVIEW_DESKTOP_SCALE = 0.36
+const PREVIEW_DESKTOP_SCALE = 0.45
+
+const PREVIEW_BADGES: Record<TemplateKey, string> = {
+  montessori: "Calm",
+  premium: "Boutique",
+  community: "Family-first",
+  sports: "Active",
+}
+
+const PREVIEW_HINTS: Record<TemplateKey, string> = {
+  montessori: "Natural and reassuring",
+  premium: "Editorial and luxurious",
+  community: "Warm and neighbourly",
+  sports: "Energetic and playful",
+}
 
 export function TemplatePreviewCard({
   templateKey,
@@ -66,7 +80,7 @@ export function TemplatePreviewCard({
   return (
     <Card
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
+        "group flex h-full flex-col gap-0 overflow-hidden rounded-4xl border border-border/60 bg-card/95 shadow-[0_16px_40px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(15,23,42,0.14)]",
         preview === "montessori" && "border-emerald-900/10",
         preview === "premium" && "border-amber-900/15",
         preview === "community" && "border-orange-300/30",
@@ -103,56 +117,84 @@ export function TemplatePreviewCard({
           />
         )}
       </div>
-      <CardHeader className="space-y-2.5 pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground max-w-[95%] text-[11px] font-semibold uppercase tracking-[0.14em]">
-            {meta.tagline}
-          </p>
-          <span className="bg-primary/10 text-primary inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold">
+      <CardContent className="px-4 pb-4 pt-4 sm:px-5 sm:pt-5">
+        <div className="relative overflow-hidden rounded-[1.6rem] border border-black/8 bg-[linear-gradient(180deg,#fff_0%,#f8fafc_100%)] shadow-[0_20px_40px_rgba(15,23,42,0.10)]">
+          <div className="flex items-center justify-between border-b border-black/6 bg-white/90 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-rose-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+            </div>
+            <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
+              <Eye className="h-3.5 w-3.5" />
+              Live preview
+            </div>
+          </div>
+          <div className="relative h-[225px] w-full overflow-hidden bg-background sm:h-[245px]">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-5 top-4 h-14 rounded-full blur-2xl"
+              style={{ backgroundColor: `${meta.primary}26` }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-0 origin-top"
+              style={{
+                width: `${ARTBOARD.desktop.w}px`,
+                transform: `translateX(-50%) scale(${PREVIEW_DESKTOP_SCALE})`,
+              }}
+            >
+              <PublicSiteRenderer snapshot={renderedPreview.snapshot} siteBase="/preview-template" page={renderedPreview.page} />
+            </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-white via-white/72 to-transparent" />
+          </div>
+        </div>
+      </CardContent>
+      <CardHeader className="space-y-3 px-5 pb-4 pt-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">
+              {meta.tagline}
+            </p>
+            <CardTitle className="text-[1.55rem] leading-tight tracking-tight">{meta.title}</CardTitle>
+          </div>
+          <span className="bg-primary/10 text-primary inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold">
             <Sparkles className="h-3 w-3" />
-            Parent-ready
+              {PREVIEW_BADGES[templateKey]}
           </span>
         </div>
-        <CardTitle className="text-xl leading-tight tracking-tight">{meta.title}</CardTitle>
-        <CardDescription className="line-clamp-2 text-sm leading-relaxed">{meta.description}</CardDescription>
+        <CardDescription className="line-clamp-2 text-[0.95rem] leading-relaxed text-foreground/72">
+          {meta.description}
+        </CardDescription>
         {"bestFor" in meta && typeof meta.bestFor === "string" && (
-          <p className="text-foreground/85 rounded-lg bg-muted/40 px-2.5 py-2 text-xs font-medium">
-            Best for: {meta.bestFor}
+          <p className="rounded-2xl border border-border/70 bg-muted/30 px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
+            <span className="mr-1 font-semibold">Best for:</span>
+            {meta.bestFor}
           </p>
         )}
       </CardHeader>
-      <CardContent className="pb-4">
-        <div className="relative h-[170px] w-full overflow-hidden rounded-xl border border-black/10 bg-background shadow-sm">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-0 origin-top"
-            style={{
-              width: `${ARTBOARD.desktop.w}px`,
-              transform: `translateX(-50%) scale(${PREVIEW_DESKTOP_SCALE})`,
-            }}
-          >
-            <PublicSiteRenderer snapshot={renderedPreview.snapshot} siteBase="/preview-template" page={renderedPreview.page} />
+      <CardFooter className="mt-auto flex flex-col gap-3 border-t border-border/60 bg-muted/18 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-wrap gap-2">
+            <span
+              className="h-8 w-8 rounded-full border border-black/10 shadow-sm"
+              style={{ backgroundColor: meta.primary }}
+              title="Primary"
+            />
+            <span
+              className="h-8 w-8 rounded-full border border-black/10 shadow-sm"
+              style={{ backgroundColor: meta.secondary }}
+              title="Secondary"
+            />
+            <span
+              className="h-8 w-8 rounded-full border border-black/10 shadow-sm"
+              style={{ backgroundColor: meta.background }}
+              title="Background"
+            />
           </div>
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-transparent to-background/28" />
-        </div>
-      </CardContent>
-      <CardFooter className="mt-auto flex flex-col gap-3 border-t bg-muted/25 pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <span
-            className="h-7 w-7 rounded-full border border-black/10 shadow-sm"
-            style={{ backgroundColor: meta.primary }}
-            title="Primary"
-          />
-          <span
-            className="h-7 w-7 rounded-full border border-black/10 shadow-sm"
-            style={{ backgroundColor: meta.secondary }}
-            title="Secondary"
-          />
-          <span
-            className="h-7 w-7 rounded-full border border-black/10 shadow-sm"
-            style={{ backgroundColor: meta.background }}
-            title="Background"
-          />
+          <span className="text-muted-foreground hidden text-xs font-medium sm:inline">
+            {PREVIEW_HINTS[templateKey]}
+          </span>
         </div>
         <div className="w-full sm:w-auto">{footer}</div>
       </CardFooter>

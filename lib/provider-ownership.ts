@@ -21,3 +21,16 @@ export async function resolveOwnedProviderProfileId(
   if (!error && data?.profile_id) return data.profile_id
   return userId
 }
+
+/**
+ * Returns the managed provider profile id first, followed by the user's own
+ * profile id when different so callers can support legacy self-owned rows
+ * during claimed-profile migrations.
+ */
+export async function resolveOwnedProviderProfileIds(
+  supabase: TypedClient,
+  userId: string
+): Promise<string[]> {
+  const providerProfileId = await resolveOwnedProviderProfileId(supabase, userId)
+  return providerProfileId === userId ? [userId] : [providerProfileId, userId]
+}

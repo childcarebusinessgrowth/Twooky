@@ -231,16 +231,6 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
         })}
       </div>
 
-      <Card className="border-border/60">
-        <CardHeader>
-          <CardTitle>Billing notes</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>Grow and Thrive are billed through Stripe and sync back to your provider profile automatically.</p>
-          <p>When you cancel at period end, your current paid features stay active until the current billing period ends.</p>
-          <p>Sprout remains your default plan whenever there is no active paid Stripe subscription.</p>
-        </CardContent>
-      </Card>
     </div>
   )
 }

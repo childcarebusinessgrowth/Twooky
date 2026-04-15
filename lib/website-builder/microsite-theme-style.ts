@@ -7,6 +7,11 @@ import type { ThemeTokens } from "@/lib/website-builder/types"
  */
 export function themeTokensToCssVars(tokens: ThemeTokens | null | undefined): CSSProperties {
   const t = tokens ?? {}
+  const normalizeFontFamily = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return ""
+    return /var\(--|,|"|'/.test(trimmed) ? trimmed : `"${trimmed}", ui-sans-serif, system-ui, sans-serif`
+  }
   const style: Record<string, string> = {
     "--microsite-primary": t.primaryColor?.trim() || "var(--primary)",
   }
@@ -17,12 +22,11 @@ export function themeTokensToCssVars(tokens: ThemeTokens | null | undefined): CS
   if (t.backgroundColor?.trim()) {
     style["--microsite-page-bg"] = t.backgroundColor.trim()
   }
-  const safe = (s: string) => s.replace(/"/g, "")
   if (t.fontFamily?.trim()) {
-    style["--microsite-font"] = `"${safe(t.fontFamily)}", ui-sans-serif, system-ui, sans-serif`
+    style["--microsite-font"] = normalizeFontFamily(t.fontFamily)
   }
   if (t.headingFontFamily?.trim()) {
-    style["--microsite-heading-font"] = `"${safe(t.headingFontFamily)}", ui-sans-serif, system-ui, sans-serif`
+    style["--microsite-heading-font"] = normalizeFontFamily(t.headingFontFamily)
   }
 
   return style as CSSProperties

@@ -9,11 +9,11 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 const inputClass =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+  "w-full rounded-2xl border border-input/80 bg-background px-3.5 py-2.5 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 
 /** Matches `Input` + `inputClass` microsite sizing so date triggers align with text fields */
 const dateTriggerClass =
-  "h-8 justify-between px-3 text-xs font-normal border-input bg-background shadow-xs hover:bg-background dark:bg-background dark:hover:bg-background"
+  "h-10 justify-between rounded-2xl px-3.5 text-xs font-normal border-input bg-background shadow-sm hover:bg-background dark:bg-background dark:hover:bg-background"
 
 type Props = {
   websiteSubdomain: string
@@ -138,15 +138,15 @@ export default function MicrositeContactForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex max-h-[min(720px,70vh)] flex-col gap-4 overflow-y-auto pr-1 text-left"
+      className="flex max-h-[min(760px,72vh)] flex-col gap-5 overflow-y-auto pr-1 text-left"
       style={fontFamily ? { fontFamily } : undefined}
     >
       {introHint?.trim() ? (
-        <p className="text-muted-foreground text-xs leading-snug sm:text-sm">{introHint.trim()}</p>
+        <p className="text-muted-foreground text-sm leading-relaxed">{introHint.trim()}</p>
       ) : null}
 
-      <div className="space-y-2">
-        <p className="text-foreground text-xs font-semibold sm:text-sm">About your child</p>
+      <div className="space-y-3">
+        <p className="text-foreground text-sm font-semibold">About your child</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <label htmlFor="ms-child-dob" className="mb-0.5 block text-[11px] font-medium sm:text-xs">
@@ -206,8 +206,8 @@ export default function MicrositeContactForm({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-foreground text-xs font-semibold sm:text-sm">Your contact details</p>
+      <div className="space-y-3">
+        <p className="text-foreground text-sm font-semibold">Your contact details</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <label htmlFor="ms-fn" className="mb-0.5 block text-[11px] font-medium sm:text-xs">

@@ -23,6 +23,31 @@ type LocalBusinessSchemaInput = {
 }
 
 type JsonLdValue = Record<string, unknown>
+type BreadcrumbItemInput = {
+  name: string
+  url: string
+}
+type WebSiteSchemaInput = {
+  url: string
+  name: string
+  description?: string
+}
+type WebPageSchemaInput = {
+  url: string
+  name: string
+  description?: string
+  image?: string
+  isPartOf?: string
+}
+type ArticleSchemaInput = {
+  url: string
+  headline: string
+  description?: string
+  image?: string
+  datePublished?: string | null
+  authorName?: string
+  publisherName?: string
+}
 
 const CONTACT_FOR_HOURS = "contact for hours"
 
@@ -71,6 +96,93 @@ export function buildFaqPageSchema(faqs: ProviderFaq[]): JsonLdValue | null {
       },
     })),
   }
+}
+
+export function buildBreadcrumbSchema(items: BreadcrumbItemInput[]): JsonLdValue | null {
+  const validItems = items
+    .map((item) => ({
+      name: cleanText(item.name),
+      url: cleanText(item.url),
+    }))
+    .filter((item) => item.name && item.url)
+
+  if (validItems.length === 0) return null
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: validItems.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  }
+}
+
+export function buildWebSiteSchema(input: WebSiteSchemaInput): JsonLdValue {
+  const description = cleanText(input.description)
+  const schema: JsonLdValue = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${input.url}#website`,
+    url: input.url,
+    name: input.name,
+  }
+
+  if (description) schema.description = description
+  return schema
+}
+
+export function buildWebPageSchema(input: WebPageSchemaInput): JsonLdValue {
+  const description = cleanText(input.description)
+  const image = cleanText(input.image)
+  const isPartOf = cleanText(input.isPartOf)
+  const schema: JsonLdValue = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${input.url}#webpage`,
+    url: input.url,
+    name: input.name,
+  }
+
+  if (description) schema.description = description
+  if (image) schema.image = [image]
+  if (isPartOf) {
+    schema.isPartOf = {
+      "@id": `${isPartOf}#website`,
+    }
+  }
+  return schema
+}
+
+export function buildArticleSchema(input: ArticleSchemaInput): JsonLdValue {
+  const description = cleanText(input.description)
+  const image = cleanText(input.image)
+  const authorName = cleanText(input.authorName) ?? "Editorial team"
+  const publisherName = cleanText(input.publisherName) ?? authorName
+  const datePublished = input.datePublished ? toIsoDate(input.datePublished) : null
+
+  const schema: JsonLdValue = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `${input.url}#article`,
+    mainEntityOfPage: input.url,
+    headline: input.headline,
+    author: {
+      "@type": "Organization",
+      name: authorName,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: publisherName,
+    },
+  }
+
+  if (description) schema.description = description
+  if (image) schema.image = [image]
+  if (datePublished) schema.datePublished = datePublished
+  return schema
 }
 
 function buildReviewSchema(review: PublicReviewRow): JsonLdValue | null {

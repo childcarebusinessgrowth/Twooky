@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { DM_Sans, Inter } from 'next/font/google'
+import { DM_Sans, Fraunces, Inter, Nunito } from 'next/font/google'
 import { headers } from "next/headers"
 import { AuthRecoveryRedirect } from "@/components/auth-recovery-redirect"
 import { AnalyticsConsentGate } from '@/components/analytics-consent-gate'
@@ -10,6 +10,7 @@ import { Footer } from '@/components/layout/footer'
 import { getRandomFooterCities } from '@/lib/locations'
 import { WebVitalsClient } from '@/components/web-vitals-client'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import './globals.css'
 
 const dmSans = DM_Sans({ 
@@ -22,6 +23,18 @@ const inter = Inter({
   subsets: ["latin"],
   variable: '--font-inter',
   display: 'swap',
+})
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+})
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-nunito",
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -48,7 +61,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${inter.variable}`}
+      className={`${dmSans.variable} ${inter.variable} ${fraunces.variable} ${nunito.variable}`}
       suppressHydrationWarning
     >
       <body className="font-sans antialiased min-h-screen flex flex-col" suppressHydrationWarning>
@@ -56,6 +69,7 @@ export default async function RootLayout({
         <WebVitalsClient />
         {isMicrositeRequest ? children : <AppShell footer={<Footer cities={footerCities} />}>{children}</AppShell>}
         <Toaster />
+        <SonnerToaster />
         <DeferredClientRender timeoutMs={1200}>
           <CookieConsentBannerLazy />
         </DeferredClientRender>
