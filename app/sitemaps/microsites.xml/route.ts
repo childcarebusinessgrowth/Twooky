@@ -19,7 +19,16 @@ type VersionRow = {
 }
 
 export async function GET(): Promise<Response> {
-  const supabase = getSupabaseAdminClient()
+  let supabase: ReturnType<typeof getSupabaseAdminClient>
+  try {
+    supabase = getSupabaseAdminClient()
+  } catch (e) {
+    if (process.env.CI || process.env.GITHUB_ACTIONS) {
+      console.warn("[sitemap:microsites] Skipped in CI:", e)
+      return xmlResponse(buildUrlSetXml([]))
+    }
+    throw e
+  }
   const { data: websites, error: websitesError } = await supabase
     .from("provider_websites")
     .select("id, subdomain_slug, updated_at, published_version_id")

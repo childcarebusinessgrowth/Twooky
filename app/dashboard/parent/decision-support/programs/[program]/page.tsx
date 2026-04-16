@@ -23,12 +23,20 @@ interface ParentProgramDetailPageProps {
 }
 
 export async function generateStaticParams() {
-  const rows = await getActiveProgramTypes()
-  return rows
-    .filter((r) => r.slug)
-    .map((row) => ({
-      program: row.slug!,
-    }))
+  try {
+    const rows = await getActiveProgramTypes()
+    return rows
+      .filter((r) => r.slug)
+      .map((row) => ({
+        program: row.slug!,
+      }))
+  } catch (e) {
+    if (process.env.CI || process.env.GITHUB_ACTIONS) {
+      console.warn("[decision-support] generateStaticParams skipped in CI:", e)
+      return []
+    }
+    throw e
+  }
 }
 
 export default async function ParentProgramDetailPage({

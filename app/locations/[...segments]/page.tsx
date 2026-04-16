@@ -77,14 +77,24 @@ function getProviderTypeSeoLabel(typeId: ProviderTypeId): string {
 }
 
 export async function generateStaticParams() {
-  const routes = await getActiveLocationRouteParams()
-  return routes.flatMap((route) => {
-    const cityRoute = { segments: [route.country, route.city] }
-    const typeRoutes = PROVIDER_TYPES.map((type) => ({
-      segments: [route.country, route.city, type.id],
-    }))
-    return [cityRoute, ...typeRoutes]
-  })
+  try {
+    const routes = await getActiveLocationRouteParams()
+    return routes.flatMap((route) => {
+      const cityRoute = { segments: [route.country, route.city] }
+      const typeRoutes = PROVIDER_TYPES.map((type) => ({
+        segments: [route.country, route.city, type.id],
+      }))
+      return [cityRoute, ...typeRoutes]
+    })
+  } catch (e) {
+    // In CI (GitHub Actions) we don't have Supabase secrets, so we can't pre-generate location routes.
+    // Returning [] keeps the route dynamic and allows the build to succeed.
+    if (process.env.CI || process.env.GITHUB_ACTIONS) {
+      console.warn("[locations] generateStaticParams skipped in CI:", e)
+      return []
+    }
+    throw e
+  }
 }
 
 export async function generateMetadata({ params }: LocationPageProps) {

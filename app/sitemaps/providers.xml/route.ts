@@ -8,7 +8,16 @@ type ProviderSlugRow = {
 }
 
 export async function GET(): Promise<Response> {
-  const supabase = getSupabaseAdminClient()
+  let supabase: ReturnType<typeof getSupabaseAdminClient>
+  try {
+    supabase = getSupabaseAdminClient()
+  } catch (e) {
+    if (process.env.CI || process.env.GITHUB_ACTIONS) {
+      console.warn("[sitemap:providers] Skipped in CI:", e)
+      return xmlResponse(buildUrlSetXml([]))
+    }
+    throw e
+  }
   const now = new Date().toISOString()
 
   const { data, error } = await supabase

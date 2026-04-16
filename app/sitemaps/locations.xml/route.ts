@@ -10,7 +10,16 @@ export const revalidate = 3600
 
 export async function GET(): Promise<Response> {
   const now = new Date().toISOString()
-  const routes = await getActiveLocationRouteParams()
+  let routes: Awaited<ReturnType<typeof getActiveLocationRouteParams>>
+  try {
+    routes = await getActiveLocationRouteParams()
+  } catch (e) {
+    if (process.env.CI || process.env.GITHUB_ACTIONS) {
+      console.warn("[sitemap:locations] Skipped in CI:", e)
+      return xmlResponse(buildUrlSetXml([]))
+    }
+    throw e
+  }
 
   const entries = routes.flatMap((route) => {
     const cityUrl = {
