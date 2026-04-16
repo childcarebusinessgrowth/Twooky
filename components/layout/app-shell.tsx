@@ -3,6 +3,7 @@
 import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { Header } from '@/components/layout/header'
+import { BackToTopButton } from '@/components/layout/back-to-top-button'
 
 const DASHBOARD_PREFIXES = ['/dashboard', '/admin', '/parents', '/site']
 
@@ -29,6 +30,7 @@ export function AppShell({ children, footer }: AppShellProps) {
         {children}
       </main>
       {footer}
+      <BackToTopButton />
     </>
   )
 }
