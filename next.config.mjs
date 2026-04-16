@@ -53,7 +53,8 @@ const securityHeaders = [
 const nextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: "15mb",
+      // Must be ≥ max social-proof video upload (25MB in app/admin/social-proof/actions.ts); multipart adds overhead.
+      bodySizeLimit: "30mb",
     },
     /** Fewer legacy polyfills in app code; smaller imports from barrel packages (Lighthouse “Legacy JS” / unused JS). */
     optimizePackageImports: ["lucide-react", "date-fns"],
