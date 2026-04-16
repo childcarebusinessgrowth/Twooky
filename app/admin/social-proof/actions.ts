@@ -284,3 +284,14 @@ export async function deleteSocialProof(id: string) {
   if (error) throw new Error(error.message)
   revalidatePath(ADMIN_PATH)
 }
+
+/** Removes all testimonials for a provider (the whole embeddable widget). */
+export async function deleteSocialProofWidgetForProvider(providerProfileId: string) {
+  await assertAdminPermission("social-proof.manage")
+  const id = providerProfileId.trim()
+  if (!id) throw new Error("Provider is required.")
+  const supabase = getSupabaseAdminClient()
+  const { error } = await supabase.from("social_proofs" as never).delete().eq("provider_profile_id", id)
+  if (error) throw new Error(error.message)
+  revalidatePath(ADMIN_PATH)
+}

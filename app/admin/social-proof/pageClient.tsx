@@ -10,6 +10,7 @@ import {
   Megaphone,
   Pencil,
   Plus,
+  Trash2,
   X,
   Star,
   Video,
@@ -28,6 +29,16 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -44,6 +55,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import {
+  deleteSocialProofWidgetForProvider,
   replaceSocialProofSet,
   searchProviders,
   uploadSocialProofImage,
@@ -163,6 +175,7 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
   const [providerOpen, setProviderOpen] = useState(false)
   const [providerQuery, setProviderQuery] = useState("")
   const [providerResults, setProviderResults] = useState<ProviderSearchRow[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<{ providerProfileId: string; providerName: string } | null>(null)
 
   useEffect(() => {
     const q = providerQuery.trim()
@@ -364,6 +377,25 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
     }
   }
 
+  const confirmDeleteWidget = () => {
+    if (!deleteTarget) return
+    const { providerProfileId, providerName } = deleteTarget
+    startTransition(async () => {
+      try {
+        await deleteSocialProofWidgetForProvider(providerProfileId)
+        toast({ title: "Social proof widget removed", description: `${providerName}` })
+        setDeleteTarget(null)
+        router.refresh()
+      } catch (error) {
+        toast({
+          title: "Could not delete widget",
+          description: error instanceof Error ? error.message : "Something went wrong.",
+          variant: "destructive",
+        })
+      }
+    })
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -461,6 +493,20 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() =>
+                          setDeleteTarget({
+                            providerProfileId: widget.providerProfileId,
+                            providerName,
+                          })
+                        }
+                        title="Delete widget"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                         onClick={() => openEdit(widget.rows[0])}
                         title="Edit widget proofs"
@@ -475,6 +521,32 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
           })}
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete social proof widget?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes all testimonials for{" "}
+              <span className="font-medium text-foreground">{deleteTarget?.providerName}</span> and
+              disables the embed until you add social proof again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void confirmDeleteWidget()
+              }}
+              disabled={isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isPending ? "Deleting…" : "Delete widget"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
