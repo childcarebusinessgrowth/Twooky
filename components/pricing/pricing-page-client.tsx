@@ -531,17 +531,19 @@ export function PricingPageClient() {
                   </div>
 
                   {FEATURE_CATEGORIES.map((category) => (
-                    <div key={`mobile-${plan.id}-${category.title}`} className="space-y-2">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
-                        {category.title}
-                      </h3>
+                    <div key={`mobile-${plan.id}-${category.title}`} className="space-y-2.5">
+                      <div className="rounded-md border border-[#0BA5AA]/45 bg-[#0BA5AA]/14 px-3 py-2.5">
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
+                          {category.title}
+                        </h3>
+                      </div>
                       <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
                         {category.rows.map((row, index) => (
                           <div
                             key={`${plan.id}-${row.label}`}
                             className={cn(
                               "flex items-start justify-between gap-3 px-3 py-2.5",
-                              index > 0 && "border-t border-border/60",
+                              index > 0 && "border-t border-border/55",
                               row.exclusive && "bg-primary/5"
                             )}
                           >
@@ -568,7 +570,7 @@ export function PricingPageClient() {
             <table className="w-full min-w-[720px] border-collapse text-sm md:text-[0.9375rem]">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="sticky left-0 z-2 bg-muted/95 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                  <th className="sticky left-0 z-2 border-r border-border/60 bg-muted/95 px-5 py-4 text-left text-xs font-bold uppercase tracking-[0.12em] text-foreground backdrop-blur-sm">
                     Feature
                   </th>
                   {PRICING_PLANS.map((p) => (
@@ -597,10 +599,10 @@ export function PricingPageClient() {
                 </tr>
                 {FEATURE_CATEGORIES.map((cat) => (
                   <Fragment key={cat.title}>
-                    <tr className="bg-primary/5">
+                    <tr className="border-y border-[#0BA5AA]/45 bg-[#0BA5AA]/14">
                       <td
                         colSpan={PLAN_IDS.length + 1}
-                        className="sticky left-0 z-1 bg-primary/5 px-5 py-3 text-xs font-bold uppercase tracking-wider text-primary"
+                        className="sticky left-0 z-1 bg-[#0BA5AA]/14 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary"
                       >
                         {cat.title}
                       </td>
@@ -609,11 +611,11 @@ export function PricingPageClient() {
                       <tr
                         key={row.label}
                         className={cn(
-                          "border-b border-border/60 odd:bg-muted/16",
+                          "border-b border-border/50 odd:bg-muted/12 transition-colors hover:bg-muted/20",
                           row.exclusive && "bg-primary/5"
                         )}
                       >
-                        <td className="sticky left-0 z-1 max-w-56 bg-card/95 px-5 py-3.5 text-left text-foreground backdrop-blur-sm">
+                        <td className="sticky left-0 z-1 max-w-56 bg-card/95 px-5 py-3 text-left text-foreground backdrop-blur-sm">
                           <span className="flex items-start gap-1.5">
                             {row.exclusive && (
                               <BadgeCheck
@@ -627,7 +629,7 @@ export function PricingPageClient() {
                           </span>
                         </td>
                         {PLAN_IDS.map((pid) => (
-                          <td key={pid} className="px-3 py-3.5 text-center">
+                          <td key={pid} className="px-3 py-3 text-center">
                             <FeatureCell row={row} planId={pid} />
                           </td>
                         ))}
