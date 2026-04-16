@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  canAccessAdminPath,
   getAdminPermissionsForRole,
   hasAdminPermission,
   isAdminTeamRole,
@@ -15,11 +16,12 @@ describe("admin team roles", () => {
     expect(isAdminTeamRole("")).toBe(false)
   })
 
-  it("grants base user review and badge permissions only", () => {
+  it("grants base user dashboard + listings only", () => {
     const permissions = getAdminPermissionsForRole("base_user")
-    expect(permissions.has("reviews.approve")).toBe(true)
-    expect(permissions.has("badges.verify")).toBe(true)
-    expect(permissions.has("listings.manage")).toBe(false)
+    expect(permissions.has("dashboard.view")).toBe(true)
+    expect(permissions.has("listings.manage")).toBe(true)
+    expect(permissions.has("reviews.approve")).toBe(false)
+    expect(permissions.has("badges.verify")).toBe(false)
     expect(permissions.has("team.manage")).toBe(false)
   })
 
@@ -36,6 +38,16 @@ describe("admin team roles", () => {
   it("grants top admin team management permissions", () => {
     expect(hasAdminPermission("top_admin", "team.manage")).toBe(true)
     expect(hasAdminPermission("top_admin", "reviews.approve")).toBe(true)
+  })
+})
+
+describe("canAccessAdminPath", () => {
+  it("restricts base user to dashboard and listings", () => {
+    expect(canAccessAdminPath("base_user", "/admin")).toBe(true)
+    expect(canAccessAdminPath("base_user", "/admin/listings")).toBe(true)
+    expect(canAccessAdminPath("base_user", "/admin/listings/123")).toBe(true)
+    expect(canAccessAdminPath("base_user", "/admin/parents")).toBe(false)
+    expect(canAccessAdminPath("base_user", "/admin/team")).toBe(false)
   })
 })
 

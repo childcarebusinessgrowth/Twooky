@@ -1,8 +1,10 @@
 import "server-only"
 
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import {
+  canAccessAdminPath,
   getAdminPermissionsForRole,
   getProfileRoleForUser,
   hasAdminPermission,
@@ -106,6 +108,22 @@ export async function guardAdminPermissionOrRedirect(permission: AdminPermission
     redirect(loginPath)
   }
   if (role !== "admin" || !teamRole || !hasAdminPermission(teamRole, permission)) {
+    redirect("/admin")
+  }
+}
+
+export async function guardAdminRouteOrRedirect(loginPath = "/login") {
+  const { user, role, teamRole } = await getCurrentAdminAccess()
+  if (!user) {
+    redirect(loginPath)
+  }
+  if (role !== "admin" || !teamRole) {
+    redirect("/admin")
+  }
+
+  const requestHeaders = await headers()
+  const pathname = requestHeaders.get("x-pathname") ?? "/admin"
+  if (!canAccessAdminPath(teamRole, pathname)) {
     redirect("/admin")
   }
 }

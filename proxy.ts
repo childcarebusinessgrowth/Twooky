@@ -69,13 +69,14 @@ function withCookies(source: NextResponse, target: NextResponse): NextResponse {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  const nextHeaders = new Headers(request.headers)
+  nextHeaders.set("x-pathname", pathname)
 
   if (pathname.startsWith("/api")) {
     return NextResponse.next()
   }
 
   if (pathname.startsWith("/site/")) {
-    const nextHeaders = new Headers(request.headers)
     nextHeaders.set("x-microsite-request", "1")
     return NextResponse.next({
       request: {
@@ -90,7 +91,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!shouldRunAuth(pathname)) {
-    return NextResponse.next()
+    return NextResponse.next({
+      request: {
+        headers: nextHeaders,
+      },
+    })
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -108,7 +113,9 @@ export async function proxy(request: NextRequest) {
   }
 
   let response = NextResponse.next({
-    request,
+    request: {
+      headers: nextHeaders,
+    },
   })
 
   const supabase = createServerClient<Database>(supabaseUrl, publishableKey, {
@@ -119,7 +126,9 @@ export async function proxy(request: NextRequest) {
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
         response = NextResponse.next({
-          request,
+          request: {
+            headers: nextHeaders,
+          },
         })
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
       },

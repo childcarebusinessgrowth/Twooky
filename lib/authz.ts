@@ -3,6 +3,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js"
 export type AppRole = "parent" | "provider" | "admin"
 export type AdminTeamRole = "base_user" | "account_manager" | "top_admin"
 export type AdminPermission =
+  | "dashboard.view"
   | "reviews.approve"
   | "badges.verify"
   | "listings.manage"
@@ -89,6 +90,7 @@ export async function getProfileRoleForUser(supabase: SupabaseClient, user: User
 export function getAdminPermissionsForRole(role: AdminTeamRole): ReadonlySet<AdminPermission> {
   if (role === "top_admin") {
     return new Set<AdminPermission>([
+      "dashboard.view",
       "reviews.approve",
       "badges.verify",
       "listings.manage",
@@ -103,6 +105,7 @@ export function getAdminPermissionsForRole(role: AdminTeamRole): ReadonlySet<Adm
 
   if (role === "account_manager") {
     return new Set<AdminPermission>([
+      "dashboard.view",
       "reviews.approve",
       "badges.verify",
       "listings.manage",
@@ -114,11 +117,55 @@ export function getAdminPermissionsForRole(role: AdminTeamRole): ReadonlySet<Adm
     ])
   }
 
-  return new Set<AdminPermission>(["reviews.approve", "badges.verify"])
+  return new Set<AdminPermission>(["dashboard.view", "listings.manage"])
 }
 
 export function hasAdminPermission(role: AdminTeamRole, permission: AdminPermission): boolean {
   return getAdminPermissionsForRole(role).has(permission)
+}
+
+type AdminRoutePermissionRule = {
+  prefix: string
+  permission: AdminPermission
+}
+
+const ADMIN_ROUTE_PERMISSION_RULES: AdminRoutePermissionRule[] = [
+  { prefix: "/admin/team", permission: "team.manage" },
+  { prefix: "/admin/analytics", permission: "listings.manage" },
+  { prefix: "/admin/listings", permission: "listings.manage" },
+  { prefix: "/admin/provider-plans", permission: "listings.manage" },
+  { prefix: "/admin/parents", permission: "parents.manage" },
+  { prefix: "/admin/blogs", permission: "blogs.manage" },
+  { prefix: "/admin/sponsors", permission: "sponsors.manage" },
+  { prefix: "/admin/contact-messages", permission: "sponsors.manage" },
+  { prefix: "/admin/reviews", permission: "reviews.approve" },
+  { prefix: "/admin/social-proof", permission: "social-proof.manage" },
+  { prefix: "/admin/claims", permission: "badges.verify" },
+  { prefix: "/admin/directory", permission: "directory.manage" },
+  { prefix: "/admin/features", permission: "directory.manage" },
+  { prefix: "/admin/age-groups", permission: "directory.manage" },
+  { prefix: "/admin/curriculum", permission: "directory.manage" },
+  { prefix: "/admin/currencies", permission: "directory.manage" },
+  { prefix: "/admin/languages", permission: "directory.manage" },
+  { prefix: "/admin/locations", permission: "directory.manage" },
+  { prefix: "/admin/program-types", permission: "directory.manage" },
+]
+
+export function getRequiredAdminPermissionForPath(pathname: string): AdminPermission | null {
+  if (pathname === "/admin") return "dashboard.view"
+
+  const matchedRule = ADMIN_ROUTE_PERMISSION_RULES.find((rule) => pathname.startsWith(rule.prefix))
+  return matchedRule?.permission ?? null
+}
+
+export function canAccessAdminPath(role: AdminTeamRole, pathname: string): boolean {
+  if (role === "base_user") {
+    return pathname === "/admin" || pathname.startsWith("/admin/listings")
+  }
+
+  const requiredPermission = getRequiredAdminPermissionForPath(pathname)
+  if (!requiredPermission) return false
+  return hasAdminPermission(role, requiredPermission)
 }
 
 export async function resolveAdminTeamRoleForUser(

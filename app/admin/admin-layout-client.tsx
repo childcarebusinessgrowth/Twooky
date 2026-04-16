@@ -50,6 +50,7 @@ import { getUserIdentity } from "@/lib/userIdentity"
 import type { AdminNotificationItem } from "@/app/api/admin/notifications/route"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import type { LucideIcon } from "lucide-react"
+import { canAccessAdminPath, type AdminPermission, type AdminTeamRole } from "@/lib/authz"
 
 type SidebarLinkItem = {
   kind: "link"
@@ -66,14 +67,35 @@ type SidebarGroupItem = {
   children: { label: string; href: string }[]
 }
 
-function getSidebarItems(pendingClaimsCount: number, canManageTeam: boolean): (SidebarLinkItem | SidebarGroupItem)[] {
+function getSidebarItems(
+  pendingClaimsCount: number,
+  canManageTeam: boolean,
+  teamRole: AdminTeamRole | null,
+  permissions: readonly AdminPermission[],
+): (SidebarLinkItem | SidebarGroupItem)[] {
+  if (!teamRole) return []
+
+  const canAccess = (path: string) => canAccessAdminPath(teamRole, path)
+  const hasPermission = (permission: AdminPermission) => permissions.includes(permission)
   const items: (SidebarLinkItem | SidebarGroupItem)[] = [
-    { kind: "link", label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { kind: "link", label: "Listings", href: "/admin/listings", icon: Building2 },
-    { kind: "link", label: "Provider Plans", href: "/admin/provider-plans", icon: CreditCard },
-    { kind: "link", label: "Parents", href: "/admin/parents", icon: UsersRound },
-    { kind: "link", label: "Blogs", href: "/admin/blogs", icon: Newspaper },
-    {
+  ]
+  if (canAccess("/admin")) {
+    items.push({ kind: "link", label: "Dashboard", href: "/admin", icon: LayoutDashboard })
+  }
+  if (canAccess("/admin/listings")) {
+    items.push({ kind: "link", label: "Listings", href: "/admin/listings", icon: Building2 })
+  }
+  if (canAccess("/admin/provider-plans")) {
+    items.push({ kind: "link", label: "Provider Plans", href: "/admin/provider-plans", icon: CreditCard })
+  }
+  if (canAccess("/admin/parents")) {
+    items.push({ kind: "link", label: "Parents", href: "/admin/parents", icon: UsersRound })
+  }
+  if (canAccess("/admin/blogs")) {
+    items.push({ kind: "link", label: "Blogs", href: "/admin/blogs", icon: Newspaper })
+  }
+  if (canAccess("/admin/sponsors")) {
+    items.push({
       kind: "group",
       label: "Sponsors & Advertisers",
       icon: Handshake,
@@ -81,20 +103,32 @@ function getSidebarItems(pendingClaimsCount: number, canManageTeam: boolean): (S
         { label: "Discounts", href: "/admin/sponsors/discounts" },
         { label: "Local Services & Deals", href: "/admin/sponsors/local-services" },
       ],
-    },
-    { kind: "link", label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle },
-    { kind: "link", label: "Reviews", href: "/admin/reviews", icon: Star },
-    { kind: "link", label: "Social Proof", href: "/admin/social-proof", icon: Megaphone },
-    {
+    })
+  }
+  if (canAccess("/admin/contact-messages")) {
+    items.push({ kind: "link", label: "Contact messages", href: "/admin/contact-messages", icon: MessageCircle })
+  }
+  if (canAccess("/admin/reviews")) {
+    items.push({ kind: "link", label: "Reviews", href: "/admin/reviews", icon: Star })
+  }
+  if (canAccess("/admin/social-proof")) {
+    items.push({ kind: "link", label: "Social Proof", href: "/admin/social-proof", icon: Megaphone })
+  }
+  if (canAccess("/admin/claims") && hasPermission("badges.verify")) {
+    items.push({
       kind: "link",
       label: "Claim Requests",
       href: "/admin/claims",
       icon: FileCheck,
       badge: pendingClaimsCount,
-    },
-    { kind: "link", label: "Directory", href: "/admin/directory", icon: FolderTree },
-    { kind: "link", label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-  ]
+    })
+  }
+  if (canAccess("/admin/directory")) {
+    items.push({ kind: "link", label: "Directory", href: "/admin/directory", icon: FolderTree })
+  }
+  if (canAccess("/admin/analytics")) {
+    items.push({ kind: "link", label: "Analytics", href: "/admin/analytics", icon: BarChart3 })
+  }
   if (canManageTeam) {
     items.push({ kind: "link", label: "Team", href: "/admin/team", icon: Shield })
   }
@@ -105,13 +139,17 @@ function SidebarNav({
   onItemClick,
   pendingClaimsCount,
   canManageTeam,
+  teamRole,
+  permissions,
 }: {
   onItemClick?: () => void
   pendingClaimsCount: number
   canManageTeam: boolean
+  teamRole: AdminTeamRole | null
+  permissions: readonly AdminPermission[]
 }) {
   const pathname = usePathname()
-  const sidebarItems = getSidebarItems(pendingClaimsCount, canManageTeam)
+  const sidebarItems = getSidebarItems(pendingClaimsCount, canManageTeam, teamRole, permissions)
 
   return (
     <nav className="flex flex-col gap-1 px-3">
@@ -222,10 +260,14 @@ export function AdminLayoutClient({
   children,
   pendingClaimsCount = 0,
   canManageTeam = false,
+  teamRole = null,
+  permissions = [],
 }: {
   children: React.ReactNode
   pendingClaimsCount?: number
   canManageTeam?: boolean
+  teamRole?: AdminTeamRole | null
+  permissions?: readonly AdminPermission[]
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([])
@@ -368,7 +410,12 @@ export function AdminLayoutClient({
           </div>
 
           <div className="flex-1 overflow-y-auto py-4">
-            <SidebarNav pendingClaimsCount={pendingClaimsCount} canManageTeam={canManageTeam} />
+            <SidebarNav
+              pendingClaimsCount={pendingClaimsCount}
+              canManageTeam={canManageTeam}
+              teamRole={teamRole}
+              permissions={permissions}
+            />
           </div>
 
           <div className="border-t border-border p-4">
@@ -409,6 +456,8 @@ export function AdminLayoutClient({
                     onItemClick={() => setMobileMenuOpen(false)}
                     pendingClaimsCount={pendingClaimsCount}
                     canManageTeam={canManageTeam}
+                    teamRole={teamRole}
+                    permissions={permissions}
                   />
                 </div>
               </SheetContent>
