@@ -79,6 +79,8 @@ Subscribe the webhook to these events:
 - `customer.subscription.created`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
 
 Then copy the webhook signing secret into:
 

@@ -23,8 +23,6 @@ const PAID_ENTITLEMENT_STATUSES = new Set<ProviderBillingStatus>([
   "trialing",
   "active",
   "past_due",
-  "unpaid",
-  "paused",
 ])
 
 function isPlanId(value: string | null | undefined): value is PlanId {
@@ -297,26 +295,20 @@ export async function syncProviderSubscriptionFromStripe(
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id ?? null
 
   const admin = getSupabaseAdminClient()
-  const billingUpdate: Database["public"]["Tables"]["provider_billing_subscriptions"]["Insert"] = {
-    provider_profile_id: providerProfileId,
-    stripe_customer_id: customerId,
-    stripe_subscription_id: subscription.id,
-    stripe_product_id: productId,
-    stripe_price_id: primaryPrice?.id ?? null,
-    plan_id: billingPlanId,
-    billing_interval: effectiveInterval,
-    status: subscription.status as ProviderBillingStatus,
-    cancel_at_period_end: subscription.cancel_at_period_end,
-    current_period_start: unixToIso(primaryItem?.current_period_start),
-    current_period_end: unixToIso(primaryItem?.current_period_end),
-    canceled_at: unixToIso(subscription.canceled_at),
-  }
+  const { error: syncError } = await admin.rpc("sync_provider_billing_and_plan", {
+    p_provider_profile_id: providerProfileId,
+    p_stripe_customer_id: customerId,
+    p_stripe_subscription_id: subscription.id,
+    p_stripe_product_id: productId,
+    p_stripe_price_id: primaryPrice?.id ?? null,
+    p_plan_id: billingPlanId,
+    p_billing_interval: effectiveInterval,
+    p_status: subscription.status,
+    p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    p_current_period_start: unixToIso(primaryItem?.current_period_start),
+    p_current_period_end: unixToIso(primaryItem?.current_period_end),
+    p_canceled_at: unixToIso(subscription.canceled_at),
+  })
 
-  const { error: billingError } = await admin
-    .from("provider_billing_subscriptions")
-    .upsert(billingUpdate, { onConflict: "provider_profile_id" })
-
-  if (billingError) {
-    throw new Error(billingError.message)
-  }
+  if (syncError) throw new Error(syncError.message)
 }

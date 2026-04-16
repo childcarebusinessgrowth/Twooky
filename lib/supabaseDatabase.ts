@@ -708,6 +708,30 @@ export interface Database {
         }
         Relationships: []
       }
+      stripe_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          created: number
+          livemode: boolean
+          processed_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          created: number
+          livemode?: boolean
+          processed_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          created?: number
+          livemode?: boolean
+          processed_at?: string
+        }
+        Relationships: []
+      }
       provider_listing_claims: {
         Row: {
           id: string
@@ -1612,6 +1636,23 @@ export interface Database {
       get_published_provider_website: {
         Args: { p_subdomain: string }
         Returns: Json | null
+      }
+      sync_provider_billing_and_plan: {
+        Args: {
+          p_provider_profile_id: string
+          p_stripe_customer_id: string | null
+          p_stripe_subscription_id: string | null
+          p_stripe_product_id: string | null
+          p_stripe_price_id: string | null
+          p_plan_id: string
+          p_billing_interval: string | null
+          p_status: string
+          p_cancel_at_period_end: boolean
+          p_current_period_start: string | null
+          p_current_period_end: string | null
+          p_canceled_at: string | null
+        }
+        Returns: null
       }
       get_provider_favorite_leads: {
         Args: Record<string, never>
