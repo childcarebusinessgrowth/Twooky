@@ -54,12 +54,14 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { getSupabaseClient } from "@/lib/supabaseClient"
+import { SOCIAL_PROOF_ASSETS_BUCKET } from "@/lib/social-proof-storage"
 import {
   deleteSocialProofWidgetForProvider,
+  prepareSocialProofImageUpload,
+  prepareSocialProofVideoUpload,
   replaceSocialProofSet,
   searchProviders,
-  uploadSocialProofImage,
-  uploadSocialProofVideo,
   type ProviderSearchRow,
   type SocialProofEntryInput,
   type SocialProofType,
@@ -272,12 +274,36 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
           let videoUrl = entry.videoUrl.trim() || null
 
           if (entry.type === "image" && entry.pendingImageFile) {
-            const uploadedImage = await uploadSocialProofImage(entry.pendingImageFile)
-            imageUrl = uploadedImage.publicUrl
+            const file = entry.pendingImageFile
+            const prep = await prepareSocialProofImageUpload({
+              fileName: file.name,
+              contentType: file.type,
+              size: file.size,
+            })
+            const supabase = getSupabaseClient()
+            const { error: uploadError } = await supabase.storage
+              .from(SOCIAL_PROOF_ASSETS_BUCKET)
+              .uploadToSignedUrl(prep.path, prep.token, file, { contentType: prep.contentType })
+            if (uploadError) {
+              throw new Error(uploadError.message)
+            }
+            imageUrl = prep.publicUrl
           }
           if (entry.type === "video" && entry.pendingVideoFile) {
-            const uploadedVideo = await uploadSocialProofVideo(entry.pendingVideoFile)
-            videoUrl = uploadedVideo.publicUrl
+            const file = entry.pendingVideoFile
+            const prep = await prepareSocialProofVideoUpload({
+              fileName: file.name,
+              contentType: file.type,
+              size: file.size,
+            })
+            const supabase = getSupabaseClient()
+            const { error: uploadError } = await supabase.storage
+              .from(SOCIAL_PROOF_ASSETS_BUCKET)
+              .uploadToSignedUrl(prep.path, prep.token, file, { contentType: prep.contentType })
+            if (uploadError) {
+              throw new Error(uploadError.message)
+            }
+            videoUrl = prep.publicUrl
           }
           if (entry.type === "image" && !imageUrl) {
             toast({

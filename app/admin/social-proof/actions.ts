@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache"
 import { randomUUID } from "crypto"
 import { assertAdminPermission } from "@/lib/authzServer"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { SOCIAL_PROOF_ASSETS_BUCKET } from "@/lib/social-proof-storage"
 
 const ADMIN_PATH = "/admin/social-proof"
-const SOCIAL_PROOF_ASSETS_BUCKET = "social-proof-assets"
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const MAX_VIDEO_SIZE_BYTES = 25 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"])
@@ -76,59 +76,106 @@ function sanitizeFilename(name: string): string {
     .replace(/^-|-$/g, "")
 }
 
-async function uploadSocialProofMedia(file: File, folder: "images" | "videos") {
-  await ensureSocialProofAssetsBucket()
-  const supabase = getSupabaseAdminClient()
-  const safeName = sanitizeFilename(file.name || "asset")
+function normalizeImageMime(fileName: string, contentType: string): string {
+  if (contentType && ALLOWED_IMAGE_TYPES.has(contentType)) return contentType
+  const ext = fileName.split(".").pop()?.toLowerCase()
+  const map: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+  }
+  return map[ext ?? ""] ?? contentType
+}
+
+function normalizeVideoMime(fileName: string, contentType: string): string {
+  if (contentType && ALLOWED_VIDEO_TYPES.has(contentType)) return contentType
+  const ext = fileName.split(".").pop()?.toLowerCase()
+  const map: Record<string, string> = {
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+  }
+  return map[ext ?? ""] ?? contentType
+}
+
+function buildSocialProofStoragePath(folder: "images" | "videos", fileName: string): string {
+  const safeName = sanitizeFilename(fileName || "asset")
   const today = new Date()
   const pathPrefix = `${folder}/${today.getUTCFullYear()}/${String(today.getUTCMonth() + 1).padStart(2, "0")}`
-  const storagePath = `${pathPrefix}/${Date.now()}-${randomUUID()}-${safeName}`
+  return `${pathPrefix}/${Date.now()}-${randomUUID()}-${safeName}`
+}
 
-  const { error: uploadError } = await supabase.storage
+export type SocialProofDirectUploadPrep = {
+  path: string
+  token: string
+  publicUrl: string
+  contentType: string
+}
+
+/**
+ * Returns a signed upload URL so the browser can upload directly to Supabase Storage.
+ * Avoids Next.js / edge body limits on server actions (works on Vercel; localhost often masks this).
+ */
+export async function prepareSocialProofImageUpload(input: {
+  fileName: string
+  contentType: string
+  size: number
+}): Promise<SocialProofDirectUploadPrep> {
+  await assertAdminPermission("social-proof.manage")
+  const mime = normalizeImageMime(input.fileName, input.contentType)
+  if (!ALLOWED_IMAGE_TYPES.has(mime)) {
+    throw new Error("Only PNG, JPG, WEBP, and GIF images are allowed.")
+  }
+  if (input.size > MAX_IMAGE_SIZE_BYTES) {
+    throw new Error("Image must be 5MB or less.")
+  }
+
+  await ensureSocialProofAssetsBucket()
+  const supabase = getSupabaseAdminClient()
+  const storagePath = buildSocialProofStoragePath("images", input.fileName)
+
+  const { data: signed, error: signedError } = await supabase.storage
     .from(SOCIAL_PROOF_ASSETS_BUCKET)
-    .upload(storagePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type,
-    })
+    .createSignedUploadUrl(storagePath)
 
-  if (uploadError) {
-    throw new Error(uploadError.message)
+  if (signedError || !signed?.token) {
+    throw new Error(signedError?.message ?? "Failed to create upload URL.")
   }
 
   const { data } = supabase.storage.from(SOCIAL_PROOF_ASSETS_BUCKET).getPublicUrl(storagePath)
-  return {
-    path: storagePath,
-    publicUrl: data.publicUrl,
-  }
+  return { path: storagePath, token: signed.token, publicUrl: data.publicUrl, contentType: mime }
 }
 
-export async function uploadSocialProofImage(file: File) {
+export async function prepareSocialProofVideoUpload(input: {
+  fileName: string
+  contentType: string
+  size: number
+}): Promise<SocialProofDirectUploadPrep> {
   await assertAdminPermission("social-proof.manage")
-  if (!file) {
-    throw new Error("No image provided.")
-  }
-  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-    throw new Error("Only PNG, JPG, WEBP, and GIF images are allowed.")
-  }
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    throw new Error("Image must be 5MB or less.")
-  }
-  return uploadSocialProofMedia(file, "images")
-}
-
-export async function uploadSocialProofVideo(file: File) {
-  await assertAdminPermission("social-proof.manage")
-  if (!file) {
-    throw new Error("No video provided.")
-  }
-  if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
+  const mime = normalizeVideoMime(input.fileName, input.contentType)
+  if (!ALLOWED_VIDEO_TYPES.has(mime)) {
     throw new Error("Only MP4, WEBM, and MOV videos are allowed.")
   }
-  if (file.size > MAX_VIDEO_SIZE_BYTES) {
+  if (input.size > MAX_VIDEO_SIZE_BYTES) {
     throw new Error("Video must be 25MB or less.")
   }
-  return uploadSocialProofMedia(file, "videos")
+
+  await ensureSocialProofAssetsBucket()
+  const supabase = getSupabaseAdminClient()
+  const storagePath = buildSocialProofStoragePath("videos", input.fileName)
+
+  const { data: signed, error: signedError } = await supabase.storage
+    .from(SOCIAL_PROOF_ASSETS_BUCKET)
+    .createSignedUploadUrl(storagePath)
+
+  if (signedError || !signed?.token) {
+    throw new Error(signedError?.message ?? "Failed to create upload URL.")
+  }
+
+  const { data } = supabase.storage.from(SOCIAL_PROOF_ASSETS_BUCKET).getPublicUrl(storagePath)
+  return { path: storagePath, token: signed.token, publicUrl: data.publicUrl, contentType: mime }
 }
 
 function validateInput(input: SocialProofInput) {
