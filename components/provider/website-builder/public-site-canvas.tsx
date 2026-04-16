@@ -316,7 +316,7 @@ export function PublicSiteRenderer({
   const [bp, setBp] = useState<WebsiteBuilderBreakpoint>("desktop")
   const [footerTopOverride, setFooterTopOverride] = useState<string | null>(null)
   const artboardRef = useRef<HTMLDivElement | null>(null)
-  const contactFormRef = useRef<HTMLDivElement | null>(null)
+  const [contactFormEl, setContactFormEl] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
     function tick() {
@@ -355,14 +355,13 @@ export function PublicSiteRenderer({
   )
 
   useEffect(() => {
-    if (page.path_slug !== "contact" || !contactFormNode || !footerNode) {
-      setFooterTopOverride(null)
-      return
-    }
+    if (page.path_slug !== "contact" || !contactFormNode || !footerNode) return
 
     const artboardEl = artboardRef.current
-    const contactEl = contactFormRef.current
+    const contactEl = contactFormEl
     if (!artboardEl || !contactEl) return
+
+    let raf = 0
 
     const updateFooterPosition = () => {
       const renderedArtboardWidth = artboardEl.clientWidth
@@ -392,14 +391,25 @@ export function PublicSiteRenderer({
       setFooterTopOverride(nextTop)
     }
 
-    updateFooterPosition()
+    const scheduleUpdate = () => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(updateFooterPosition)
+    }
 
-    const observer = new ResizeObserver(() => updateFooterPosition())
+    scheduleUpdate()
+
+    const observer = new ResizeObserver(() => scheduleUpdate())
     observer.observe(artboardEl)
     observer.observe(contactEl)
 
-    return () => observer.disconnect()
-  }, [bp, contactFormNode, footerNode, h, mobileMap, page.path_slug])
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
+  }, [bp, contactFormEl, contactFormNode, footerNode, h, mobileMap, page.path_slug])
+
+  const effectiveFooterTopOverride =
+    page.path_slug === "contact" && contactFormNode && footerNode ? footerTopOverride : null
 
   return (
     <div
@@ -440,10 +450,8 @@ export function PublicSiteRenderer({
               renderNode(n, siteBase, theme, snapshot.subdomain_slug, bp, h, mobileMap, {
                 contactFormNodeId: contactFormNode?.id,
                 footerNodeId: footerNode?.id,
-                footerTopOverride,
-                onContactFormMount: (el) => {
-                  contactFormRef.current = el
-                },
+                footerTopOverride: effectiveFooterTopOverride,
+                onContactFormMount: setContactFormEl,
               }),
             )}
           </div>
