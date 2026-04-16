@@ -26,27 +26,27 @@ type PricingBillingCycle = "monthly" | "annual"
 
 const THEME: Record<
   PlanTheme,
-  { bar: string; softBg: string; accentText: string }
+  { stripBg: string; softBg: string; accentText: string }
 > = {
   blue: {
-    bar: "from-sky-500 to-blue-600",
-    softBg: "bg-sky-500/[0.08]",
-    accentText: "text-sky-700 dark:text-sky-300",
+    stripBg: "bg-primary",
+    softBg: "bg-primary/10",
+    accentText: "text-primary",
   },
   lightGreen: {
-    bar: "from-emerald-400 to-teal-500",
-    softBg: "bg-emerald-500/[0.08]",
-    accentText: "text-emerald-800 dark:text-emerald-300",
+    stripBg: "bg-secondary",
+    softBg: "bg-secondary/10",
+    accentText: "text-secondary",
   },
   darkGreen: {
-    bar: "from-emerald-700 to-green-900",
-    softBg: "bg-emerald-900/[0.12]",
-    accentText: "text-emerald-900 dark:text-emerald-200",
+    stripBg: "bg-tertiary",
+    softBg: "bg-tertiary/12",
+    accentText: "text-tertiary",
   },
   orange: {
-    bar: "from-amber-500 to-orange-600",
-    softBg: "bg-orange-500/[0.1]",
-    accentText: "text-orange-800 dark:text-orange-300",
+    stripBg: "bg-secondary",
+    softBg: "bg-secondary/10",
+    accentText: "text-secondary",
   },
 }
 
@@ -98,7 +98,7 @@ function BillingToggle({
             className={cn(
               "whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide sm:px-2 sm:text-[10px]",
               value === "annual"
-                ? "bg-emerald-600/15 text-emerald-800 dark:text-emerald-300"
+                ? "bg-tertiary/15 text-tertiary dark:text-tertiary"
                 : "bg-background/80 text-muted-foreground ring-1 ring-border/40"
             )}
           >
@@ -298,6 +298,36 @@ function FeatureCell({
   return <Minus className="mx-auto h-4 w-4 text-muted-foreground/50" aria-label="Not included" />
 }
 
+function MobileFeatureValue({ row, planId }: { row: FeatureRow; planId: PlanId }) {
+  const detail = row.detail?.[planId]
+  const included = row[planId] === true
+
+  if (detail) {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+        <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        {detail}
+      </span>
+    )
+  }
+
+  if (included) {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+        <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        Included
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+      <Minus className="h-4 w-4 shrink-0 text-muted-foreground/70" aria-hidden />
+      Not included
+    </span>
+  )
+}
+
 export function PricingPageClient() {
   const [billing, setBilling] = useState<PricingBillingCycle>("monthly")
 
@@ -348,18 +378,17 @@ export function PricingPageClient() {
                       "hover:-translate-y-0.5 hover:shadow-md",
                       isPopular
                         ? cn(
-                            "z-10 rounded-3xl border-2 border-emerald-600/35 shadow-2xl shadow-emerald-950/15",
-                            "ring-2 ring-emerald-500/25 dark:border-emerald-500/40 dark:ring-emerald-400/20",
-                            "md:scale-[1.03] xl:scale-[1.06] xl:shadow-[0_28px_60px_-20px_rgba(5,80,60,0.35)]"
+                            "z-10 rounded-3xl border-2 border-tertiary/35 shadow-2xl shadow-tertiary/20",
+                            "ring-2 ring-tertiary/25 dark:border-tertiary/45 dark:ring-tertiary/20",
+                            "md:scale-[1.03] xl:scale-[1.06]"
                           )
                         : "border-border/70"
                     )}
                   >
                     <div
                       className={cn(
-                        "bg-linear-to-r",
-                        theme.bar,
-                        isPopular ? "h-2.5 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]" : "h-1.5"
+                        theme.stripBg,
+                        isPopular ? "h-2.5 shadow-[inset_0_-1px_0_var(--color-tertiary)]" : "h-1.5"
                       )}
                     />
                     {plan.badge && (
@@ -367,13 +396,13 @@ export function PricingPageClient() {
                         <Badge
                           variant="outline"
                           className={cn(
-                            "gap-1.5 rounded-full border-amber-400/90 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm",
-                            "dark:border-amber-400/70 dark:bg-amber-950 dark:text-amber-50",
+                            "gap-1.5 rounded-full border-secondary/80 bg-secondary/12 px-3 py-1 text-xs font-semibold text-secondary shadow-sm",
+                            "dark:border-secondary/70 dark:bg-secondary/20 dark:text-secondary",
                             isPopular && "tracking-wide"
                           )}
                         >
                           <Star
-                            className="h-3.5 w-3.5 shrink-0 fill-amber-500 text-amber-600 dark:fill-amber-400 dark:text-amber-300"
+                            className="h-3.5 w-3.5 shrink-0 fill-secondary text-secondary"
                             aria-hidden
                           />
                           {plan.badge}
@@ -407,7 +436,7 @@ export function PricingPageClient() {
                     <CardContent className="flex flex-1 flex-col space-y-6 px-6 pb-6">
                       <div
                         className={cn(
-                          "rounded-2xl border border-black/4 dark:border-white/6 px-4 py-4",
+                          "rounded-2xl border border-primary/12 dark:border-primary/20 px-4 py-4",
                           theme.softBg
                         )}
                       >
@@ -484,17 +513,68 @@ export function PricingPageClient() {
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-sm">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
+          <div className="space-y-6 md:hidden">
+            {PRICING_PLANS.map((plan) => (
+              <Card key={`mobile-compare-${plan.id}`} className="overflow-hidden rounded-xl border border-border/80">
+                <CardHeader className="space-y-1 border-b border-border/70 bg-muted/30 px-4 py-4">
+                  <CardTitle className="text-lg font-semibold text-foreground">{plan.name}</CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">{plan.tagline}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5 px-4 py-4">
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {billing === "monthly" ? "Price (monthly)" : "Price (annual)"}
+                    </p>
+                    <div className="mt-2 text-sm">
+                      <ComparePriceCell plan={plan} billing={billing} />
+                    </div>
+                  </div>
+
+                  {FEATURE_CATEGORIES.map((category) => (
+                    <div key={`mobile-${plan.id}-${category.title}`} className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        {category.title}
+                      </h3>
+                      <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
+                        {category.rows.map((row, index) => (
+                          <div
+                            key={`${plan.id}-${row.label}`}
+                            className={cn(
+                              "flex items-start justify-between gap-3 px-3 py-2.5",
+                              index > 0 && "border-t border-border/60",
+                              row.exclusive && "bg-primary/5"
+                            )}
+                          >
+                            <span className="flex max-w-[58%] items-start gap-1.5 text-sm text-foreground">
+                              {row.exclusive && (
+                                <BadgeCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                              )}
+                              <span className={cn(row.exclusive && "font-medium")}>{row.label}</span>
+                            </span>
+                            <span className="shrink-0 text-right text-sm">
+                              <MobileFeatureValue row={row} planId={plan.id} />
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-xl border border-border/80 bg-card shadow-sm md:block">
+            <table className="w-full min-w-[720px] border-collapse text-sm md:text-[0.9375rem]">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="sticky left-0 z-2 bg-muted/95 px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                  <th className="sticky left-0 z-2 bg-muted/95 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
                     Feature
                   </th>
                   {PRICING_PLANS.map((p) => (
                     <th
                       key={p.id}
-                      className="px-3 py-4 text-center text-xs font-semibold uppercase tracking-wider text-foreground"
+                      className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-foreground"
                     >
                       {p.name}
                     </th>
@@ -505,12 +585,12 @@ export function PricingPageClient() {
                 <tr className="border-b border-border/80 bg-muted/30">
                   <th
                     scope="row"
-                    className="sticky left-0 z-2 bg-muted/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm"
+                    className="sticky left-0 z-2 bg-muted/90 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm"
                   >
                     {billing === "monthly" ? "Price (monthly)" : "Price (annual)"}
                   </th>
                   {PRICING_PLANS.map((p) => (
-                    <td key={p.id} className="px-3 py-3 align-top">
+                    <td key={p.id} className="px-4 py-4 align-top">
                       <ComparePriceCell plan={p} billing={billing} />
                     </td>
                   ))}
@@ -519,8 +599,8 @@ export function PricingPageClient() {
                   <Fragment key={cat.title}>
                     <tr className="bg-primary/5">
                       <td
-                        colSpan={5}
-                        className="sticky left-0 z-1 px-4 py-3 text-xs font-bold uppercase tracking-wider text-primary"
+                        colSpan={PLAN_IDS.length + 1}
+                        className="sticky left-0 z-1 bg-primary/5 px-5 py-3 text-xs font-bold uppercase tracking-wider text-primary"
                       >
                         {cat.title}
                       </td>
@@ -529,11 +609,11 @@ export function PricingPageClient() {
                       <tr
                         key={row.label}
                         className={cn(
-                          "border-b border-border/60",
+                          "border-b border-border/60 odd:bg-muted/16",
                           row.exclusive && "bg-primary/5"
                         )}
                       >
-                        <td className="sticky left-0 z-1 max-w-56 bg-card/95 px-4 py-3 text-left text-foreground backdrop-blur-sm">
+                        <td className="sticky left-0 z-1 max-w-56 bg-card/95 px-5 py-3.5 text-left text-foreground backdrop-blur-sm">
                           <span className="flex items-start gap-1.5">
                             {row.exclusive && (
                               <BadgeCheck
@@ -547,7 +627,7 @@ export function PricingPageClient() {
                           </span>
                         </td>
                         {PLAN_IDS.map((pid) => (
-                          <td key={pid} className="px-2 py-3 text-center">
+                          <td key={pid} className="px-3 py-3.5 text-center">
                             <FeatureCell row={row} planId={pid} />
                           </td>
                         ))}
