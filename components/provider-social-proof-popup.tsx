@@ -80,10 +80,10 @@ export function ProviderSocialProofPopup({ providerSlug }: Props) {
     <a
       href={profileUrl}
       className={cn(
-        "fixed bottom-4 left-4 z-50 w-[min(340px,calc(100vw-2rem))] rounded-xl border border-border bg-card/95 p-3 text-card-foreground shadow-2xl backdrop-blur transition duration-300",
+        "fixed bottom-4 left-4 z-50 w-[min(340px,calc(100vw-2rem))] rounded-xl border border-[#D8E1F3] bg-card/95 p-3 text-card-foreground shadow-2xl backdrop-blur transition duration-300",
         isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none",
       )}
-      aria-label="View provider on Twooki"
+      aria-label="View provider on Twooky"
     >
       <div className="flex items-start gap-3">
         <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-muted">
@@ -98,7 +98,7 @@ export function ProviderSocialProofPopup({ providerSlug }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           {activeItem.rating != null && (
-            <div className="mb-1 flex items-center gap-0.5 text-amber-500">
+            <div className="mb-1 flex items-center gap-0.5 text-[#F9BB11]">
               {Array.from({ length: 5 }).map((_, index) => (
                 <Star key={index} className={cn("h-3.5 w-3.5", index < activeItem.rating! ? "fill-current" : "")} />
               ))}
@@ -109,7 +109,9 @@ export function ProviderSocialProofPopup({ providerSlug }: Props) {
             <p className="mt-1 text-xs text-muted-foreground">- {activeItem.authorName}</p>
           )}
           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span className="rounded-full border border-border px-2 py-0.5">Verified by Twooki</span>
+            <span className="rounded-full border border-[#E7D59A] bg-[#F9BB11] px-2 py-0.5 font-semibold text-[#203E68]">
+              Verified by Twooky
+            </span>
             <span>{activeItem.type === "video" ? "Video testimonial" : "Parent feedback"}</span>
           </div>
         </div>
