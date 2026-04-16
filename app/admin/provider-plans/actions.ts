@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { assertAdminPermission } from "@/lib/authzServer"
 import { PLAN_IDS, type PlanId } from "@/lib/pricing-data"
+import { shouldAutoGrantVerifiedBadgeOnApproval } from "@/lib/provider-plan-access"
 import {
   formatProviderBillingInterval,
   formatProviderBillingStatus,
@@ -10,6 +11,7 @@ import {
   type ProviderBillingInterval,
   type ProviderBillingStatus,
 } from "@/lib/provider-billing"
+import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
 const PROVIDER_PLANS_PATH = "/admin/provider-plans"
@@ -204,14 +206,28 @@ export async function updateProviderPlan(profileId: string, planId: PlanId) {
   }
 
   const supabase = getSupabaseAdminClient()
-  const { error } = await supabase
+  const shouldGrantVerifiedBadge = shouldAutoGrantVerifiedBadgeOnApproval(planId)
+  const { data, error } = await supabase
     .from("provider_profiles")
-    .update({ plan_id: planId })
+    .update({
+      plan_id: planId,
+      ...(shouldGrantVerifiedBadge ? { verified_provider_badge: true } : {}),
+    })
     .eq("profile_id", normalizedProfileId)
+    .select("provider_slug")
+    .maybeSingle()
 
   if (error) {
     throw new Error(error.message)
   }
 
   revalidatePath(PROVIDER_PLANS_PATH)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/dashboard/provider/listing")
+  revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
+  if (data?.provider_slug) {
+    revalidatePath(`/providers/${data.provider_slug}`)
+  }
 }

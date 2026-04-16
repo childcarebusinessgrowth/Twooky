@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { __test, filterProvidersByVisitorGeo, selectFeaturedProviders } from "./featured-providers-selection"
+import { resolveProviderFeaturedStatus } from "./provider-plan-access"
 import type { ActiveProviderRow } from "./search-providers-db"
 
 function row(p: Partial<ActiveProviderRow> & { profile_id: string }): ActiveProviderRow {
@@ -179,6 +180,27 @@ describe("selectFeaturedProviders", () => {
       random: () => 0.5,
     })
     expect(picked.every((p) => p.featured)).toBe(true)
+  })
+
+  it("treats KinderPath Pro rows as featured even when the raw flag is false", () => {
+    const pro = row({
+      profile_id: "pro",
+      plan_id: "kinderpathPro",
+      featured: resolveProviderFeaturedStatus("kinderpathPro", false),
+    })
+    const standard = row({
+      profile_id: "sprout",
+      plan_id: "sprout",
+      featured: resolveProviderFeaturedStatus("sprout", false),
+    })
+
+    const picked = selectFeaturedProviders([standard, pro], {
+      visitorGeo: null,
+      limit: 5,
+      random: () => 0,
+    })
+
+    expect(picked.map((provider) => provider.profile_id)).toEqual(["pro"])
   })
 
   it("scopes by age tags when provided, then falls back to all featured for random", () => {

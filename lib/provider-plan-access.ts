@@ -54,6 +54,13 @@ export function normalizeProviderPlanId(value: string | null | undefined): PlanI
   return value != null && PLAN_IDS.includes(value as PlanId) ? (value as PlanId) : "sprout"
 }
 
+export function resolveProviderFeaturedStatus(
+  planIdInput: string | null | undefined,
+  featuredFlag: boolean | null | undefined
+): boolean {
+  return normalizeProviderPlanId(planIdInput) === "kinderpathPro" || featuredFlag === true
+}
+
 export function getProviderPlanAccess(planIdInput: string | null | undefined): ProviderPlanAccess {
   const planId = normalizeProviderPlanId(planIdInput)
   const isSprout = planId === "sprout"
@@ -116,7 +123,7 @@ export function getProviderPlanAccess(planIdInput: string | null | undefined): P
 }
 
 export function shouldAutoGrantVerifiedBadgeOnApproval(planIdInput: string | null | undefined): boolean {
-  return normalizeProviderPlanId(planIdInput) === "thrive"
+  return getProviderPlanAccess(planIdInput).isThriveTier
 }
 
 export function getDirectoryPlanPriority(planIdInput: string | null | undefined): number {

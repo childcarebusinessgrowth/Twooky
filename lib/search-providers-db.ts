@@ -18,7 +18,10 @@ import { buildProviderCardImageUrl } from "./provider-card-image"
 import {
   formatAgeGroupLabel,
 } from "@/lib/age-groups-to-program-labels"
-import { normalizeProviderPlanId } from "@/lib/provider-plan-access"
+import {
+  normalizeProviderPlanId,
+  resolveProviderFeaturedStatus,
+} from "@/lib/provider-plan-access"
 import {
   hasFreshCachedGoogleReviews,
   readCachedGooglePlaceSummary,
@@ -42,10 +45,10 @@ const PROVIDER_PROFILE_SELECT_MINIMAL_LEGACY =
   "profile_id, plan_id, provider_slug, business_name, city, address, google_place_id, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
 
 const HOME_FEATURED_SELECT_WITH_GOOGLE_CACHE =
-  "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at"
+  "profile_id, plan_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at"
 
 const HOME_FEATURED_SELECT_LEGACY =
-  "profile_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id"
+  "profile_id, plan_id, provider_slug, business_name, city, address, description, provider_types, age_groups_served, daily_fee_from, daily_fee_to, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, google_place_id"
 
 function isMissingColumnError(message: string | undefined): boolean {
   const m = (message ?? "").toLowerCase()
@@ -307,7 +310,10 @@ export async function getActiveProvidersFromDb(
         primaryPhotoByProfile[p.profile_id] ?? anyPhotoByProfile[p.profile_id] ?? null,
       review_count: count,
       avg_rating: avgRating,
-      featured: (p as { featured?: boolean }).featured ?? false,
+      featured: resolveProviderFeaturedStatus(
+        (p as { plan_id?: string | null }).plan_id,
+        (p as { featured?: boolean | null }).featured
+      ),
       early_learning_excellence_badge:
         (p as { early_learning_excellence_badge?: boolean })
           .early_learning_excellence_badge ?? false,
@@ -337,12 +343,13 @@ export async function getActiveProvidersFromDbCached(): Promise<ActiveProviderRo
 
 const readActiveProvidersFromDbCached = unstable_cache(
   async () => getActiveProvidersFromDb(getSupabaseAdminClient()),
-  ["directory-active-providers-v8-plan-ranking"],
+  ["directory-active-providers-v9-kinderpath-pro-featured"],
   { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
 )
 
 type HomeFeaturedProfileRow = {
   profile_id: string
+  plan_id: ReturnType<typeof normalizeProviderPlanId>
   provider_slug: string | null
   business_name: string | null
   city: string | null
@@ -353,6 +360,7 @@ type HomeFeaturedProfileRow = {
   daily_fee_from: number | null
   daily_fee_to: number | null
   currencies?: { symbol?: string } | null
+  featured: boolean | null
   early_learning_excellence_badge: boolean | null
   verified_provider_badge: boolean | null
   verified_provider_badge_color: string | null
@@ -379,7 +387,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         .from("provider_profiles")
         .select(HOME_FEATURED_SELECT_WITH_GOOGLE_CACHE)
         .eq("listing_status", "active")
-        .eq("featured", true)
+        .or("featured.eq.true,plan_id.eq.kinderpathPro")
         .not("provider_slug", "is", null)
         .order("business_name", { ascending: true })
         .order("profile_id", { ascending: true })
@@ -392,7 +400,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           .from("provider_profiles")
           .select(HOME_FEATURED_SELECT_LEGACY)
           .eq("listing_status", "active")
-          .eq("featured", true)
+          .or("featured.eq.true,plan_id.eq.kinderpathPro")
           .not("provider_slug", "is", null)
           .order("business_name", { ascending: true })
           .order("profile_id", { ascending: true })
@@ -514,7 +522,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           latitude: typeof lat === "number" && Number.isFinite(lat) ? lat : Number.NaN,
           longitude: typeof lng === "number" && Number.isFinite(lng) ? lng : Number.NaN,
           address: row.address ?? "",
-          featured: true,
+          featured: resolveProviderFeaturedStatus(row.plan_id, row.featured),
           earlyLearningExcellenceBadge: row.early_learning_excellence_badge ?? false,
           verifiedProviderBadge: row.verified_provider_badge ?? false,
           verifiedProviderBadgeColor: row.verified_provider_badge_color ?? "emerald",
@@ -522,7 +530,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         }
       })
     },
-    ["home-featured-providers-v8-program-types", String(limit)],
+    ["home-featured-providers-v9-kinderpath-pro-featured", String(limit)],
     { revalidate: 600, tags: [CACHE_TAGS.activeProviders] },
   )()
 }
