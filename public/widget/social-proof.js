@@ -1,6 +1,6 @@
 (function () {
-  var SHOW_MS = 9000
-  var HIDE_MS = 6600
+  var VISIBLE_MS = 5000
+  var GAP_MS = 600
 
   function resolveScriptElement() {
     if (document.currentScript) return document.currentScript
@@ -245,8 +245,8 @@
             hideTimer = setTimeout(function () {
               index = (index + 1) % items.length
               cycle()
-            }, HIDE_MS)
-          }, SHOW_MS)
+            }, GAP_MS)
+          }, VISIBLE_MS)
         }
 
         function dismissForSession(event) {

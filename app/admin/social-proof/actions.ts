@@ -25,6 +25,13 @@ export type SocialProofInput = {
   isActive: boolean
 }
 
+export type SocialProofEntryInput = Omit<SocialProofInput, "providerProfileId">
+
+export type SocialProofSetInput = {
+  providerProfileId: string
+  entries: SocialProofEntryInput[]
+}
+
 export type ProviderSearchRow = {
   profile_id: string
   provider_slug: string | null
@@ -145,6 +152,35 @@ function validateInput(input: SocialProofInput) {
   }
 }
 
+function validateSetInput(input: SocialProofSetInput) {
+  const providerProfileId = input.providerProfileId.trim()
+  if (!providerProfileId) {
+    throw new Error("Provider is required.")
+  }
+  if (!Array.isArray(input.entries)) {
+    throw new Error("Entries are required.")
+  }
+  if (input.entries.length < 1) {
+    throw new Error("At least one social proof entry is required.")
+  }
+  if (input.entries.length > 3) {
+    throw new Error("You can add up to 3 social proof entries.")
+  }
+
+  input.entries.forEach((entry) => {
+    validateInput({
+      providerProfileId,
+      type: entry.type,
+      content: entry.content,
+      rating: entry.rating,
+      imageUrl: entry.imageUrl,
+      videoUrl: entry.videoUrl,
+      authorName: entry.authorName,
+      isActive: entry.isActive,
+    })
+  })
+}
+
 export async function searchProviders(query: string): Promise<ProviderSearchRow[]> {
   await assertAdminPermission("social-proof.manage")
   const q = query.trim()
@@ -181,6 +217,39 @@ export async function createSocialProof(input: SocialProofInput) {
     is_active: input.isActive,
   } as never)
   if (error) throw new Error(error.message)
+  revalidatePath(ADMIN_PATH)
+}
+
+export async function replaceSocialProofSet(input: SocialProofSetInput) {
+  await assertAdminPermission("social-proof.manage")
+  validateSetInput(input)
+
+  const providerProfileId = input.providerProfileId.trim()
+  const supabase = getSupabaseAdminClient()
+
+  const { error: deactivateError } = await supabase
+    .from("social_proofs" as never)
+    .update({ is_active: false } as never)
+    .eq("provider_profile_id", providerProfileId)
+
+  if (deactivateError) {
+    throw new Error(deactivateError.message)
+  }
+
+  const rows = input.entries.map((entry) => ({
+    provider_profile_id: providerProfileId,
+    type: entry.type,
+    content: entry.content.trim(),
+    rating: entry.rating,
+    image_url: cleanUrl(entry.imageUrl),
+    video_url: cleanUrl(entry.videoUrl),
+    author_name: entry.authorName?.trim() || null,
+    is_active: entry.isActive,
+  }))
+
+  const { error: insertError } = await supabase.from("social_proofs" as never).insert(rows as never)
+  if (insertError) throw new Error(insertError.message)
+
   revalidatePath(ADMIN_PATH)
 }
 

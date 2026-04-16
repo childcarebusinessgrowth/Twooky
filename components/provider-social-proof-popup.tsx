@@ -55,18 +55,26 @@ export function ProviderSocialProofPopup({ providerSlug }: Props) {
   useEffect(() => {
     if (items.length === 0) return
 
-    const showTimer = window.setTimeout(() => setIsVisible(true), 0)
-    const hideTimer = window.setTimeout(() => setIsVisible(false), 5200)
-    const rotateTimer = window.setInterval(() => {
-      setCurrentIndex((current) => (current + 1) % items.length)
+    const VISIBLE_MS = 5000
+    const GAP_MS = 600
+
+    let hideTimer: number | null = null
+    let nextTimer: number | null = null
+
+    const cycle = () => {
       setIsVisible(true)
-      window.setTimeout(() => setIsVisible(false), 5200)
-    }, 7600)
+      hideTimer = window.setTimeout(() => setIsVisible(false), VISIBLE_MS)
+      nextTimer = window.setTimeout(() => {
+        setCurrentIndex((current) => (current + 1) % items.length)
+        cycle()
+      }, VISIBLE_MS + GAP_MS)
+    }
+
+    cycle()
 
     return () => {
-      window.clearTimeout(showTimer)
-      window.clearTimeout(hideTimer)
-      window.clearInterval(rotateTimer)
+      if (hideTimer != null) window.clearTimeout(hideTimer)
+      if (nextTimer != null) window.clearTimeout(nextTimer)
     }
   }, [items])
 

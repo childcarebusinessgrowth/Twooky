@@ -12,7 +12,6 @@ import {
   Plus,
   X,
   Star,
-  Trash2,
   Video,
   Image as ImageIcon,
   Type,
@@ -42,18 +41,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import {
-  createSocialProof,
-  deleteSocialProof,
+  replaceSocialProofSet,
   searchProviders,
   uploadSocialProofImage,
   uploadSocialProofVideo,
-  updateSocialProof,
   type ProviderSearchRow,
-  type SocialProofInput,
+  type SocialProofEntryInput,
   type SocialProofType,
 } from "./actions"
 import type { SocialProofRow } from "./page"
@@ -70,8 +66,7 @@ type Props = {
   providerMap: Record<string, ProviderMeta>
 }
 
-type FormState = {
-  providerProfileId: string
+type EntryFormState = {
   type: SocialProofType
   content: string
   rating: string
@@ -79,17 +74,36 @@ type FormState = {
   videoUrl: string
   authorName: string
   isActive: boolean
+  pendingImageFile: File | null
+  pendingVideoFile: File | null
+  imagePreviewUrl: string | null
+  videoPreviewUrl: string | null
+}
+
+type FormState = {
+  providerProfileId: string
+  entries: EntryFormState[]
+}
+
+function makeEmptyEntry(): EntryFormState {
+  return {
+    type: "text",
+    content: "",
+    rating: "",
+    imageUrl: "",
+    videoUrl: "",
+    authorName: "",
+    isActive: true,
+    pendingImageFile: null,
+    pendingVideoFile: null,
+    imagePreviewUrl: null,
+    videoPreviewUrl: null,
+  }
 }
 
 const EMPTY_FORM: FormState = {
   providerProfileId: "",
-  type: "text",
-  content: "",
-  rating: "",
-  imageUrl: "",
-  videoUrl: "",
-  authorName: "",
-  isActive: true,
+  entries: [makeEmptyEntry()],
 }
 
 const typeLabel: Record<SocialProofType, string> = {
@@ -101,27 +115,34 @@ const typeLabel: Record<SocialProofType, string> = {
 function rowToForm(row: SocialProofRow): FormState {
   return {
     providerProfileId: row.provider_profile_id,
-    type: row.type,
-    content: row.content,
-    rating: row.rating?.toString() ?? "",
-    imageUrl: row.image_url ?? "",
-    videoUrl: row.video_url ?? "",
-    authorName: row.author_name ?? "",
-    isActive: row.is_active,
+    entries: [
+      {
+        type: row.type,
+        content: row.content,
+        rating: row.rating?.toString() ?? "",
+        imageUrl: row.image_url ?? "",
+        videoUrl: row.video_url ?? "",
+        authorName: row.author_name ?? "",
+        isActive: row.is_active,
+        pendingImageFile: null,
+        pendingVideoFile: null,
+        imagePreviewUrl: null,
+        videoPreviewUrl: null,
+      },
+    ],
   }
 }
 
-function formToInput(form: FormState): SocialProofInput {
-  const parsedRating = Number.parseInt(form.rating, 10)
+function entryToInput(entry: EntryFormState): SocialProofEntryInput {
+  const parsedRating = Number.parseInt(entry.rating, 10)
   return {
-    providerProfileId: form.providerProfileId,
-    type: form.type,
-    content: form.content,
+    type: entry.type,
+    content: entry.content,
     rating: Number.isNaN(parsedRating) ? null : parsedRating,
-    imageUrl: form.imageUrl.trim() || null,
-    videoUrl: form.videoUrl.trim() || null,
-    authorName: form.authorName.trim() || null,
-    isActive: form.isActive,
+    imageUrl: entry.imageUrl.trim() || null,
+    videoUrl: entry.videoUrl.trim() || null,
+    authorName: entry.authorName.trim() || null,
+    isActive: entry.isActive,
   }
 }
 
@@ -137,17 +158,11 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
   const [isPending, startTransition] = useTransition()
 
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [providerOpen, setProviderOpen] = useState(false)
   const [providerQuery, setProviderQuery] = useState("")
   const [providerResults, setProviderResults] = useState<ProviderSearchRow[]>([])
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<SocialProofRow | null>(null)
-  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
-  const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null)
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
-  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const q = providerQuery.trim()
@@ -160,35 +175,45 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
   }, [providerQuery])
 
   const openCreate = () => {
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
-    setEditingId(null)
+    form.entries.forEach((entry) => {
+      if (entry.imagePreviewUrl) URL.revokeObjectURL(entry.imagePreviewUrl)
+      if (entry.videoPreviewUrl) URL.revokeObjectURL(entry.videoPreviewUrl)
+    })
+    setEditingProviderId(null)
     setForm(EMPTY_FORM)
-    setPendingImageFile(null)
-    setPendingVideoFile(null)
-    setImagePreviewUrl(null)
-    setVideoPreviewUrl(null)
     setDialogOpen(true)
   }
 
   const openEdit = (row: SocialProofRow) => {
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
-    setEditingId(row.id)
-    setForm(rowToForm(row))
-    setPendingImageFile(null)
-    setPendingVideoFile(null)
-    setImagePreviewUrl(null)
-    setVideoPreviewUrl(null)
+    form.entries.forEach((entry) => {
+      if (entry.imagePreviewUrl) URL.revokeObjectURL(entry.imagePreviewUrl)
+      if (entry.videoPreviewUrl) URL.revokeObjectURL(entry.videoPreviewUrl)
+    })
+
+    const providerProfileId = row.provider_profile_id
+    const activeRows = initialRows
+      .filter((candidate) => candidate.provider_profile_id === providerProfileId && candidate.is_active)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+      .slice(0, 3)
+
+    const seedRows = activeRows.length > 0 ? activeRows : [row]
+    setEditingProviderId(providerProfileId)
+    setForm({
+      providerProfileId,
+      entries: seedRows.map((seed) => rowToForm(seed).entries[0]),
+    })
     setDialogOpen(true)
   }
 
   useEffect(() => {
     return () => {
-      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
+      form.entries.forEach((entry) => {
+        if (entry.imagePreviewUrl) URL.revokeObjectURL(entry.imagePreviewUrl)
+        if (entry.videoPreviewUrl) URL.revokeObjectURL(entry.videoPreviewUrl)
+      })
     }
-  }, [imagePreviewUrl, videoPreviewUrl])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const selectedProvider = useMemo(() => {
     if (!form.providerProfileId) return null
@@ -199,49 +224,81 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
     )
   }, [form.providerProfileId, providerMap, providerResults])
 
+  const widgetCards = useMemo(() => {
+    const activeRows = initialRows.filter((row) => row.is_active)
+    const byProvider = new Map<string, SocialProofRow[]>()
+
+    activeRows.forEach((row) => {
+      const current = byProvider.get(row.provider_profile_id) ?? []
+      current.push(row)
+      byProvider.set(row.provider_profile_id, current)
+    })
+
+    return Array.from(byProvider.entries()).map(([providerProfileId, rows]) => {
+      const sortedRows = [...rows].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 3)
+      return { providerProfileId, rows: sortedRows }
+    })
+  }, [initialRows])
+
   const save = () => {
     startTransition(async () => {
       try {
-        let imageUrl = form.imageUrl.trim() || null
-        let videoUrl = form.videoUrl.trim() || null
-
-        if (form.type === "image" && pendingImageFile) {
-          const uploadedImage = await uploadSocialProofImage(pendingImageFile)
-          imageUrl = uploadedImage.publicUrl
-        }
-        if (form.type === "video" && pendingVideoFile) {
-          const uploadedVideo = await uploadSocialProofVideo(pendingVideoFile)
-          videoUrl = uploadedVideo.publicUrl
-        }
-        if (form.type === "image" && !imageUrl) {
+        if (!form.providerProfileId.trim()) {
           toast({
-            title: "Image required",
-            description: "Please upload an image for image testimonials.",
-            variant: "destructive",
-          })
-          return
-        }
-        if (form.type === "video" && !videoUrl) {
-          toast({
-            title: "Video required",
-            description: "Please upload a video for video testimonials.",
+            title: "Provider required",
+            description: "Please select a provider before saving.",
             variant: "destructive",
           })
           return
         }
 
-        const input = formToInput({
-          ...form,
-          imageUrl: form.type === "image" ? imageUrl ?? "" : "",
-          videoUrl: form.type === "video" ? videoUrl ?? "" : "",
+        const nextEntries: EntryFormState[] = []
+
+        for (const entry of form.entries) {
+          let imageUrl = entry.imageUrl.trim() || null
+          let videoUrl = entry.videoUrl.trim() || null
+
+          if (entry.type === "image" && entry.pendingImageFile) {
+            const uploadedImage = await uploadSocialProofImage(entry.pendingImageFile)
+            imageUrl = uploadedImage.publicUrl
+          }
+          if (entry.type === "video" && entry.pendingVideoFile) {
+            const uploadedVideo = await uploadSocialProofVideo(entry.pendingVideoFile)
+            videoUrl = uploadedVideo.publicUrl
+          }
+          if (entry.type === "image" && !imageUrl) {
+            toast({
+              title: "Image required",
+              description: "Please upload an image for image testimonials.",
+              variant: "destructive",
+            })
+            return
+          }
+          if (entry.type === "video" && !videoUrl) {
+            toast({
+              title: "Video required",
+              description: "Please upload a video for video testimonials.",
+              variant: "destructive",
+            })
+            return
+          }
+
+          nextEntries.push({
+            ...entry,
+            imageUrl: entry.type === "image" ? imageUrl ?? "" : "",
+            videoUrl: entry.type === "video" ? videoUrl ?? "" : "",
+            pendingImageFile: null,
+            pendingVideoFile: null,
+            imagePreviewUrl: entry.imagePreviewUrl,
+            videoPreviewUrl: entry.videoPreviewUrl,
+          })
+        }
+
+        await replaceSocialProofSet({
+          providerProfileId: form.providerProfileId,
+          entries: nextEntries.map(entryToInput),
         })
-        if (editingId) {
-          await updateSocialProof(editingId, input)
-          toast({ title: "Social proof updated" })
-        } else {
-          await createSocialProof(input)
-          toast({ title: "Social proof created" })
-        }
+        toast({ title: "Social proof set saved" })
         setDialogOpen(false)
         router.refresh()
       } catch (error) {
@@ -254,52 +311,27 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
     })
   }
 
-  const onPickImage = (file: File | null) => {
-    setPendingImageFile(file)
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-    setImagePreviewUrl(file ? URL.createObjectURL(file) : null)
+  const setEntry = (index: number, updater: (entry: EntryFormState) => EntryFormState) => {
+    setForm((current) => ({
+      ...current,
+      entries: current.entries.map((entry, idx) => (idx === index ? updater(entry) : entry)),
+    }))
   }
 
-  const onPickVideo = (file: File | null) => {
-    setPendingVideoFile(file)
-    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
-    setVideoPreviewUrl(file ? URL.createObjectURL(file) : null)
+  const addEntry = () => {
+    setForm((current) => {
+      if (current.entries.length >= 3) return current
+      return { ...current, entries: [...current.entries, makeEmptyEntry()] }
+    })
   }
 
-  const removeImageSelection = () => {
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-    setImagePreviewUrl(null)
-    setPendingImageFile(null)
-    setForm((current) => ({ ...current, imageUrl: "" }))
-    const input = document.getElementById("sp-image-file") as HTMLInputElement | null
-    if (input) input.value = ""
-  }
-
-  const removeVideoSelection = () => {
-    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
-    setVideoPreviewUrl(null)
-    setPendingVideoFile(null)
-    setForm((current) => ({ ...current, videoUrl: "" }))
-    const input = document.getElementById("sp-video-file") as HTMLInputElement | null
-    if (input) input.value = ""
-  }
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return
-    startTransition(async () => {
-      try {
-        await deleteSocialProof(deleteTarget.id)
-        toast({ title: "Social proof deleted" })
-        setDeleteOpen(false)
-        setDeleteTarget(null)
-        router.refresh()
-      } catch (error) {
-        toast({
-          title: "Could not delete social proof",
-          description: error instanceof Error ? error.message : "Something went wrong.",
-          variant: "destructive",
-        })
-      }
+  const removeEntry = (index: number) => {
+    setForm((current) => {
+      if (current.entries.length <= 1) return current
+      const entry = current.entries[index]
+      if (entry?.imagePreviewUrl) URL.revokeObjectURL(entry.imagePreviewUrl)
+      if (entry?.videoPreviewUrl) URL.revokeObjectURL(entry.videoPreviewUrl)
+      return { ...current, entries: current.entries.filter((_, idx) => idx !== index) }
     })
   }
 
@@ -350,41 +382,35 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
         </Button>
       </div>
 
-      {initialRows.length === 0 ? (
+      {widgetCards.length === 0 ? (
         <Card className="border-dashed border-2 bg-muted/20">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Megaphone className="h-7 w-7" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground">No social proof items yet</h2>
+            <h2 className="text-lg font-semibold text-foreground">No social proof widgets yet</h2>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Add text, image, or video testimonials and assign them to a provider.
+              Add 1–3 testimonials and assign them to a provider. They will rotate inside one widget.
             </p>
             <Button className="mt-6 gap-2" onClick={openCreate}>
               <Plus className="h-4 w-4" />
-              Add first item
+              Add first widget
             </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {initialRows.map((row) => {
-            const provider = providerMap[row.provider_profile_id]
+          {widgetCards.map((widget) => {
+            const provider = providerMap[widget.providerProfileId]
             const providerName = provider?.business_name || "Provider"
             const providerSlug = provider?.provider_slug ?? null
-            const TypeIcon = getTypeIcon(row.type)
 
             return (
-              <Card key={row.id} className={cn("shadow-sm", !row.is_active && "opacity-75")}>
+              <Card key={widget.providerProfileId} className="shadow-sm">
                 <CardHeader className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="outline" className="gap-1">
-                      <TypeIcon className="h-3.5 w-3.5" />
-                      {typeLabel[row.type]}
-                    </Badge>
-                    <Badge variant={row.is_active ? "default" : "secondary"}>
-                      {row.is_active ? "Active" : "Inactive"}
-                    </Badge>
+                    <Badge variant="outline">Widget with {widget.rows.length} proof{widget.rows.length > 1 ? "s" : ""}</Badge>
+                    <Badge variant="default">Active</Badge>
                   </div>
                   <div>
                     <CardTitle className="line-clamp-1 text-base">{providerName}</CardTitle>
@@ -394,50 +420,52 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="line-clamp-4 text-sm text-foreground">{row.content}</p>
-                  {row.rating != null && (
-                    <div className="flex items-center gap-1 text-amber-500">
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <Star
-                          key={index}
-                          className={cn("h-4 w-4", index < (row.rating ?? 0) ? "fill-current" : "text-muted-foreground")}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {row.image_url && (
-                    <p className="truncate text-xs text-muted-foreground">Image: {row.image_url}</p>
-                  )}
-                  {row.video_url && (
-                    <p className="truncate text-xs text-muted-foreground">Video: {row.video_url}</p>
-                  )}
-                  {row.author_name && (
-                    <p className="text-xs text-muted-foreground">Author: {row.author_name}</p>
-                  )}
+                  <div className="space-y-2">
+                    {widget.rows.map((row, idx) => {
+                      const TypeIcon = getTypeIcon(row.type)
+                      return (
+                        <div key={row.id} className="rounded-md border border-border/70 p-2">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <Badge variant="outline" className="gap-1">
+                              <TypeIcon className="h-3.5 w-3.5" />
+                              {typeLabel[row.type]}
+                            </Badge>
+                            <span className="text-[11px] text-muted-foreground">Rotates #{idx + 1}</span>
+                          </div>
+                          <p className="line-clamp-2 text-sm text-foreground">{row.content}</p>
+                          {row.rating != null && (
+                            <div className="mt-1 flex items-center gap-1 text-amber-500">
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <Star
+                                  key={index}
+                                  className={cn("h-3.5 w-3.5", index < (row.rating ?? 0) ? "fill-current" : "text-muted-foreground")}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                   <div className="flex items-center justify-between border-t border-border/70 pt-3">
                     <Button
                       variant="outline"
                       size="sm"
                       className="gap-1"
-                      onClick={() => copyEmbedSnippet(providerSlug, row.provider_profile_id)}
+                      onClick={() => copyEmbedSnippet(providerSlug, widget.providerProfileId)}
                     >
                       <Copy className="h-3.5 w-3.5" />
                       Embed
                     </Button>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setDeleteTarget(row)
-                          setDeleteOpen(true)
-                        }}
+                        className="h-8 w-8"
+                        onClick={() => openEdit(widget.rows[0])}
+                        title="Edit widget proofs"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -451,9 +479,9 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit social proof" : "Create social proof"}</DialogTitle>
+            <DialogTitle>{editingProviderId ? "Edit social proof set" : "Create social proof set"}</DialogTitle>
             <DialogDescription>
-              Manage testimonial content for provider websites. Providers cannot create or edit these items.
+              Add 1–3 testimonials for a provider. The widget will rotate them one at a time.
             </DialogDescription>
           </DialogHeader>
 
@@ -469,7 +497,7 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput value={providerQuery} onValueChange={setProviderQuery} placeholder="Search..." />
                     <CommandList>
@@ -505,123 +533,218 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
               </Popover>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select
-                  value={form.type}
-                  onValueChange={(value: SocialProofType) => setForm((current) => ({ ...current, type: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Text</SelectItem>
-                    <SelectItem value="image">Image</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-4">
+              {form.entries.map((entry, index) => (
+                <Card key={index} className="shadow-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">Entry {index + 1}</Badge>
+                        <Badge variant={entry.isActive ? "default" : "secondary"}>
+                          {entry.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={addEntry} disabled={form.entries.length >= 3}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeEntry(index)}
+                          disabled={form.entries.length <= 1}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Select
+                          value={entry.type}
+                          onValueChange={(value: SocialProofType) =>
+                            setEntry(index, (current) => ({
+                              ...current,
+                              type: value,
+                              pendingImageFile: value === "image" ? current.pendingImageFile : null,
+                              pendingVideoFile: value === "video" ? current.pendingVideoFile : null,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="image">Image</SelectItem>
+                            <SelectItem value="video">Video</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="sp-rating">Rating (optional)</Label>
-                <Input
-                  id="sp-rating"
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={form.rating}
-                  onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
-                  placeholder="1 - 5"
-                />
-              </div>
-            </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`sp-rating-${index}`}>Rating (optional)</Label>
+                        <Input
+                          id={`sp-rating-${index}`}
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={entry.rating}
+                          onChange={(event) => setEntry(index, (current) => ({ ...current, rating: event.target.value }))}
+                          placeholder="1 - 5"
+                        />
+                      </div>
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="sp-content">Content</Label>
-              <Textarea
-                id="sp-content"
-                rows={4}
-                value={form.content}
-                onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))}
-                placeholder="Amazing childcare service!"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sp-author">Author (optional)</Label>
-              <Input
-                id="sp-author"
-                value={form.authorName}
-                onChange={(event) => setForm((current) => ({ ...current, authorName: event.target.value }))}
-                placeholder="Emma"
-              />
-            </div>
-
-            {form.type === "image" && (
-              <div className="space-y-2">
-                <Label htmlFor="sp-image-file">Image upload</Label>
-                {(imagePreviewUrl || form.imageUrl) && (
-                  <div className="space-y-2">
-                    <div className="relative h-40 w-full overflow-hidden rounded-lg border bg-muted">
-                      <Image
-                        src={imagePreviewUrl || form.imageUrl}
-                        alt="Social proof image preview"
-                        fill
-                        className="object-cover"
-                        sizes="640px"
-                        unoptimized={Boolean(imagePreviewUrl)}
+                    <div className="space-y-2">
+                      <Label htmlFor={`sp-content-${index}`}>Content</Label>
+                      <Textarea
+                        id={`sp-content-${index}`}
+                        rows={4}
+                        value={entry.content}
+                        onChange={(event) => setEntry(index, (current) => ({ ...current, content: event.target.value }))}
+                        placeholder="Amazing childcare service!"
                       />
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={removeImageSelection}>
-                      <X className="h-4 w-4" />
-                      {pendingImageFile ? "Remove selected image" : "Remove current image"}
-                    </Button>
-                  </div>
-                )}
-                <Input
-                  id="sp-image-file"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={(event) => onPickImage(event.target.files?.[0] ?? null)}
-                />
-                <p className="text-xs text-muted-foreground">PNG, JPG, WEBP, or GIF up to 5MB.</p>
-              </div>
-            )}
 
-            {form.type === "video" && (
-              <div className="space-y-2">
-                <Label htmlFor="sp-video-file">Video upload</Label>
-                {(videoPreviewUrl || form.videoUrl) && (
-                  <div className="space-y-2">
-                    <video
-                      src={videoPreviewUrl || form.videoUrl || undefined}
-                      controls
-                      className="w-full rounded-lg border bg-black/90"
-                    />
-                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={removeVideoSelection}>
-                      <X className="h-4 w-4" />
-                      {pendingVideoFile ? "Remove selected video" : "Remove current video"}
-                    </Button>
-                  </div>
-                )}
-                <Input
-                  id="sp-video-file"
-                  type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
-                  onChange={(event) => onPickVideo(event.target.files?.[0] ?? null)}
-                />
-                <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV up to 25MB.</p>
-              </div>
-            )}
+                    <div className="space-y-2">
+                      <Label htmlFor={`sp-author-${index}`}>Author (optional)</Label>
+                      <Input
+                        id={`sp-author-${index}`}
+                        value={entry.authorName}
+                        onChange={(event) => setEntry(index, (current) => ({ ...current, authorName: event.target.value }))}
+                        placeholder="Emma"
+                      />
+                    </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-              <Label htmlFor="sp-active">Active</Label>
-              <Switch
-                id="sp-active"
-                checked={form.isActive}
-                onCheckedChange={(value) => setForm((current) => ({ ...current, isActive: value }))}
-              />
+                    {entry.type === "image" && (
+                      <div className="space-y-2">
+                        <Label htmlFor={`sp-image-file-${index}`}>Image upload</Label>
+                        {(entry.imagePreviewUrl || entry.imageUrl) && (
+                          <div className="space-y-2">
+                            <div className="relative h-40 w-full overflow-hidden rounded-lg border bg-muted">
+                              <Image
+                                src={entry.imagePreviewUrl || entry.imageUrl}
+                                alt="Social proof image preview"
+                                fill
+                                className="object-cover"
+                                sizes="640px"
+                                unoptimized={Boolean(entry.imagePreviewUrl)}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() =>
+                                setEntry(index, (current) => {
+                                  if (current.imagePreviewUrl) URL.revokeObjectURL(current.imagePreviewUrl)
+                                  const input = document.getElementById(`sp-image-file-${index}`) as HTMLInputElement | null
+                                  if (input) input.value = ""
+                                  return {
+                                    ...current,
+                                    imagePreviewUrl: null,
+                                    pendingImageFile: null,
+                                    imageUrl: "",
+                                  }
+                                })
+                              }
+                            >
+                              <X className="h-4 w-4" />
+                              {entry.pendingImageFile ? "Remove selected image" : "Remove current image"}
+                            </Button>
+                          </div>
+                        )}
+                        <Input
+                          id={`sp-image-file-${index}`}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null
+                            setEntry(index, (current) => {
+                              if (current.imagePreviewUrl) URL.revokeObjectURL(current.imagePreviewUrl)
+                              return {
+                                ...current,
+                                pendingImageFile: file,
+                                imagePreviewUrl: file ? URL.createObjectURL(file) : null,
+                              }
+                            })
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">PNG, JPG, WEBP, or GIF up to 5MB.</p>
+                      </div>
+                    )}
+
+                    {entry.type === "video" && (
+                      <div className="space-y-2">
+                        <Label htmlFor={`sp-video-file-${index}`}>Video upload</Label>
+                        {(entry.videoPreviewUrl || entry.videoUrl) && (
+                          <div className="space-y-2">
+                            <video
+                              src={entry.videoPreviewUrl || entry.videoUrl || undefined}
+                              controls
+                              className="w-full rounded-lg border bg-black/90"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() =>
+                                setEntry(index, (current) => {
+                                  if (current.videoPreviewUrl) URL.revokeObjectURL(current.videoPreviewUrl)
+                                  const input = document.getElementById(`sp-video-file-${index}`) as HTMLInputElement | null
+                                  if (input) input.value = ""
+                                  return {
+                                    ...current,
+                                    videoPreviewUrl: null,
+                                    pendingVideoFile: null,
+                                    videoUrl: "",
+                                  }
+                                })
+                              }
+                            >
+                              <X className="h-4 w-4" />
+                              {entry.pendingVideoFile ? "Remove selected video" : "Remove current video"}
+                            </Button>
+                          </div>
+                        )}
+                        <Input
+                          id={`sp-video-file-${index}`}
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null
+                            setEntry(index, (current) => {
+                              if (current.videoPreviewUrl) URL.revokeObjectURL(current.videoPreviewUrl)
+                              return {
+                                ...current,
+                                pendingVideoFile: file,
+                                videoPreviewUrl: file ? URL.createObjectURL(file) : null,
+                              }
+                            })
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV up to 25MB.</p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                      <Label htmlFor={`sp-active-${index}`}>Active</Label>
+                      <Switch
+                        id={`sp-active-${index}`}
+                        checked={entry.isActive}
+                        onCheckedChange={(value) => setEntry(index, (current) => ({ ...current, isActive: value }))}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
 
@@ -630,20 +753,12 @@ export function AdminSocialProofClient({ initialRows, providerMap }: Props) {
               Cancel
             </Button>
             <Button onClick={save} disabled={isPending}>
-              {editingId ? "Save changes" : "Create"}
+              Save set
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete this social proof?"
-        description="This will remove the selected social proof item."
-        itemName={deleteTarget?.content}
-        onConfirm={confirmDelete}
-      />
     </div>
   )
 }

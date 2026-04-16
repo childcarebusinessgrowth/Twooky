@@ -19,7 +19,7 @@ type SocialProofApiResponse = {
   items: SocialProofApiItem[]
 }
 
-const MAX_ITEMS = 10
+const MAX_ITEMS = 3
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,OPTIONS",
