@@ -117,12 +117,19 @@ export async function guardAdminRouteOrRedirect(loginPath = "/login") {
   if (!user) {
     redirect(loginPath)
   }
-  if (role !== "admin" || !teamRole) {
+  if (role !== "admin") {
     redirect("/admin")
+  }
+  if (!teamRole) {
+    redirect(loginPath)
   }
 
   const requestHeaders = await headers()
-  const pathname = requestHeaders.get("x-pathname") ?? "/admin"
+  const pathname =
+    requestHeaders.get("x-pathname") ??
+    requestHeaders.get("x-nextjs-pathname") ??
+    requestHeaders.get("next-url") ??
+    "/admin"
   if (!canAccessAdminPath(teamRole, pathname)) {
     redirect("/admin")
   }
