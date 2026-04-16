@@ -566,17 +566,17 @@ export function PricingPageClient() {
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-xl border border-border/80 bg-card shadow-sm md:block">
-            <table className="w-full min-w-[720px] border-collapse text-sm md:text-[0.9375rem]">
+          <div className="hidden overflow-x-auto rounded-xl border-2 border-border bg-card shadow-sm md:block">
+            <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm md:text-[0.9375rem]">
               <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="sticky left-0 z-2 border-r border-border/60 bg-muted/95 px-5 py-4 text-left text-xs font-bold uppercase tracking-[0.12em] text-foreground backdrop-blur-sm">
+                <tr className="border-b-2 border-border bg-muted/50">
+                  <th className="sticky left-0 z-2 border-r-2 border-border bg-muted/95 px-5 py-4 text-left text-xs font-bold uppercase tracking-[0.12em] text-foreground backdrop-blur-sm">
                     Feature
                   </th>
                   {PRICING_PLANS.map((p) => (
                     <th
                       key={p.id}
-                      className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-foreground"
+                      className="border-b-2 border-border px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-foreground"
                     >
                       {p.name}
                     </th>
@@ -584,25 +584,25 @@ export function PricingPageClient() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-border/80 bg-muted/30">
+                <tr className="bg-muted/30">
                   <th
                     scope="row"
-                    className="sticky left-0 z-2 bg-muted/90 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm"
+                    className="sticky left-0 z-2 border-r-2 border-b-2 border-border bg-muted/90 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm"
                   >
                     {billing === "monthly" ? "Price (monthly)" : "Price (annual)"}
                   </th>
                   {PRICING_PLANS.map((p) => (
-                    <td key={p.id} className="px-4 py-4 align-top">
+                    <td key={p.id} className="border-b-2 border-border px-4 py-4 align-top">
                       <ComparePriceCell plan={p} billing={billing} />
                     </td>
                   ))}
                 </tr>
                 {FEATURE_CATEGORIES.map((cat) => (
                   <Fragment key={cat.title}>
-                    <tr className="border-y border-[#0BA5AA]/45 bg-[#0BA5AA]/14">
+                    <tr className="border-y-2 border-[#0BA5AA]/60 bg-[#0BA5AA]/14">
                       <td
                         colSpan={PLAN_IDS.length + 1}
-                        className="sticky left-0 z-1 bg-[#0BA5AA]/14 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary"
+                        className="sticky left-0 z-1 border-b-2 border-border bg-[#0BA5AA]/14 px-5 py-4 text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary"
                       >
                         {cat.title}
                       </td>
@@ -611,11 +611,11 @@ export function PricingPageClient() {
                       <tr
                         key={row.label}
                         className={cn(
-                          "border-b border-border/50 odd:bg-muted/12 transition-colors hover:bg-muted/20",
+                          "border-b-2 border-border/85 odd:bg-muted/12 transition-colors hover:bg-muted/20",
                           row.exclusive && "bg-primary/5"
                         )}
                       >
-                        <td className="sticky left-0 z-1 max-w-56 bg-card/95 px-5 py-3 text-left text-foreground backdrop-blur-sm">
+                        <td className="sticky left-0 z-1 max-w-56 border-r-2 border-b-2 border-border/85 bg-card/95 px-5 py-3 text-left text-foreground backdrop-blur-sm">
                           <span className="flex items-start gap-1.5">
                             {row.exclusive && (
                               <BadgeCheck
@@ -629,7 +629,7 @@ export function PricingPageClient() {
                           </span>
                         </td>
                         {PLAN_IDS.map((pid) => (
-                          <td key={pid} className="px-3 py-3 text-center">
+                          <td key={pid} className="border-b-2 border-border/85 px-3 py-3 text-center">
                             <FeatureCell row={row} planId={pid} />
                           </td>
                         ))}
