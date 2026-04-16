@@ -11,7 +11,7 @@ export default async function AdminLayout({
   await guardRoleOrRedirect("admin")
   await guardAdminRouteOrRedirect()
   const access = await getCurrentAdminAccess()
-  const pendingClaimsCount = await getPendingClaimsCount()
+  const pendingClaimsCount = access.permissions.has("badges.verify") ? await getPendingClaimsCount() : 0
   return (
     <AuthProviderClient>
       <AdminLayoutClient
