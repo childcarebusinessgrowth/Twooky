@@ -95,7 +95,7 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
     featuredAggRes,
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "parent"),
-    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "provider"),
+    supabase.from("provider_profiles").select("profile_id", { count: "exact", head: true }),
     supabase.from("parent_reviews").select("id", { count: "exact", head: true }),
     supabase.from("inquiries").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase
@@ -305,7 +305,7 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             <div className="text-3xl font-bold text-foreground">{totalProviders.toLocaleString()}</div>
             <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
               <ArrowUpRight className="h-3.5 w-3.5 text-green-600" />
-              <span>Active providers on platform</span>
+              <span>Provider listings on platform</span>
             </div>
           </CardContent>
         </Card>
