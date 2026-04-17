@@ -53,6 +53,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -66,10 +74,13 @@ import {
   updateListingFeatured,
   updateListingEarlyLearningExcellenceBadge,
   updateListingVerifiedProviderBadge,
+  setListingDirectoryBadges,
   deleteListing,
   type ListingStatus,
 } from "./actions"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { DirectoryBadge } from "@/components/directory-badge"
+import type { DirectoryBadgeView } from "@/lib/directory-badges"
 
 const PAGE_SIZE = 10
 
@@ -84,6 +95,7 @@ type AdminListingsTableProps = {
   featuredFilter: string
   ratingFilter: string
   reviewsFilter: string
+  availableBadges: DirectoryBadgeView[]
 }
 
 export function AdminListingsTable({
@@ -97,6 +109,7 @@ export function AdminListingsTable({
   featuredFilter,
   ratingFilter,
   reviewsFilter,
+  availableBadges,
 }: AdminListingsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -106,6 +119,8 @@ export function AdminListingsTable({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [localSearch, setLocalSearch] = useState(searchQuery)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [badgeDialogTarget, setBadgeDialogTarget] = useState<AdminListingRow | null>(null)
+  const [selectedBadgeIds, setSelectedBadgeIds] = useState<string[]>([])
 
   useEffect(() => {
     setLocalSearch(searchQuery)
@@ -256,6 +271,26 @@ export function AdminListingsTable({
     setDeleteTarget({
       profileId,
       name: listing?.business_name ?? listing?.provider_slug ?? profileId,
+    })
+  }
+
+  const openBadgeDialog = (listing: AdminListingRow) => {
+    setBadgeDialogTarget(listing)
+    setSelectedBadgeIds(listing.directory_badges.map((badge) => badge.id))
+  }
+
+  const toggleBadgeSelection = (badgeId: string) => {
+    setSelectedBadgeIds((prev) =>
+      prev.includes(badgeId) ? prev.filter((id) => id !== badgeId) : [...prev, badgeId]
+    )
+  }
+
+  const saveListingBadges = () => {
+    if (!badgeDialogTarget) return
+    startTransition(async () => {
+      await setListingDirectoryBadges(badgeDialogTarget.profile_id, selectedBadgeIds)
+      setBadgeDialogTarget(null)
+      router.refresh()
     })
   }
 
@@ -553,6 +588,9 @@ export function AdminListingsTable({
                             color={listing.verified_provider_badge_color}
                           />
                         )}
+                        {listing.directory_badges.map((badge) => (
+                          <DirectoryBadge key={badge.id} badge={badge} size="sm" />
+                        ))}
                       </div>
                       <div className="text-sm text-muted-foreground md:hidden flex items-center gap-1 mt-1">
                         <MapPin className="h-3 w-3" />
@@ -646,6 +684,14 @@ export function AdminListingsTable({
                             {listing.verified_provider_badge
                               ? "Remove Verified Provider"
                               : "Assign Verified Provider"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => openBadgeDialog(listing)}
+                            disabled={isPending}
+                          >
+                            <Award className="h-4 w-4 mr-2" />
+                            Manage dynamic badges
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -764,6 +810,44 @@ export function AdminListingsTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!badgeDialogTarget} onOpenChange={(open) => !open && setBadgeDialogTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign badges</DialogTitle>
+            <DialogDescription>
+              Choose which dynamic badges are shown on this provider.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+            {availableBadges.map((badge) => (
+              <label
+                key={badge.id}
+                className="flex items-center gap-3 rounded-md border border-border/60 p-2"
+              >
+                <Checkbox
+                  checked={selectedBadgeIds.includes(badge.id)}
+                  onCheckedChange={() => toggleBadgeSelection(badge.id)}
+                />
+                <DirectoryBadge badge={badge} size="sm" />
+              </label>
+            ))}
+            {availableBadges.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No active badges available yet. Create them in Directory → Badges.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBadgeDialogTarget(null)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button onClick={saveListingBadges} disabled={isPending}>
+              Save badges
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

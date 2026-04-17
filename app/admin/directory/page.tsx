@@ -72,6 +72,15 @@ type CurrencyRow = {
   is_active: boolean
 }
 
+type BadgeRow = {
+  id: string
+  name: string
+  description: string
+  color: string
+  icon: string
+  is_active: boolean
+}
+
 async function loadDirectoryData() {
   const supabase = getSupabaseAdminClient()
 
@@ -84,6 +93,7 @@ async function loadDirectoryData() {
     { data: curriculum, error: curriculumError },
     { data: features, error: featuresError },
     { data: currencies, error: currenciesError },
+    { data: badges, error: badgesError },
   ] = await Promise.all([
     supabase
       .from("countries")
@@ -119,6 +129,10 @@ async function loadDirectoryData() {
       .from("currencies")
       .select("id, code, name, symbol, sort_order, is_active")
       .order("code", { ascending: true }),
+    supabase
+      .from("directory_badges")
+      .select("id, name, description, color, icon, is_active")
+      .order("name", { ascending: true }),
   ])
 
   if (countriesError) console.error("[admin/directory] Failed to load countries", countriesError.message)
@@ -129,6 +143,7 @@ async function loadDirectoryData() {
   if (curriculumError) console.error("[admin/directory] Failed to load curriculum", curriculumError.message)
   if (featuresError) console.error("[admin/directory] Failed to load provider features", featuresError.message)
   if (currenciesError) console.error("[admin/directory] Failed to load currencies", currenciesError.message)
+  if (badgesError) console.error("[admin/directory] Failed to load badges", badgesError.message)
 
   return {
     countries: (countries ?? []) as CountryRow[],
@@ -139,6 +154,7 @@ async function loadDirectoryData() {
     curriculum: (curriculum ?? []) as CurriculumRow[],
     features: (features ?? []) as FeatureRow[],
     currencies: (currencies ?? []) as CurrencyRow[],
+    badges: (badges ?? []) as BadgeRow[],
   }
 }
 
@@ -156,6 +172,7 @@ export default async function AdminDirectoryPage() {
         initialCurriculum={initialData.curriculum}
         initialFeatures={initialData.features}
         initialCurrencies={initialData.currencies}
+        initialBadges={initialData.badges}
       />
     </Suspense>
   )

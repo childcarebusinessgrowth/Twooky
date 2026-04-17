@@ -396,6 +396,75 @@ export interface Database {
         }
         Relationships: []
       }
+      directory_badges: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          color: string
+          icon: string
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description: string
+          color: string
+          icon: string
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          color?: string
+          icon?: string
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      provider_profile_badges: {
+        Row: {
+          provider_profile_id: string
+          badge_id: string
+          created_at: string
+        }
+        Insert: {
+          provider_profile_id: string
+          badge_id: string
+          created_at?: string
+        }
+        Update: {
+          provider_profile_id?: string
+          badge_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_profile_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "directory_badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_profile_badges_provider_profile_id_fkey"
+            columns: ["provider_profile_id"]
+            isOneToOne: false
+            referencedRelation: "provider_profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       provider_faqs: {
         Row: {
           id: string

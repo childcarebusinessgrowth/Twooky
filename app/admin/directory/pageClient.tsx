@@ -11,6 +11,7 @@ import { AdminLanguagesPageClient } from "@/app/admin/languages/pageClient"
 import { AdminCurriculumPageClient } from "@/app/admin/curriculum/pageClient"
 import { AdminFeaturesPageClient } from "@/app/admin/features/pageClient"
 import { AdminCurrenciesPageClient } from "@/app/admin/currencies/pageClient"
+import { AdminBadgesPageClient } from "@/app/admin/badges/pageClient"
 
 const TAB_VALUES = [
   "locations",
@@ -20,6 +21,7 @@ const TAB_VALUES = [
   "curriculum",
   "features",
   "currencies",
+  "badges",
 ] as const
 
 type TabValue = (typeof TAB_VALUES)[number]
@@ -108,6 +110,14 @@ type AdminDirectoryPageClientProps = {
   initialCurriculum: CurriculumRow[]
   initialFeatures: FeatureRow[]
   initialCurrencies: CurrencyRow[]
+  initialBadges: {
+    id: string
+    name: string
+    description: string
+    color: string
+    icon: string
+    is_active: boolean
+  }[]
 }
 
 export function AdminDirectoryPageClient({
@@ -119,6 +129,7 @@ export function AdminDirectoryPageClient({
   initialCurriculum,
   initialFeatures,
   initialCurrencies,
+  initialBadges,
 }: AdminDirectoryPageClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -156,6 +167,7 @@ export function AdminDirectoryPageClient({
           <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
           <TabsTrigger value="features">Provider features</TabsTrigger>
           <TabsTrigger value="currencies">Currencies</TabsTrigger>
+          <TabsTrigger value="badges">Badges</TabsTrigger>
         </TabsList>
 
         <TabsContent value="locations" className="space-y-4 mt-4">
@@ -190,6 +202,10 @@ export function AdminDirectoryPageClient({
 
         <TabsContent value="currencies" className="space-y-4 mt-4">
           <AdminCurrenciesPageClient initialCurrencies={initialCurrencies} />
+        </TabsContent>
+
+        <TabsContent value="badges" className="space-y-4 mt-4">
+          <AdminBadgesPageClient initialBadges={initialBadges} />
         </TabsContent>
       </Tabs>
     </div>

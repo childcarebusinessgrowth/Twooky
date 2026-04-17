@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabaseDatabase"
+import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
 
 type TypedClient = SupabaseClient<Database>
 
@@ -370,6 +371,7 @@ export type ParentFavoriteRow = {
   early_learning_excellence_badge?: boolean
   verified_provider_badge?: boolean
   verified_provider_badge_color?: string | null
+  directory_badges?: DirectoryBadgeView[]
 }
 
 export type ParentCompareProviderRow = {
@@ -533,7 +535,7 @@ export async function getFavoritesByParentProfileId(
     .order("created_at", { ascending: false })
   if (error || !rows || rows.length === 0) return []
   const providerIds = [...new Set(rows.map((r) => r.provider_profile_id))]
-  const [profilesResult, photosResult] = await Promise.all([
+  const [profilesResult, photosResult, providerBadgesResult] = await Promise.all([
     supabase
       .from("provider_profiles")
       .select("profile_id, business_name, provider_slug, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color")
@@ -543,6 +545,10 @@ export async function getFavoritesByParentProfileId(
       .select("provider_profile_id, storage_path")
       .in("provider_profile_id", providerIds)
       .eq("is_primary", true),
+    supabase
+      .from("provider_profile_badges")
+      .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+      .in("provider_profile_id", providerIds),
   ])
   const providerProfiles = profilesResult.data ?? []
   const infoBy = new Map(
@@ -561,8 +567,17 @@ export async function getFavoritesByParentProfileId(
     ])
   )
   const primaryPhotoByProvider: Record<string, string> = {}
+  const directoryBadgesByProvider: Record<string, DirectoryBadgeView[]> = {}
   ;(photosResult.data ?? []).forEach((row) => {
     primaryPhotoByProvider[row.provider_profile_id] = row.storage_path
+  })
+  ;(providerBadgesResult.data ??
+    []).forEach((row: { provider_profile_id: string; directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }) => {
+    if (!row.directory_badges) return
+    if (!directoryBadgesByProvider[row.provider_profile_id]) {
+      directoryBadgesByProvider[row.provider_profile_id] = []
+    }
+    directoryBadgesByProvider[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
   })
   return rows.map((row) => {
     const info = infoBy.get(row.provider_profile_id)
@@ -580,6 +595,7 @@ export async function getFavoritesByParentProfileId(
       early_learning_excellence_badge: info?.early_learning_excellence_badge ?? false,
       verified_provider_badge: info?.verified_provider_badge ?? false,
       verified_provider_badge_color: info?.verified_provider_badge_color ?? "emerald",
+      directory_badges: directoryBadgesByProvider[row.provider_profile_id] ?? [],
     }
   })
 }

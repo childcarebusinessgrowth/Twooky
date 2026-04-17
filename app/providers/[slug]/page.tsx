@@ -37,6 +37,7 @@ import { ProviderLocationMapLazy } from "@/components/provider-location-map-lazy
 import { ProviderReviewsTab } from "@/components/provider-reviews-tab"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { DirectoryBadge } from "@/components/directory-badge"
 import { AuthProviderClient } from "@/components/auth-provider-client"
 import { ProviderProgramOwnerStrip } from "@/components/provider-program-owner-strip"
 import { cn } from "@/lib/utils"
@@ -206,6 +207,9 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       {p.earlyLearningExcellenceBadge && (
                         <EarlyLearningExcellenceBadge size="md" />
                       )}
+                      {p.directoryBadges.map((badge) => (
+                        <DirectoryBadge key={badge.id} badge={badge} size="md" />
+                      ))}
                     </div>
                     <div className="flex items-center gap-4 flex-wrap text-muted-foreground">
                       <div className="flex items-center gap-1">

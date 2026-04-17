@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
 import { TopRatedBadge } from "@/components/top-rated-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { DirectoryBadge } from "@/components/directory-badge"
+import type { DirectoryBadgeView } from "@/lib/directory-badges"
 import type { Provider } from "@/lib/mock-data"
 
 const TOP_RATED_MIN_RATING = 4.8
@@ -56,6 +58,7 @@ export type ProviderCardData = Pick<
   verifiedProviderBadge?: boolean
   verifiedProviderBadgeColor?: string | null
   savedByParentCount?: number
+  directoryBadges?: DirectoryBadgeView[]
 }
 
 interface ProviderCardProps {
@@ -93,7 +96,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                 className="object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
-            {(isTopRated(provider) || isParentFavourite(provider) || provider.earlyLearningExcellenceBadge || provider.verifiedProviderBadge) && (
+            {(isTopRated(provider) || isParentFavourite(provider) || provider.earlyLearningExcellenceBadge || provider.verifiedProviderBadge || (provider.directoryBadges?.length ?? 0) > 0) && (
               <>
                 <div className="flex-1 min-h-0 hidden md:block" aria-hidden />
                 <div className="flex flex-row flex-wrap items-center justify-center gap-2 px-3 py-2.5">
@@ -112,6 +115,9 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                       Parent Favourite
                     </span>
                   )}
+                  {(provider.directoryBadges ?? []).map((badge) => (
+                    <DirectoryBadge key={badge.id} badge={badge} size="sm" />
+                  ))}
                 </div>
               </>
             )}
@@ -196,7 +202,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
             className="object-cover transition-transform duration-300 hover:scale-105"
           />
         </div>
-        {(isTopRated(provider) || isParentFavourite(provider) || provider.earlyLearningExcellenceBadge || provider.verifiedProviderBadge) && (
+        {(isTopRated(provider) || isParentFavourite(provider) || provider.earlyLearningExcellenceBadge || provider.verifiedProviderBadge || (provider.directoryBadges?.length ?? 0) > 0) && (
           <div className="flex flex-row flex-wrap items-center justify-center gap-2 px-3 py-2">
             {provider.verifiedProviderBadge && (
               <VerifiedProviderBadge size="sm" color={provider.verifiedProviderBadgeColor} />
@@ -213,6 +219,9 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                 Parent Favourite
               </span>
             )}
+            {(provider.directoryBadges ?? []).map((badge) => (
+              <DirectoryBadge key={badge.id} badge={badge} size="sm" />
+            ))}
           </div>
         )}
       </div>

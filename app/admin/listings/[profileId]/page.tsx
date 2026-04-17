@@ -28,7 +28,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { getAdminListingDetail } from "../actions"
+import { getActiveDirectoryBadges, getAdminListingDetail } from "../actions"
 import { AdminListingPhotosSection } from "./AdminListingPhotosSection"
 import { ListingDetailActions } from "./ListingDetailActions"
 import {
@@ -38,6 +38,7 @@ import {
 } from "@/lib/listing-labels"
 import { formatDailyFeeRange } from "@/lib/currency"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { DirectoryBadge } from "@/components/directory-badge"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 
@@ -125,12 +126,13 @@ function BadgeList({
 
 export default async function AdminListingDetailPage({ params }: PageProps) {
   const { profileId } = await params
-  const [data, ageGroupsResult] = await Promise.all([
+  const [data, ageGroupsResult, availableBadges] = await Promise.all([
     getAdminListingDetail(profileId),
     getSupabaseAdminClient()
       .from("age_groups")
       .select("tag, age_range")
       .eq("is_active", true),
+    getActiveDirectoryBadges(),
   ])
   if (!data) notFound()
 
@@ -197,6 +199,9 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
                 color={profile.verified_provider_badge_color}
               />
             )}
+            {data.assignedBadges.map((badge) => (
+              <DirectoryBadge key={badge.id} badge={badge} size="sm" />
+            ))}
           </div>
         </div>
         <ListingDetailActions
@@ -206,6 +211,8 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
           earlyLearningExcellenceBadge={profile.early_learning_excellence_badge}
           verifiedProviderBadge={profile.verified_provider_badge}
           verifiedProviderBadgeColor={profile.verified_provider_badge_color}
+          assignedBadges={data.assignedBadges}
+          availableBadges={availableBadges}
           name={name}
         />
       </div>

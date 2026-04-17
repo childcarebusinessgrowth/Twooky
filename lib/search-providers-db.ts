@@ -31,6 +31,7 @@ import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
+import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
 
 const PROVIDER_PROFILE_SELECT_WITH_COORDS_AND_GOOGLE_CACHE =
   "profile_id, plan_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
@@ -111,6 +112,7 @@ export type ActiveProviderRow = {
   /** First Places API photo ref when no primary/cached upload; used with `/api/place-photo`. */
   google_photo_reference: string | null
   program_types: ProviderProgramType[]
+  directory_badges: DirectoryBadgeView[]
 }
 
 export type ProviderCardDataFromDb = {
@@ -133,6 +135,7 @@ export type ProviderCardDataFromDb = {
   verifiedProviderBadge?: boolean
   verifiedProviderBadgeColor?: string | null
   savedByParentCount: number
+  directoryBadges: DirectoryBadgeView[]
 }
 
 const VALID_PROVIDER_TYPE_IDS = new Set<ProviderTypeId>(PROVIDER_TYPES.map((type) => type.id))
@@ -194,7 +197,7 @@ export async function getActiveProvidersFromDb(
 
   const profileIds = profiles.map((p) => p.profile_id)
 
-  const [photosResult, reviewsResult, favoritesResult, programTypesByProfile] = await Promise.all([
+  const [photosResult, reviewsResult, favoritesResult, programTypesByProfile, providerBadgesResult] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("provider_profile_id, storage_path, is_primary, sort_order, created_at")
@@ -211,6 +214,10 @@ export async function getActiveProvidersFromDb(
       .select("provider_profile_id, parent_profile_id")
       .in("provider_profile_id", profileIds),
     getProviderProgramTypesByProfileIds(supabase, profileIds),
+    supabase
+      .from("provider_profile_badges")
+      .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+      .in("provider_profile_id", profileIds),
   ])
 
   const primaryPhotoByProfile: Record<string, string> = {}
@@ -245,6 +252,15 @@ export async function getActiveProvidersFromDb(
   const savedByParentCountByProfile: Record<string, number> = {}
   for (const [providerId, parents] of Object.entries(seenByProvider)) {
     savedByParentCountByProfile[providerId] = parents.size
+  }
+  const directoryBadgesByProfile: Record<string, DirectoryBadgeView[]> = {}
+  for (const row of (providerBadgesResult.data ??
+    []) as Array<{ provider_profile_id: string; directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }>) {
+    if (!row.directory_badges) continue
+    if (!directoryBadgesByProfile[row.provider_profile_id]) {
+      directoryBadgesByProfile[row.provider_profile_id] = []
+    }
+    directoryBadgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
   }
 
   const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
@@ -329,6 +345,7 @@ export async function getActiveProvidersFromDb(
       google_cached_photo_storage_path: googleCachedPhotoPathByProfile[p.profile_id] ?? null,
       google_photo_reference: googlePhotoRef,
       program_types: programTypesByProfile[p.profile_id] ?? [],
+      directory_badges: directoryBadgesByProfile[p.profile_id] ?? [],
     }
   })
 }
@@ -418,7 +435,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
 
       const profileIds = profileRows.map((row) => row.profile_id)
 
-      const [{ data: photos }, reviewsResult, favoritesResult, programTypesByProfile] = await Promise.all([
+      const [{ data: photos }, reviewsResult, favoritesResult, programTypesByProfile, providerBadgesResult] = await Promise.all([
         supabase
           .from("provider_photos")
           .select("provider_profile_id, storage_path, is_primary, sort_order, created_at")
@@ -435,6 +452,10 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           .select("provider_profile_id, parent_profile_id")
           .in("provider_profile_id", profileIds),
         getProviderProgramTypesByProfileIds(supabase, profileIds),
+        supabase
+          .from("provider_profile_badges")
+          .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+          .in("provider_profile_id", profileIds),
       ])
 
       const photoByProfileId: Record<string, string> = {}
@@ -468,6 +489,15 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
       const savedByParentCountByProfile: Record<string, number> = {}
       for (const [providerId, parents] of Object.entries(seenByProvider)) {
         savedByParentCountByProfile[providerId] = parents.size
+      }
+      const directoryBadgesByProfile: Record<string, DirectoryBadgeView[]> = {}
+      for (const row of (providerBadgesResult.data ??
+        []) as Array<{ provider_profile_id: string; directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }>) {
+        if (!row.directory_badges) continue
+        if (!directoryBadgesByProfile[row.provider_profile_id]) {
+          directoryBadgesByProfile[row.provider_profile_id] = []
+        }
+        directoryBadgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
       }
 
       const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
@@ -527,6 +557,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           verifiedProviderBadge: row.verified_provider_badge ?? false,
           verifiedProviderBadgeColor: row.verified_provider_badge_color ?? "emerald",
           savedByParentCount: savedByParentCountByProfile[row.profile_id] ?? 0,
+          directoryBadges: directoryBadgesByProfile[row.profile_id] ?? [],
         }
       })
     },
@@ -980,5 +1011,6 @@ export function activeProviderRowToCardData(
     verifiedProviderBadge: row.verified_provider_badge ?? false,
     verifiedProviderBadgeColor: row.verified_provider_badge_color ?? "emerald",
     savedByParentCount: row.saved_by_parent_count ?? 0,
+    directoryBadges: row.directory_badges ?? [],
   }
 }

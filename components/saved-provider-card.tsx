@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { EarlyLearningExcellenceBadge } from "@/components/early-learning-excellence-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
+import { DirectoryBadge } from "@/components/directory-badge"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { removeFavorite } from "@/lib/parent-engagement"
@@ -75,6 +76,9 @@ export function SavedProviderCard({ parentProfileId, favorite }: Props) {
           {favorite.early_learning_excellence_badge && (
             <EarlyLearningExcellenceBadge size="sm" />
           )}
+          {(favorite.directory_badges ?? []).map((badge) => (
+            <DirectoryBadge key={badge.id} badge={badge} size="sm" />
+          ))}
         </div>
         <CardDescription className="flex items-center gap-1 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5 text-primary" />

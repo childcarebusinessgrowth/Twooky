@@ -21,6 +21,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,10 +44,14 @@ import {
   updateListingEarlyLearningExcellenceBadge,
   updateListingVerifiedProviderBadge,
   updateListingVerifiedProviderBadgeColor,
+  setListingDirectoryBadges,
   deleteListing,
   type ListingStatus,
 } from "../actions"
 import { VERIFIED_BADGE_COLORS } from "@/components/verified-provider-badge"
+import { DirectoryBadge } from "@/components/directory-badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import type { DirectoryBadgeView } from "@/lib/directory-badges"
 
 type ListingDetailActionsProps = {
   profileId: string
@@ -48,6 +60,8 @@ type ListingDetailActionsProps = {
   earlyLearningExcellenceBadge: boolean
   verifiedProviderBadge: boolean
   verifiedProviderBadgeColor: string | null
+  assignedBadges: DirectoryBadgeView[]
+  availableBadges: DirectoryBadgeView[]
   name: string
 }
 
@@ -64,6 +78,8 @@ export function ListingDetailActions({
   earlyLearningExcellenceBadge,
   verifiedProviderBadge,
   verifiedProviderBadgeColor,
+  assignedBadges,
+  availableBadges,
   name,
 }: ListingDetailActionsProps) {
   const router = useRouter()
@@ -72,6 +88,8 @@ export function ListingDetailActions({
   const [selectedVerifiedBadgeColor, setSelectedVerifiedBadgeColor] = useState(
     verifiedProviderBadgeColor ?? "emerald"
   )
+  const [badgesDialogOpen, setBadgesDialogOpen] = useState(false)
+  const [selectedBadgeIds, setSelectedBadgeIds] = useState<string[]>(assignedBadges.map((badge) => badge.id))
 
   const handleStatus = (status: ListingStatus) => {
     startTransition(async () => {
@@ -116,6 +134,20 @@ export function ListingDetailActions({
       await deleteListing(profileId)
       setShowDeleteConfirm(false)
       router.push("/admin/listings")
+    })
+  }
+
+  const toggleBadgeSelection = (badgeId: string) => {
+    setSelectedBadgeIds((prev) =>
+      prev.includes(badgeId) ? prev.filter((id) => id !== badgeId) : [...prev, badgeId]
+    )
+  }
+
+  const handleSaveDynamicBadges = () => {
+    startTransition(async () => {
+      await setListingDirectoryBadges(profileId, selectedBadgeIds)
+      setBadgesDialogOpen(false)
+      router.refresh()
     })
   }
 
@@ -238,6 +270,31 @@ export function ListingDetailActions({
             </Button>
           </div>
         </div>
+        <div className="rounded-md border border-border/60 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Dynamic badges ({assignedBadges.length})
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedBadgeIds(assignedBadges.map((badge) => badge.id))
+                setBadgesDialogOpen(true)
+              }}
+              disabled={isPending}
+            >
+              Manage badges
+            </Button>
+          </div>
+          {assignedBadges.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {assignedBadges.map((badge) => (
+                <DirectoryBadge key={badge.id} badge={badge} size="sm" />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -261,6 +318,39 @@ export function ListingDetailActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={badgesDialogOpen} onOpenChange={setBadgesDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign dynamic badges</DialogTitle>
+            <DialogDescription>These badges will appear on provider cards and profile pages.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+            {availableBadges.map((badge) => (
+              <label key={badge.id} className="flex items-center gap-3 rounded-md border border-border/60 p-2">
+                <Checkbox
+                  checked={selectedBadgeIds.includes(badge.id)}
+                  onCheckedChange={() => toggleBadgeSelection(badge.id)}
+                />
+                <DirectoryBadge badge={badge} size="sm" />
+              </label>
+            ))}
+            {availableBadges.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No active badges available yet. Create them in Directory → Badges.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBadgesDialogOpen(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDynamicBadges} disabled={isPending}>
+              Save badges
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

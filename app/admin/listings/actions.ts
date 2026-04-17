@@ -12,6 +12,7 @@ import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
+import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const PROVIDER_DOCUMENTS_BUCKET = "provider-documents"
@@ -40,6 +41,7 @@ export type AdminListingRow = {
   review_count: number
   rating: number | null
   primary_photo_url: string | null
+  directory_badges: DirectoryBadgeView[]
 }
 
 const VERIFIED_BADGE_COLORS = [
@@ -122,6 +124,29 @@ export type GetAdminListingsOptions = {
 
 export type AdminListingCountry = { id: string; name: string }
 
+export async function getActiveDirectoryBadges(): Promise<DirectoryBadgeView[]> {
+  await assertAdminPermission("listings.manage")
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from("directory_badges")
+    .select("id, name, description, color, icon")
+    .eq("is_active", true)
+    .order("name", { ascending: true })
+  if (error) return []
+  return (data ?? []).map((badge) => toDirectoryBadgeView(badge))
+}
+
+type ProviderBadgeRow = {
+  provider_profile_id: string
+  directory_badges: {
+    id: string
+    name: string
+    description: string
+    color: string
+    icon: string
+  } | null
+}
+
 export async function getAdminListings(
   options: GetAdminListingsOptions = {}
 ): Promise<{ listings: AdminListingRow[]; total: number }> {
@@ -179,9 +204,13 @@ export async function getAdminListings(
     if (profileIds.length === 0) {
       return { listings: [], total }
     }
-    const [reviewsResult, photosResult] = await Promise.all([
+    const [reviewsResult, photosResult, providerBadgesResult] = await Promise.all([
       supabase.from("parent_reviews").select("provider_profile_id, rating").in("provider_profile_id", profileIds),
       supabase.from("provider_photos").select("provider_profile_id, storage_path").in("provider_profile_id", profileIds).eq("is_primary", true),
+      supabase
+        .from("provider_profile_badges")
+        .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+        .in("provider_profile_id", profileIds),
     ])
     const reviewCountByProfile: Record<string, { count: number; sum: number }> = {}
     for (const id of profileIds) reviewCountByProfile[id] = { count: 0, sum: 0 }
@@ -191,9 +220,17 @@ export async function getAdminListings(
     }
     const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
     const primaryPhotoByProfile: Record<string, string> = {}
+    const badgesByProfile: Record<string, DirectoryBadgeView[]> = {}
     for (const p of photosResult.data ?? []) {
       if (!primaryPhotoByProfile[p.provider_profile_id])
         primaryPhotoByProfile[p.provider_profile_id] = `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${p.storage_path}`
+    }
+    for (const row of (providerBadgesResult.data ?? []) as ProviderBadgeRow[]) {
+      if (!row.directory_badges) continue
+      if (!badgesByProfile[row.provider_profile_id]) {
+        badgesByProfile[row.provider_profile_id] = []
+      }
+      badgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
     }
     const listings: AdminListingRow[] = allRows.map((row) => {
       const rev = reviewCountByProfile[row.profile_id]
@@ -209,6 +246,7 @@ export async function getAdminListings(
         review_count: reviewCount,
         rating,
         primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
+        directory_badges: badgesByProfile[row.profile_id] ?? [],
       }
     })
     perf.end({ total })
@@ -252,14 +290,26 @@ export async function getAdminListings(
     .map((id) => rowById.get(id))
     .filter((row): row is (typeof allRows)[number] => row != null)
 
-  const [photosResult] = await Promise.all([
+  const [photosResult, providerBadgesResult] = await Promise.all([
     supabase.from("provider_photos").select("provider_profile_id, storage_path").in("provider_profile_id", idsForPage).eq("is_primary", true),
+    supabase
+      .from("provider_profile_badges")
+      .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+      .in("provider_profile_id", idsForPage),
   ])
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
   const primaryPhotoByProfile: Record<string, string> = {}
+  const badgesByProfile: Record<string, DirectoryBadgeView[]> = {}
   for (const p of photosResult.data ?? []) {
     if (!primaryPhotoByProfile[p.provider_profile_id])
       primaryPhotoByProfile[p.provider_profile_id] = `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${p.storage_path}`
+  }
+  for (const row of (providerBadgesResult.data ?? []) as ProviderBadgeRow[]) {
+    if (!row.directory_badges) continue
+    if (!badgesByProfile[row.provider_profile_id]) {
+      badgesByProfile[row.provider_profile_id] = []
+    }
+    badgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
   }
 
   const listings: AdminListingRow[] = orderedRows.map((row) => {
@@ -276,6 +326,7 @@ export async function getAdminListings(
       review_count: reviewCount,
       rating,
       primary_photo_url: primaryPhotoByProfile[row.profile_id] ?? null,
+      directory_badges: badgesByProfile[row.profile_id] ?? [],
     }
   })
 
@@ -347,6 +398,7 @@ export type AdminListingDetail = {
     verified_provider_badge_color: string | null
     created_at: string
   }
+  assignedBadges: DirectoryBadgeView[]
   programTypes: ProviderProgramType[]
   photos: AdminListingDetailPhoto[]
   faqs: AdminListingDetailFaq[]
@@ -391,7 +443,7 @@ export async function getAdminListingDetail(
       : Promise.resolve({ data: null }),
   ])
 
-  const [{ data: photoRows }, { data: faqRows }, { data: docRows }, programTypesByProfile] = await Promise.all([
+  const [{ data: photoRows }, { data: faqRows }, { data: docRows }, { data: providerBadgeRows }, programTypesByProfile] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption, is_primary, sort_order")
@@ -409,6 +461,10 @@ export async function getAdminListingDetail(
       .select("id, document_type, storage_path, file_size")
       .eq("provider_profile_id", profileId)
       .order("uploaded_at", { ascending: true }),
+    supabase
+      .from("provider_profile_badges")
+      .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+      .eq("provider_profile_id", profileId),
     getProviderProgramTypesByProfileIds(supabase, [profileId]),
   ])
 
@@ -459,6 +515,9 @@ export async function getAdminListingDetail(
       verified_provider_badge: profile.verified_provider_badge ?? false,
       verified_provider_badge_color: normalizeVerifiedBadgeColor(profile.verified_provider_badge_color),
     },
+    assignedBadges: ((providerBadgeRows ?? []) as ProviderBadgeRow[])
+      .filter((row) => row.directory_badges)
+      .map((row) => toDirectoryBadgeView(row.directory_badges!)),
     programTypes: programTypesByProfile[profileId] ?? [],
     photos,
     faqs,
@@ -841,4 +900,47 @@ export async function getAdminListingCountries(): Promise<AdminListingCountry[]>
     .order("name", { ascending: true })
   if (error) return []
   return (data ?? []).map((r) => ({ id: r.id, name: r.name })).filter((c) => c.name)
+}
+
+export async function setListingDirectoryBadges(
+  profileId: string,
+  badgeIds: string[],
+): Promise<{ error?: string }> {
+  await assertAdminPermission("badges.verify")
+  const supabase = getSupabaseAdminClient()
+
+  const dedupedBadgeIds = Array.from(new Set(badgeIds.filter(Boolean)))
+  const { error: deleteError } = await supabase
+    .from("provider_profile_badges")
+    .delete()
+    .eq("provider_profile_id", profileId)
+  if (deleteError) return { error: deleteError.message }
+
+  if (dedupedBadgeIds.length > 0) {
+    const { error: insertError } = await supabase.from("provider_profile_badges").insert(
+      dedupedBadgeIds.map((badgeId) => ({
+        provider_profile_id: profileId,
+        badge_id: badgeId,
+      })),
+    )
+    if (insertError) return { error: insertError.message }
+  }
+
+  const { data: profile } = await supabase
+    .from("provider_profiles")
+    .select("provider_slug")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
+  if (profile?.provider_slug) {
+    revalidatePath(`/providers/${profile.provider_slug}`)
+  }
+
+  return {}
 }

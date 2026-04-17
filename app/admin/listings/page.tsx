@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { getAdminListings, getAdminListingCountries } from "./actions"
+import { getAdminListings, getAdminListingCountries, getActiveDirectoryBadges } from "./actions"
 import { AdminListingsTable } from "./AdminListingsTable"
 
 const PAGE_SIZE = 10
@@ -49,7 +49,7 @@ export default async function AdminListingsPage({ searchParams }: PageProps) {
   const reviewsFilterNone =
     reviewsFilter === "none" || ratingFilter === "none" ? ("none" as const) : undefined
 
-  const [listingsResult, countries] = await Promise.all([
+  const [listingsResult, countries, availableBadges] = await Promise.all([
     getAdminListings({
       page,
       pageSize: PAGE_SIZE,
@@ -62,6 +62,7 @@ export default async function AdminListingsPage({ searchParams }: PageProps) {
       reviewsFilter: reviewsFilterNone,
     }),
     getAdminListingCountries(),
+    getActiveDirectoryBadges(),
   ])
 
   return (
@@ -77,6 +78,7 @@ export default async function AdminListingsPage({ searchParams }: PageProps) {
         featuredFilter={featuredFilter}
         ratingFilter={ratingFilter}
         reviewsFilter={reviewsFilter}
+        availableBadges={availableBadges}
       />
     </Suspense>
   )

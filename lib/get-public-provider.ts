@@ -17,6 +17,7 @@ import {
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
 import { getProviderPlanAccess, normalizeProviderPlanId } from "@/lib/provider-plan-access"
+import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -68,6 +69,7 @@ export type PublicProviderView = {
   virtualTourEmbedUrls: string[]
   reviews: PublicReviewRow[]
   faqs: Array<{ question: string; answer: string }>
+  directoryBadges: DirectoryBadgeView[]
 }
 
 const AVAILABILITY_LABELS: Record<PublicAvailabilityStatus, string> = {
@@ -198,7 +200,7 @@ export async function getActivePublicProviderBySlug(
 
   const profileId = profile.profile_id
 
-  const [photosResult, reviews, faqsResult, ageGroupsResult, programTypesByProfile] = await Promise.all([
+  const [photosResult, reviews, faqsResult, ageGroupsResult, programTypesByProfile, providerBadgesResult] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption")
@@ -217,6 +219,10 @@ export async function getActivePublicProviderBySlug(
       .select("tag, age_range, sort_order")
       .eq("is_active", true),
     getProviderProgramTypesByProfileIds(supabase, [profileId]),
+    supabase
+      .from("provider_profile_badges")
+      .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
+      .eq("provider_profile_id", profileId),
   ])
 
   const cachedGoogle = profile as ProviderGoogleCacheRow
@@ -328,6 +334,10 @@ export async function getActivePublicProviderBySlug(
   const planId = normalizeProviderPlanId((profile as { plan_id?: string | null }).plan_id)
   const planAccess = getProviderPlanAccess(planId)
   const isSproutPlan = planAccess.isSprout
+  const directoryBadges = ((providerBadgesResult.data ??
+    []) as Array<{ directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }>)
+    .filter((row) => row.directory_badges)
+    .map((row) => toDirectoryBadgeView(row.directory_badges!))
 
   return {
     profileId,
@@ -381,5 +391,6 @@ export async function getActivePublicProviderBySlug(
     virtualTourEmbedUrls: isSproutPlan ? [] : virtualTourEmbedUrls,
     reviews: isSproutPlan ? [] : reviews,
     faqs: isSproutPlan ? [] : faqs,
+    directoryBadges: isSproutPlan ? [] : directoryBadges,
   }
 }

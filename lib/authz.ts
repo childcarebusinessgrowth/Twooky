@@ -143,6 +143,7 @@ const ADMIN_ROUTE_PERMISSION_RULES: AdminRoutePermissionRule[] = [
   { prefix: "/admin/claims", permission: "badges.verify" },
   { prefix: "/admin/directory", permission: "directory.manage" },
   { prefix: "/admin/features", permission: "directory.manage" },
+  { prefix: "/admin/badges", permission: "directory.manage" },
   { prefix: "/admin/age-groups", permission: "directory.manage" },
   { prefix: "/admin/curriculum", permission: "directory.manage" },
   { prefix: "/admin/currencies", permission: "directory.manage" },
