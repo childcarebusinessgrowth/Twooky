@@ -12,7 +12,12 @@ import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
-import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
+import {
+  extractDirectoryBadgeRelation,
+  toDirectoryBadgeView,
+  type DirectoryBadgeRelationRow,
+  type DirectoryBadgeView,
+} from "@/lib/directory-badges"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const PROVIDER_DOCUMENTS_BUCKET = "provider-documents"
@@ -138,13 +143,7 @@ export async function getActiveDirectoryBadges(): Promise<DirectoryBadgeView[]> 
 
 type ProviderBadgeRow = {
   provider_profile_id: string
-  directory_badges: {
-    id: string
-    name: string
-    description: string
-    color: string
-    icon: string
-  } | null
+  directory_badges: DirectoryBadgeRelationRow[] | DirectoryBadgeRelationRow | null
 }
 
 export async function getAdminListings(
@@ -226,11 +225,12 @@ export async function getAdminListings(
         primaryPhotoByProfile[p.provider_profile_id] = `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${p.storage_path}`
     }
     for (const row of (providerBadgesResult.data ?? []) as ProviderBadgeRow[]) {
-      if (!row.directory_badges) continue
+      const relationBadge = extractDirectoryBadgeRelation(row.directory_badges)
+      if (!relationBadge) continue
       if (!badgesByProfile[row.provider_profile_id]) {
         badgesByProfile[row.provider_profile_id] = []
       }
-      badgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
+      badgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(relationBadge))
     }
     const listings: AdminListingRow[] = allRows.map((row) => {
       const rev = reviewCountByProfile[row.profile_id]
@@ -305,11 +305,12 @@ export async function getAdminListings(
       primaryPhotoByProfile[p.provider_profile_id] = `${baseUrl}/storage/v1/object/public/${PROVIDER_PHOTOS_BUCKET}/${p.storage_path}`
   }
   for (const row of (providerBadgesResult.data ?? []) as ProviderBadgeRow[]) {
-    if (!row.directory_badges) continue
+    const relationBadge = extractDirectoryBadgeRelation(row.directory_badges)
+    if (!relationBadge) continue
     if (!badgesByProfile[row.provider_profile_id]) {
       badgesByProfile[row.provider_profile_id] = []
     }
-    badgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
+    badgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(relationBadge))
   }
 
   const listings: AdminListingRow[] = orderedRows.map((row) => {
@@ -516,8 +517,9 @@ export async function getAdminListingDetail(
       verified_provider_badge_color: normalizeVerifiedBadgeColor(profile.verified_provider_badge_color),
     },
     assignedBadges: ((providerBadgeRows ?? []) as ProviderBadgeRow[])
-      .filter((row) => row.directory_badges)
-      .map((row) => toDirectoryBadgeView(row.directory_badges!)),
+      .map((row) => extractDirectoryBadgeRelation(row.directory_badges))
+      .filter((badge): badge is DirectoryBadgeRelationRow => badge !== null)
+      .map((badge) => toDirectoryBadgeView(badge)),
     programTypes: programTypesByProfile[profileId] ?? [],
     photos,
     faqs,

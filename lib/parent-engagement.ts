@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabaseDatabase"
-import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
+import {
+  extractDirectoryBadgeRelation,
+  toDirectoryBadgeView,
+  type DirectoryBadgeRelationRow,
+  type DirectoryBadgeView,
+} from "@/lib/directory-badges"
 
 type TypedClient = SupabaseClient<Database>
 
@@ -571,13 +576,16 @@ export async function getFavoritesByParentProfileId(
   ;(photosResult.data ?? []).forEach((row) => {
     primaryPhotoByProvider[row.provider_profile_id] = row.storage_path
   })
-  ;(providerBadgesResult.data ??
-    []).forEach((row: { provider_profile_id: string; directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }) => {
-    if (!row.directory_badges) return
+  ;(providerBadgesResult.data ?? []).forEach((row: {
+    provider_profile_id: string
+    directory_badges: DirectoryBadgeRelationRow[] | DirectoryBadgeRelationRow | null
+  }) => {
+    const relationBadge = extractDirectoryBadgeRelation(row.directory_badges)
+    if (!relationBadge) return
     if (!directoryBadgesByProvider[row.provider_profile_id]) {
       directoryBadgesByProvider[row.provider_profile_id] = []
     }
-    directoryBadgesByProvider[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
+    directoryBadgesByProvider[row.provider_profile_id].push(toDirectoryBadgeView(relationBadge))
   })
   return rows.map((row) => {
     const info = infoBy.get(row.provider_profile_id)

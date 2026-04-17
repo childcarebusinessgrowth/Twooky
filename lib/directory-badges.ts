@@ -48,6 +48,14 @@ export type DirectoryBadgeView = {
   icon: DirectoryBadgeIcon
 }
 
+export type DirectoryBadgeRelationRow = {
+  id: string
+  name: string
+  description: string
+  color: string
+  icon: string
+}
+
 export function normalizeDirectoryBadgeColor(color: string | null | undefined): DirectoryBadgeColor {
   if (color && DIRECTORY_BADGE_COLORS.includes(color as DirectoryBadgeColor)) {
     return color as DirectoryBadgeColor
@@ -72,4 +80,12 @@ export function toDirectoryBadgeView(
     color: normalizeDirectoryBadgeColor(badge.color),
     icon: normalizeDirectoryBadgeIcon(badge.icon),
   }
+}
+
+export function extractDirectoryBadgeRelation(
+  value: DirectoryBadgeRelationRow | DirectoryBadgeRelationRow[] | null | undefined,
+): DirectoryBadgeRelationRow | null {
+  if (!value) return null
+  if (Array.isArray(value)) return value[0] ?? null
+  return value
 }

@@ -31,7 +31,12 @@ import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
-import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
+import {
+  extractDirectoryBadgeRelation,
+  toDirectoryBadgeView,
+  type DirectoryBadgeRelationRow,
+  type DirectoryBadgeView,
+} from "@/lib/directory-badges"
 
 const PROVIDER_PROFILE_SELECT_WITH_COORDS_AND_GOOGLE_CACHE =
   "profile_id, plan_id, provider_slug, business_name, city, address, latitude, longitude, google_place_id, google_fallback_storage_path, google_photo_reference_cached, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at, description, provider_types, age_groups_served, curriculum_type, languages_spoken, daily_fee_from, daily_fee_to, currency_id, currencies(symbol), featured, early_learning_excellence_badge, verified_provider_badge, verified_provider_badge_color, availability_status, available_spots_count, country_id, countries(code)"
@@ -254,13 +259,16 @@ export async function getActiveProvidersFromDb(
     savedByParentCountByProfile[providerId] = parents.size
   }
   const directoryBadgesByProfile: Record<string, DirectoryBadgeView[]> = {}
-  for (const row of (providerBadgesResult.data ??
-    []) as Array<{ provider_profile_id: string; directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }>) {
-    if (!row.directory_badges) continue
+  for (const row of (providerBadgesResult.data ?? []) as Array<{
+    provider_profile_id: string
+    directory_badges: DirectoryBadgeRelationRow[] | DirectoryBadgeRelationRow | null
+  }>) {
+    const relationBadge = extractDirectoryBadgeRelation(row.directory_badges)
+    if (!relationBadge) continue
     if (!directoryBadgesByProfile[row.provider_profile_id]) {
       directoryBadgesByProfile[row.provider_profile_id] = []
     }
-    directoryBadgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
+    directoryBadgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(relationBadge))
   }
 
   const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}
@@ -491,13 +499,16 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
         savedByParentCountByProfile[providerId] = parents.size
       }
       const directoryBadgesByProfile: Record<string, DirectoryBadgeView[]> = {}
-      for (const row of (providerBadgesResult.data ??
-        []) as Array<{ provider_profile_id: string; directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }>) {
-        if (!row.directory_badges) continue
+      for (const row of (providerBadgesResult.data ?? []) as Array<{
+        provider_profile_id: string
+        directory_badges: DirectoryBadgeRelationRow[] | DirectoryBadgeRelationRow | null
+      }>) {
+        const relationBadge = extractDirectoryBadgeRelation(row.directory_badges)
+        if (!relationBadge) continue
         if (!directoryBadgesByProfile[row.provider_profile_id]) {
           directoryBadgesByProfile[row.provider_profile_id] = []
         }
-        directoryBadgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(row.directory_badges))
+        directoryBadgesByProfile[row.provider_profile_id].push(toDirectoryBadgeView(relationBadge))
       }
 
       const googleSummaryByProfile: Record<string, GooglePlaceDetailsSummary | null> = {}

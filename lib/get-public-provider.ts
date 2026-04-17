@@ -17,7 +17,12 @@ import {
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
 import { getProviderPlanAccess, normalizeProviderPlanId } from "@/lib/provider-plan-access"
-import { toDirectoryBadgeView, type DirectoryBadgeView } from "@/lib/directory-badges"
+import {
+  extractDirectoryBadgeRelation,
+  toDirectoryBadgeView,
+  type DirectoryBadgeRelationRow,
+  type DirectoryBadgeView,
+} from "@/lib/directory-badges"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 
@@ -334,10 +339,12 @@ export async function getActivePublicProviderBySlug(
   const planId = normalizeProviderPlanId((profile as { plan_id?: string | null }).plan_id)
   const planAccess = getProviderPlanAccess(planId)
   const isSproutPlan = planAccess.isSprout
-  const directoryBadges = ((providerBadgesResult.data ??
-    []) as Array<{ directory_badges: { id: string; name: string; description: string; color: string; icon: string } | null }>)
-    .filter((row) => row.directory_badges)
-    .map((row) => toDirectoryBadgeView(row.directory_badges!))
+  const directoryBadges = ((providerBadgesResult.data ?? []) as Array<{
+    directory_badges: DirectoryBadgeRelationRow[] | DirectoryBadgeRelationRow | null
+  }>)
+    .map((row) => extractDirectoryBadgeRelation(row.directory_badges))
+    .filter((badge): badge is DirectoryBadgeRelationRow => badge !== null)
+    .map((badge) => toDirectoryBadgeView(badge))
 
   return {
     profileId,
