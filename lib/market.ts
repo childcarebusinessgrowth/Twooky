@@ -1,9 +1,10 @@
 import type { VisitorGeo } from "@/lib/visitor-geo"
 
 export type MarketId = "uk" | "us" | "uae" | "global"
+export type SelectableMarketId = Exclude<MarketId, "global">
 
 /** Explicit country markets shown in selectors. */
-export const MARKET_IDS: MarketId[] = ["uk", "us", "uae"]
+export const MARKET_IDS: SelectableMarketId[] = ["uk", "us", "uae"]
 
 export function parseMarketId(raw: string | null | undefined): MarketId | null {
   if (raw === "uk" || raw === "us" || raw === "uae" || raw === "global") return raw

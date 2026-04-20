@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import type { MarketId } from "@/lib/market"
+import type { MarketId, SelectableMarketId } from "@/lib/market"
 import { MARKET_IDS } from "@/lib/market"
 import { getMarketCopy } from "@/lib/market-copy"
 
-const FLAGS: Record<MarketId, string> = {
+const FLAGS: Record<SelectableMarketId, string> = {
   uk: "🇬🇧",
   us: "🇺🇸",
   uae: "🇦🇪",
