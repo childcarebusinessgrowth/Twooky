@@ -443,7 +443,7 @@ function SearchBarContent({
           className={`w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${ctaClassName}`}
         >
           <Search className="h-5 w-5 mr-2" />
-          {searchButtonLabel ?? "Search Childcare"}
+          {searchButtonLabel ?? "Search Providers"}
         </Button>
       </div>
     </div>
