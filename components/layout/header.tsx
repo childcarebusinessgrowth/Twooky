@@ -6,11 +6,16 @@ import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { MarketId } from "@/lib/market"
+import type { MarketOption } from "@/lib/market-options"
+import { MarketSelector } from "@/components/market-selector"
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -22,14 +27,34 @@ const navigation = [
   { name: "Locations", href: "/childcare/locations" },
 ]
 
-const providerLinks = [
-  { name: "Nurseries", href: "/nurseries" },
-  { name: "Preschools", href: "/preschools" },
-  { name: "Afterschool Programs", href: "/afterschool-programs" },
-  { name: "Sports Academies", href: "/sports-academies" },
-  { name: "Holiday Camps", href: "/holiday-camps" },
-  { name: "Tutoring", href: "/tutoring" },
-  { name: "Therapy Services", href: "/therapy-services" },
+const exploreGroups: Array<{
+  label: string
+  links: Array<{ name: string; href: string }>
+}> = [
+  {
+    label: "Childcare",
+    links: [
+      { name: "Nurseries", href: "/nurseries" },
+      { name: "Preschools", href: "/preschools" },
+      { name: "After-school programs", href: "/afterschool-programs" },
+    ],
+  },
+  {
+    label: "Classes & activities",
+    links: [{ name: "Sports & activities", href: "/sports-academies" }],
+  },
+  {
+    label: "Tutoring & education",
+    links: [{ name: "Tutoring", href: "/tutoring" }],
+  },
+  {
+    label: "Camps",
+    links: [{ name: "Holiday camps", href: "/holiday-camps" }],
+  },
+  {
+    label: "Support",
+    links: [{ name: "Therapy & support services", href: "/therapy-services" }],
+  },
 ]
 
 type AuthRole = "parent" | "provider" | "admin"
@@ -40,7 +65,12 @@ function resolveDashboardHref(role: unknown): string {
   return "/dashboard/parent"
 }
 
-export function Header() {
+type HeaderProps = {
+  initialMarket: MarketId
+  marketOptions: MarketOption[]
+}
+
+export function Header({ initialMarket, marketOptions }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
   const [resolvedRole, setResolvedRole] = useState<AuthRole | null>(null)
@@ -88,7 +118,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden lg:flex lg:items-center lg:gap-8">
+        <div className="hidden lg:flex lg:items-center lg:gap-6 xl:gap-8">
           {navigation.map((item) => (
             <Link
               key={item.name}
@@ -107,36 +137,45 @@ export function Header() {
             <DropdownMenu open={providersOpen} onOpenChange={setProvidersOpen}>
               <DropdownMenuTrigger
                 className="flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none cursor-pointer"
-                aria-label="Providers menu"
+                aria-label="Explore categories menu"
                 onClick={(event) => {
-                  // Allow click to toggle as well
                   event.preventDefault()
                   setProvidersOpen((prev) => !prev)
                 }}
               >
-                <span>Providers</span>
+                <span>Explore</span>
                 <ChevronDown className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="mt-2 min-w-[230px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/70 p-2 shadow-lg"
+                className="mt-2 max-h-[min(70vh,520px)] overflow-y-auto min-w-[260px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/70 p-2 shadow-lg"
               >
-                {providerLinks.map((provider) => (
-                  <DropdownMenuItem
-                    key={provider.name}
-                    asChild
-                    className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                  >
-                    <Link href={provider.href}>{provider.name}</Link>
-                  </DropdownMenuItem>
+                {exploreGroups.map((group, index) => (
+                  <div key={group.label}>
+                    {index > 0 ? <DropdownMenuSeparator className="my-1.5" /> : null}
+                    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground/90">
+                      {group.label}
+                    </DropdownMenuLabel>
+                    {group.links.map((link) => (
+                      <DropdownMenuItem
+                        key={link.href}
+                        asChild
+                        className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <Link href={link.href}>{link.name}</Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          <MarketSelector initialMarket={initialMarket} marketOptions={marketOptions} />
         </div>
 
         {/* Desktop Actions */}
-        <div className="hidden lg:flex lg:items-center lg:gap-3">
+        <div className="hidden lg:flex lg:items-center lg:gap-2">
           {showDashboardAction ? (
             <Button variant="secondary" size="sm" asChild>
               <Link href={dashboardHref}>Dashboard</Link>
@@ -147,32 +186,33 @@ export function Header() {
                 <Link href="/login">Sign In</Link>
               </Button>
               <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                <Link href="/for-providers" className="text-inherit">For providers</Link>
+                <Link href="/for-providers" className="text-inherit">
+                  For providers
+                </Link>
               </Button>
             </>
           )}
         </div>
 
         {/* Mobile Menu Button */}
-        <button
-          type="button"
-          className="lg:hidden rounded-lg p-2 text-muted-foreground hover:bg-accent"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          <span className="sr-only">Toggle menu</span>
-          {mobileMenuOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </button>
+        <div className="flex items-center gap-1 lg:hidden">
+          <MarketSelector initialMarket={initialMarket} marketOptions={marketOptions} />
+          <button
+            type="button"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-accent"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <span className="sr-only">Toggle menu</span>
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu */}
       <div
         className={cn(
           "lg:hidden overflow-hidden transition-all duration-300 ease-in-out",
-          mobileMenuOpen ? "max-h-96" : "max-h-0"
+          mobileMenuOpen ? "max-h-[32rem]" : "max-h-0",
         )}
       >
         <div className="border-t border-border bg-background px-4 py-4 space-y-3">
@@ -188,19 +228,29 @@ export function Header() {
           ))}
 
           <div className="pt-2">
-            <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">
-              Providers
+            <div className="text-xs font-semibold uppercase text-muted-foreground mb-2">Explore</div>
+            <div className="space-y-4 pl-1">
+              {exploreGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 mb-1">
+                    {group.label}
+                  </div>
+                  <ul className="space-y-1">
+                    {group.links.map((link) => (
+                      <li key={link.href}>
+                        <Link
+                          href={link.href}
+                          className="block py-1.5 pl-2 text-sm text-muted-foreground hover:text-foreground"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          {link.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-            {providerLinks.map((provider) => (
-              <Link
-                key={provider.name}
-                href={provider.href}
-                className="block py-1.5 pl-3 text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {provider.name}
-              </Link>
-            ))}
           </div>
           <div className="flex flex-col gap-2 pt-4 border-t border-border">
             {showDashboardAction ? (
@@ -212,10 +262,18 @@ export function Header() {
             ) : (
               <>
                 <Button variant="ghost" className="justify-start" asChild>
-                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                    Sign In
+                  </Link>
                 </Button>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                  <Link href="/for-providers" className="text-inherit" onClick={() => setMobileMenuOpen(false)}>For providers</Link>
+                  <Link
+                    href="/for-providers"
+                    className="text-inherit"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    For providers
+                  </Link>
                 </Button>
               </>
             )}

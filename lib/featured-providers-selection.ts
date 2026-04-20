@@ -1,6 +1,7 @@
 import type { VisitorGeo } from "./visitor-geo"
 import { visitorHasLatLng } from "./visitor-geo"
 import type { ActiveProviderRow } from "./search-providers-db"
+import { normalizeCountryCode } from "./market"
 
 export function matchesAgeTags(row: ActiveProviderRow, ageTags: string[]): boolean {
   const served = row.age_groups_served ?? []
@@ -34,7 +35,10 @@ function normalizeGeoText(s: string): string {
 
 function countryCompatible(visitorCode: string | null, providerCode: string | null): boolean {
   if (!visitorCode || !providerCode) return true
-  return visitorCode.toUpperCase() === providerCode.toUpperCase()
+  const v = normalizeCountryCode(visitorCode)
+  const p = normalizeCountryCode(providerCode)
+  if (!v || !p) return true
+  return v === p
 }
 
 function cityMatchesVisitor(
@@ -133,12 +137,12 @@ function matchesByCity(pool: ActiveProviderRow[], geo: VisitorGeo): ActiveProvid
 }
 
 function matchesByCountryOnly(pool: ActiveProviderRow[], geo: VisitorGeo): ActiveProviderRow[] {
-  const cc = geo.countryCode
+  const cc = normalizeCountryCode(geo.countryCode)
   if (!cc) return []
   return pool.filter((row) => {
-    const p = row.country_code
+    const p = normalizeCountryCode(row.country_code)
     if (!p) return false
-    return p.toUpperCase() === cc.toUpperCase()
+    return p === cc
   })
 }
 
@@ -160,6 +164,8 @@ function shuffleInPlace<T>(arr: T[], random: () => number): void {
 export type SelectFeaturedProvidersOptions = {
   visitorGeo: VisitorGeo | null
   limit: number
+  /** When true and visitor country exists, only providers in that country are eligible. */
+  enforceVisitorCountry?: boolean
   /** When set, only featured providers matching these age tags are preferred for local + random. */
   ageTags?: string[]
   /** Inject for tests (deterministic shuffle). */
@@ -174,9 +180,20 @@ export function selectFeaturedProviders(
   allActiveRows: ActiveProviderRow[],
   options: SelectFeaturedProvidersOptions
 ): ActiveProviderRow[] {
-  const { visitorGeo, limit, ageTags, random = Math.random } = options
+  const {
+    visitorGeo,
+    limit,
+    enforceVisitorCountry = false,
+    ageTags,
+    random = Math.random,
+  } = options
 
-  const globalFeatured = allActiveRows.filter((r) => r.featured)
+  const normalizedVisitorCountry = normalizeCountryCode(visitorGeo?.countryCode)
+  const globalFeatured = allActiveRows.filter((r) => {
+    if (!r.featured) return false
+    if (!enforceVisitorCountry || !normalizedVisitorCountry) return true
+    return normalizeCountryCode(r.country_code) === normalizedVisitorCountry
+  })
   if (globalFeatured.length === 0 || limit <= 0) return []
 
   let primaryPool = globalFeatured

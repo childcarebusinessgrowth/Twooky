@@ -29,6 +29,10 @@ export interface SearchBarProps {
   defaultProviderType?: string
   searchButtonLabel?: string
   targetPath?: string
+  /** Overrides default hero location hint when not using coordinate fallback */
+  heroLocationPlaceholder?: string
+  /** Overrides default compact location hint when not using coordinate fallback */
+  compactLocationPlaceholder?: string
 }
 
 function normalizeCountryCode(raw: string): string {
@@ -81,6 +85,8 @@ function SearchBarContent({
   defaultProviderType,
   searchButtonLabel,
   targetPath = "/search",
+  heroLocationPlaceholder: heroPlaceholderProp,
+  compactLocationPlaceholder: compactPlaceholderProp,
 }: SearchBarProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -118,10 +124,10 @@ function SearchBarContent({
   const locationInputValue = showsCoordinateFallback ? "" : location
   const compactLocationPlaceholder = showsCoordinateFallback
     ? "Using current location"
-    : "Location (city or zip)"
+    : (compactPlaceholderProp ?? "Location (city or zip)")
   const heroLocationPlaceholder = showsCoordinateFallback
     ? "Using current location"
-    : "City, state, or zip"
+    : (heroPlaceholderProp ?? "City, state, or zip")
   const hasLocationQuery = useMemo(() => {
     const directLocation = searchParams.get("location")?.trim()
     if (directLocation) return true

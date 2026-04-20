@@ -3,10 +3,12 @@ import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { HomeFeaturedProvidersClient } from "@/components/home-featured-providers-client"
 import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
+import type { MarketId } from "@/lib/market"
+import { marketToVisitorCountryCode, normalizeCountryCode, visitorGeoForMarket } from "@/lib/market"
+import { getMarketCopy } from "@/lib/market-copy"
 import {
   activeProviderRowToCardData,
   getActiveProvidersFromDbCached,
-  getHomeFeaturedProvidersCached,
 } from "@/lib/search-providers-db"
 
 export function FeaturedProvidersSectionSkeleton() {
@@ -37,17 +39,46 @@ export function FeaturedProvidersSectionSkeleton() {
   )
 }
 
-export async function HomeFeaturedProvidersSection() {
-  let featuredProviders = await getHomeFeaturedProvidersCached(3)
+type HomeFeaturedProps = {
+  market: MarketId
+}
+
+export async function HomeFeaturedProvidersSection({ market }: HomeFeaturedProps) {
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const copy = getMarketCopy(market)
+  const visitorGeo = visitorGeoForMarket(market)
+  const marketCountryCode = marketToVisitorCountryCode(market)
+
+  const activeProviderRows = await getActiveProvidersFromDbCached()
+  let featuredProviders = selectFeaturedProviders(activeProviderRows, {
+    visitorGeo,
+    enforceVisitorCountry: true,
+    limit: 3,
+  }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
 
   if (featuredProviders.length === 0) {
-    // Safety fallback: preserve previous behavior if lightweight query yields nothing.
-    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
-    const activeProviderRows = await getActiveProvidersFromDbCached()
-    featuredProviders = selectFeaturedProviders(activeProviderRows, {
-      visitorGeo: null,
-      limit: 3,
-    }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
+    if (marketCountryCode) {
+      featuredProviders = activeProviderRows
+        .filter(
+          (row) =>
+            row.featured &&
+            normalizeCountryCode(row.country_code) === marketCountryCode,
+        )
+        .sort((a, b) => {
+          const ratingDiff = (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
+          if (ratingDiff !== 0) return ratingDiff
+          const reviewDiff = (b.review_count ?? 0) - (a.review_count ?? 0)
+          if (reviewDiff !== 0) return reviewDiff
+          return (a.business_name ?? "").localeCompare(b.business_name ?? "")
+        })
+        .slice(0, 3)
+        .map((provider) => activeProviderRowToCardData(provider, baseUrl))
+    } else {
+      featuredProviders = selectFeaturedProviders(activeProviderRows, {
+        visitorGeo: null,
+        limit: 3,
+      }).map((provider) => activeProviderRowToCardData(provider, baseUrl))
+    }
   }
 
   return (
@@ -61,9 +92,8 @@ export async function HomeFeaturedProvidersSection() {
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
               Featured Providers
             </h2>
-            <p className="text-muted-foreground">
-              Top-rated early learning providers loved by local families—preschools, nurseries, Montessori, enrichment, and more.
-            </p>
+            <p className="text-muted-foreground">{copy.featuredProvidersSubtitle}</p>
+            <p className="mt-1 text-xs text-muted-foreground/90">{copy.regulationTrustLine}</p>
           </div>
           <Button variant="ghost" asChild className="hidden md:flex">
             <Link href="/search">

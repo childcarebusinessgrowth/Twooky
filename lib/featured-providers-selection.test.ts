@@ -223,4 +223,96 @@ describe("selectFeaturedProviders", () => {
     expect(picked).toHaveLength(1)
     expect(picked[0]!.profile_id).toBe("inf")
   })
+
+  it("enforces UK-only results when visitor country is GB", () => {
+    const rows = [
+      row({ profile_id: "uk-1", country_code: "GB", featured: true, avg_rating: 4.5 }),
+      row({ profile_id: "uae-1", country_code: "AE", featured: true, avg_rating: 5 }),
+      row({ profile_id: "us-1", country_code: "US", featured: true, avg_rating: 4.8 }),
+    ]
+    const picked = selectFeaturedProviders(rows, {
+      visitorGeo: { latitude: null, longitude: null, city: null, countryCode: "GB" },
+      enforceVisitorCountry: true,
+      limit: 3,
+      random: () => 0,
+    })
+    expect(picked.map((provider) => provider.country_code)).toEqual(["GB"])
+  })
+
+  it("treats UK alias as GB when enforcing visitor country", () => {
+    const rows = [
+      row({ profile_id: "uk-1", country_code: "UK", featured: true }),
+      row({ profile_id: "us-1", country_code: "US", featured: true }),
+    ]
+    const picked = selectFeaturedProviders(rows, {
+      visitorGeo: { latitude: null, longitude: null, city: null, countryCode: "GB" },
+      enforceVisitorCountry: true,
+      limit: 3,
+      random: () => 0,
+    })
+    expect(picked).toHaveLength(1)
+    expect(picked[0]!.profile_id).toBe("uk-1")
+  })
+
+  it("keeps random fallback within UAE country scope when city/distance do not match", () => {
+    const rows = [
+      row({ profile_id: "ae-a", country_code: "AE", featured: true }),
+      row({ profile_id: "ae-b", country_code: "AE", featured: true }),
+      row({ profile_id: "gb-a", country_code: "GB", featured: true }),
+    ]
+    const picked = selectFeaturedProviders(rows, {
+      visitorGeo: { latitude: 25.2, longitude: 55.3, city: "Dubai", countryCode: "AE" },
+      enforceVisitorCountry: true,
+      limit: 2,
+      random: () => 0.8,
+    })
+    expect(picked).toHaveLength(2)
+    expect(picked.every((provider) => provider.country_code === "AE")).toBe(true)
+  })
+
+  it("treats UAE alias as AE when enforcing visitor country", () => {
+    const rows = [
+      row({ profile_id: "ae-1", country_code: "UAE", featured: true }),
+      row({ profile_id: "gb-1", country_code: "GB", featured: true }),
+    ]
+    const picked = selectFeaturedProviders(rows, {
+      visitorGeo: { latitude: null, longitude: null, city: null, countryCode: "AE" },
+      enforceVisitorCountry: true,
+      limit: 3,
+      random: () => 0,
+    })
+    expect(picked).toHaveLength(1)
+    expect(picked[0]!.profile_id).toBe("ae-1")
+  })
+
+  it("enforces US-only results when visitor country is US", () => {
+    const rows = [
+      row({ profile_id: "us-a", country_code: "US", featured: true }),
+      row({ profile_id: "us-b", country_code: "US", featured: true }),
+      row({ profile_id: "gb-a", country_code: "GB", featured: true }),
+    ]
+    const picked = selectFeaturedProviders(rows, {
+      visitorGeo: { latitude: null, longitude: null, city: null, countryCode: "US" },
+      enforceVisitorCountry: true,
+      limit: 2,
+      random: () => 0.25,
+    })
+    expect(picked).toHaveLength(2)
+    expect(picked.every((provider) => provider.country_code === "US")).toBe(true)
+  })
+
+  it("returns cross-country results for global mode when country is unknown", () => {
+    const rows = [
+      row({ profile_id: "ae-a", country_code: "AE", featured: true }),
+      row({ profile_id: "gb-a", country_code: "GB", featured: true }),
+      row({ profile_id: "us-a", country_code: "US", featured: true }),
+    ]
+    const picked = selectFeaturedProviders(rows, {
+      visitorGeo: null,
+      enforceVisitorCountry: true,
+      limit: 3,
+      random: () => 0,
+    })
+    expect(picked).toHaveLength(3)
+  })
 })

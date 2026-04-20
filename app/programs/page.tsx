@@ -48,31 +48,6 @@ export default async function ProgramsPage() {
           </div>
         </div>
       </section>
-
-      {/* Info Section */}
-      <section className="py-12 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              Choosing the Right Program
-            </h2>
-            <div className="prose prose-muted">
-              <p className="text-muted-foreground leading-relaxed mb-4">
-                Every child is unique, and finding the right childcare program depends on your 
-                child&apos;s age, developmental needs, your family&apos;s schedule, and your educational 
-                preferences. Here are some factors to consider:
-              </p>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><strong className="text-foreground">Age and developmental stage:</strong> Infant care programs focus on nurturing and attachment, while preschool programs emphasize kindergarten readiness.</li>
-                <li><strong className="text-foreground">Educational philosophy:</strong> Montessori, Reggio Emilia, play-based, and academic approaches each offer different benefits.</li>
-                <li><strong className="text-foreground">Schedule needs:</strong> Full-time, part-time, and drop-in options are available at different providers.</li>
-                <li><strong className="text-foreground">Location and convenience:</strong> Consider proximity to home or work, parking, and transportation options.</li>
-                <li><strong className="text-foreground">Budget:</strong> Costs vary significantly by program type and location. Many providers offer sibling discounts or financial assistance.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }

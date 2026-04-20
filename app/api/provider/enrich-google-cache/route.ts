@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { resolveRoleForUser } from "@/lib/authz"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
+import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 
 type EnrichGoogleCacheBody = {
   businessName?: string
@@ -29,14 +30,16 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => ({}))) as EnrichGoogleCacheBody
     const admin = getSupabaseAdminClient()
+    const providerProfileId = await resolveOwnedProviderProfileId(admin, user.id)
+
     const { count } = await admin
       .from("provider_photos")
       .select("id", { head: true, count: "exact" })
-      .eq("provider_profile_id", user.id)
+      .eq("provider_profile_id", providerProfileId)
       .eq("is_primary", true)
 
     const result = await enrichProviderGooglePlaceCache({
-      providerProfileId: user.id,
+      providerProfileId,
       businessName: body.businessName ?? "",
       address: body.address ?? "",
       placeId: body.placeId ?? null,

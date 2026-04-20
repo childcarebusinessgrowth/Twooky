@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { selectFeaturedProviders } from "@/lib/featured-providers-selection"
+import { marketToVisitorCountryCode, normalizeCountryCode } from "@/lib/market"
+import { getMarketFromCookies } from "@/lib/market-server"
 import {
   activeProviderRowToCardData,
   getActiveProvidersFromDbCached,
@@ -13,29 +15,31 @@ function parseFloatParam(value: string | null): number | null {
 }
 
 function parseCountryCode(value: string | null): string | null {
-  if (!value) return null
-  const normalized = value.trim().toUpperCase()
-  if (/^[A-Z]{2}$/.test(normalized)) return normalized
-  return null
+  return normalizeCountryCode(value)
 }
 
 export async function GET(request: Request) {
   try {
+    const market = await getMarketFromCookies()
+    const marketCountryCode = marketToVisitorCountryCode(market)
     const url = new URL(request.url)
     const limitRaw = Number.parseInt(url.searchParams.get("limit") ?? "3", 10)
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 6) : 3
 
+    const parsedCountry = parseCountryCode(url.searchParams.get("country"))
+    const effectiveCountry = marketCountryCode ?? parsedCountry
     const geo: VisitorGeo | null = {
       latitude: parseFloatParam(url.searchParams.get("lat")),
       longitude: parseFloatParam(url.searchParams.get("lng")),
       city: url.searchParams.get("city")?.trim() || null,
-      countryCode: parseCountryCode(url.searchParams.get("country")),
+      countryCode: effectiveCountry,
     }
 
     const activeRows = await getActiveProvidersFromDbCached()
     const selectedRows = selectFeaturedProviders(activeRows, {
       visitorGeo:
         geo.city || geo.countryCode || geo.latitude !== null || geo.longitude !== null ? geo : null,
+      enforceVisitorCountry: Boolean(marketCountryCode),
       limit,
     })
 

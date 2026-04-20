@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getDefaultRouteForRole, getRequiredRoleForPath, resolveRoleForUser } from "@/lib/authz"
+import { applyMarketCookieFromIp } from "@/lib/market-cookie-edge"
 import { isTreatedAsSignedOutAuthError } from "@/lib/supabaseAuthErrors"
 import type { Database } from "@/lib/supabaseDatabase"
 
@@ -60,11 +61,17 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl)
 }
 
-function withCookies(source: NextResponse, target: NextResponse): NextResponse {
+function withCookies(request: NextRequest, source: NextResponse, target: NextResponse): NextResponse {
   source.cookies.getAll().forEach((cookie) => {
     target.cookies.set(cookie)
   })
+  applyMarketCookieFromIp(request, target)
   return target
+}
+
+function finalizeMarket(request: NextRequest, response: NextResponse): NextResponse {
+  applyMarketCookieFromIp(request, response)
+  return response
 }
 
 export async function proxy(request: NextRequest) {
@@ -78,24 +85,29 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/site/")) {
     nextHeaders.set("x-microsite-request", "1")
-    return NextResponse.next({
+    const res = NextResponse.next({
       request: {
         headers: nextHeaders,
       },
     })
+    applyMarketCookieFromIp(request, res)
+    return res
   }
 
   const subdomainRewrite = rewriteSubdomainIfNeeded(request)
   if (subdomainRewrite) {
+    applyMarketCookieFromIp(request, subdomainRewrite)
     return subdomainRewrite
   }
 
   if (!shouldRunAuth(pathname)) {
-    return NextResponse.next({
+    const res = NextResponse.next({
       request: {
         headers: nextHeaders,
       },
     })
+    applyMarketCookieFromIp(request, res)
+    return res
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -109,7 +121,9 @@ export async function proxy(request: NextRequest) {
         headers: { "Content-Type": "text/plain; charset=utf-8" },
       })
     }
-    return NextResponse.next()
+    const resMissing = NextResponse.next()
+    applyMarketCookieFromIp(request, resMissing)
+    return resMissing
   }
 
   let response = NextResponse.next({
@@ -154,9 +168,9 @@ export async function proxy(request: NextRequest) {
 
   if (!effectiveUser) {
     if (requiredRole) {
-      return withCookies(response, buildLoginRedirect(request))
+      return withCookies(request, response, buildLoginRedirect(request))
     }
-    return response
+    return finalizeMarket(request, response)
   }
 
   const roleResolution = await resolveRoleForUser(supabase, effectiveUser)
@@ -169,26 +183,34 @@ export async function proxy(request: NextRequest) {
       })
 
       if (requiredRole) {
-        return withCookies(response, buildLoginRedirect(request))
+        return withCookies(request, response, buildLoginRedirect(request))
       }
 
-      return response
+      return finalizeMarket(request, response)
     }
 
     // If the user is authenticated but role resolution fails in proxy (e.g. restrictive RLS),
     // do not redirect back to login and create a dead-end loop.
-    return response
+    return finalizeMarket(request, response)
   }
 
   if (isAuthPage) {
-    return withCookies(response, NextResponse.redirect(new URL(getDefaultRouteForRole(role), request.url)))
+    return withCookies(
+      request,
+      response,
+      NextResponse.redirect(new URL(getDefaultRouteForRole(role), request.url)),
+    )
   }
 
   if (requiredRole && role !== requiredRole) {
-    return withCookies(response, NextResponse.redirect(new URL(getDefaultRouteForRole(role), request.url)))
+    return withCookies(
+      request,
+      response,
+      NextResponse.redirect(new URL(getDefaultRouteForRole(role), request.url)),
+    )
   }
 
-  return response
+  return finalizeMarket(request, response)
 }
 
 export const config = {

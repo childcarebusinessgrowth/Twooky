@@ -8,6 +8,7 @@ import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-ur
 import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import { syncProviderProgramTypes } from "@/lib/provider-program-types"
 import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
+import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
 
 function uniqueTrimmedStrings(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -34,6 +35,29 @@ function readOptionalInteger(value: unknown): number | null {
   if (!trimmed) return null
   const parsed = Number.parseInt(trimmed, 10)
   return Number.isNaN(parsed) ? null : parsed
+}
+
+type ProviderGoogleSummaryCacheRow = {
+  business_name: string | null
+  address: string | null
+  google_place_id: string | null
+  google_rating_cached: number | null
+  google_review_count_cached: number | null
+  google_reviews_url_cached: string | null
+  google_reviews_cached_at: string | null
+}
+
+function shouldBackfillGoogleSummaryCache(row: ProviderGoogleSummaryCacheRow | null): boolean {
+  if (!row) return false
+  const placeId = row.google_place_id?.trim()
+  if (!placeId) return false
+  const hasAnySummaryField =
+    (typeof row.google_rating_cached === "number" && Number.isFinite(row.google_rating_cached)) ||
+    (typeof row.google_review_count_cached === "number" &&
+      Number.isFinite(row.google_review_count_cached)) ||
+    Boolean(row.google_reviews_url_cached?.trim())
+  const hasCachedAt = Boolean(row.google_reviews_cached_at?.trim())
+  return !hasAnySummaryField || !hasCachedAt
 }
 
 export async function POST(request: Request) {
@@ -170,6 +194,33 @@ export async function POST(request: Request) {
       if (saveError) {
         return NextResponse.json({ success: false, error: saveError.message }, { status: 400 })
       }
+    }
+
+    const { data: postSaveProfile } = await admin
+      .from("provider_profiles")
+      .select(
+        "business_name, address, google_place_id, google_rating_cached, google_review_count_cached, google_reviews_url_cached, google_reviews_cached_at"
+      )
+      .eq("profile_id", providerProfileId)
+      .maybeSingle()
+
+    const cachedSummaryRow = (postSaveProfile ?? null) as ProviderGoogleSummaryCacheRow | null
+
+    if (shouldBackfillGoogleSummaryCache(cachedSummaryRow)) {
+      const { count } = await admin
+        .from("provider_photos")
+        .select("id", { head: true, count: "exact" })
+        .eq("provider_profile_id", providerProfileId)
+        .eq("is_primary", true)
+
+      await enrichProviderGooglePlaceCache({
+        providerProfileId,
+        businessName: cachedSummaryRow?.business_name ?? businessName,
+        address: cachedSummaryRow?.address ?? readOptionalString(body.address) ?? "",
+        placeId: cachedSummaryRow?.google_place_id ?? null,
+        hasPrimaryPhoto: (count ?? 0) > 0,
+        logContext: "provider-save-listing-fallback",
+      })
     }
 
     revalidatePath("/dashboard/provider/listing")

@@ -4,6 +4,8 @@ import { unstable_cache } from "next/cache"
 import { CACHE_TAGS } from "@/lib/cache-tags"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import type { PopularLocationGroup } from "@/lib/popular-locations"
+import type { MarketId } from "@/lib/market"
+import { cityRowMatchesMarket } from "@/lib/market"
 
 type CountryRow = {
   id: string
@@ -466,6 +468,77 @@ export async function getRandomFooterCities(limit: number): Promise<FooterCityLi
       }))
     },
     ["footer-cities", String(limit)],
+    { revalidate: 3600, tags: [CACHE_TAGS.footerCities] },
+  )()
+}
+
+function footerFallbackForMarket(market: MarketId): FooterCityLink[] {
+  const uk = FOOTER_CITY_FALLBACK.filter((l) => l.href.includes("/locations/uk/"))
+  const us = FOOTER_CITY_FALLBACK.filter((l) => l.href.includes("/locations/us/"))
+  const ae = FOOTER_CITY_FALLBACK.filter((l) => l.href.includes("/locations/ae/"))
+  if (market === "uk") return uk.length > 0 ? uk : FOOTER_CITY_FALLBACK
+  if (market === "us") return us.length > 0 ? us : FOOTER_CITY_FALLBACK
+  if (market === "uae") return ae.length > 0 ? ae : FOOTER_CITY_FALLBACK
+  return FOOTER_CITY_FALLBACK
+}
+
+/**
+ * Random footer cities biased to the visitor’s selected market (UK / US / UAE).
+ */
+export async function getRandomFooterCitiesForMarket(
+  limit: number,
+  market: MarketId,
+): Promise<FooterCityLink[]> {
+  return unstable_cache(
+    async () => {
+      const supabase = getSupabaseAdminClient()
+
+      const { data, error } = await supabase
+        .from("cities")
+        .select("name, slug, search_country_code, countries!inner(code, is_active)")
+        .eq("is_active", true)
+        .eq("countries.is_active", true)
+
+      if (error) {
+        console.error("[locations] Failed to load cities for footer (market)", error.message)
+        return footerFallbackForMarket(market).slice(0, limit)
+      }
+
+      const rows = (data ?? []) as Array<{
+        name: string
+        slug: string
+        search_country_code: string
+        countries?: { code?: string | null } | null
+      }>
+      if (rows.length === 0) {
+        return footerFallbackForMarket(market).slice(0, limit)
+      }
+
+      const filtered = rows.filter((row) =>
+        cityRowMatchesMarket(
+          typeof row.countries?.code === "string" ? row.countries.code : null,
+          row.search_country_code,
+          market,
+        ),
+      )
+
+      const pool = filtered.length > 0 ? filtered : rows
+      shuffleInPlace(pool, Math.random)
+      const take = Math.min(limit, pool.length)
+      const mapped = pool.slice(0, take).map((c) => ({
+        name: c.name,
+        href: buildLocationHref(
+          typeof c.countries?.code === "string" && c.countries.code.trim()
+            ? c.countries.code
+            : c.search_country_code,
+          c.slug,
+        ),
+      }))
+
+      if (mapped.length > 0) return mapped
+      return footerFallbackForMarket(market).slice(0, limit)
+    },
+    ["footer-cities-market", market, String(limit)],
     { revalidate: 3600, tags: [CACHE_TAGS.footerCities] },
   )()
 }

@@ -8,7 +8,7 @@ import { getPopularLocations } from "@/lib/popular-locations"
 export const metadata = {
   title: "Childcare Locations | Twooky",
   description:
-    "Explore childcare locations across the USA, UK, and UAE. Browse cities and find trusted childcare providers near you.",
+    "Explore childcare locations across our supported countries. Browse cities and find trusted childcare providers near you.",
 }
 
 function getCityName(label: string) {
@@ -36,7 +36,8 @@ export default async function ChildcareLocationsPage() {
             Browse Childcare Locations
           </h1>
           <p className="mt-4 max-w-2xl text-muted-foreground md:text-lg">
-            Find childcares in popular cities across the USA, UK, and UAE. Pick a country, explore locations, and jump straight into your search.
+            Find childcares in popular cities across our supported countries. Pick a country,
+            explore locations, and jump straight into your search.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3 max-w-2xl">

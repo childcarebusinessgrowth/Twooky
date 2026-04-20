@@ -10,6 +10,8 @@ import {
   getAgeGroupsById,
   programTypeToCardShape,
 } from "@/lib/program-types"
+import { getMarketCopy } from "@/lib/market-copy"
+import { getMarketFromCookies } from "@/lib/market-server"
 import {
   HomeFeaturedProvidersSection,
   FeaturedProvidersSectionSkeleton,
@@ -22,31 +24,34 @@ import {
   HomeFeaturedBlogsSection,
   HomeFeaturedBlogsSectionSkeleton,
 } from "@/app/home-featured-blogs"
+import type { MarketCopy } from "@/lib/market-copy"
 
 export const revalidate = 60
 
-const trustFeatures = [
-  {
-    icon: ShieldCheck,
-    title: "Verified Providers",
-    description: "All providers are background checked and licensed"
-  },
-  {
-    icon: Star,
-    title: "Real Parent Reviews",
-    description: "Honest reviews from families like yours"
-  },
-  {
-    icon: GitCompareArrows,
-    title: "Compare Programs",
-    description: "Side-by-side comparison of programs and pricing"
-  },
-  {
-    icon: MessageSquare,
-    title: "Easy Contact",
-    description: "Connect directly with providers instantly"
-  }
-]
+function buildTrustFeatures(copy: MarketCopy) {
+  return [
+    {
+      icon: ShieldCheck,
+      title: copy.verifiedProvidersTitle,
+      description: copy.verifiedProvidersDescription,
+    },
+    {
+      icon: Star,
+      title: "Real parent reviews",
+      description: "Honest feedback from families who’ve used these providers.",
+    },
+    {
+      icon: GitCompareArrows,
+      title: "Compare options",
+      description: "See programmes, ages, and fees side by side before you shortlist.",
+    },
+    {
+      icon: MessageSquare,
+      title: "Contact in one place",
+      description: "Message or call providers from their Twooky profile—no runaround.",
+    },
+  ]
+}
 
 const heroStats = [
   { icon: Users, value: "500+", label: "Verified Providers" },
@@ -62,6 +67,10 @@ const HOME_HERO_IMAGE_ALT =
   "Young children learning together in an early childhood classroom"
 
 export default async function HomePage() {
+  const market = await getMarketFromCookies()
+  const copy = getMarketCopy(market)
+  const trustFeatures = buildTrustFeatures(copy)
+
   const [programRows, ageGroupsById] = await Promise.all([
     getActiveProgramTypes(),
     getAgeGroupsById(),
@@ -85,7 +94,7 @@ export default async function HomePage() {
             sizes="100vw"
           />
         </div>
-        <div className="absolute inset-0 -z-10 bg-linear-to-r from-black/48 via-black/30 to-black/12" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-r from-black/40 via-black/22 to-black/10" />
         <div className="absolute inset-0 -z-10 bg-linear-to-b from-secondary/14 via-primary/10 to-tertiary/12" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_78%_22%,color-mix(in_oklab,var(--tertiary)_22%,transparent),transparent_55%)]" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_24%_28%,rgba(255,255,255,0.16),transparent_50%)]" />
@@ -94,21 +103,27 @@ export default async function HomePage() {
           <div className="max-w-4xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/12 px-3 py-1.5 text-xs md:text-sm font-medium text-white/90 backdrop-blur-sm">
               <ShieldCheck className="h-4 w-4" />
-              Trusted by 100,000+ families
+              {copy.heroPill}
             </div>
 
-            <h1 className="max-w-3xl text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.03] text-white tracking-tight mb-4 text-balance">
-              The world of opportunities for{" "}
-              <span className="text-secondary">kids & youngsters</span>
+            <h1 className="max-w-3xl text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight mb-4 text-pretty [text-shadow:0_2px_20px_rgba(0,0,0,0.45),0_1px_2px_rgba(0,0,0,0.35)]">
+              <span className="block text-white">{copy.heroTitleLine1}</span>
+              <span className="mt-1 block md:mt-1.5">
+                <span className="text-white">{copy.heroTitleLine2Prefix}</span>
+                <span className="text-secondary">{copy.heroTitleLine2Accent}</span>
+              </span>
             </h1>
 
             <p className="max-w-2xl text-base md:text-xl text-white/90 leading-relaxed mb-7 text-pretty">
-              Explore every kind of early childhood education, preschools, nurseries, Montessori, enrichment, and more. Search
-              verified programs, read reviews, and find the right fit for your family.
+              {copy.heroSubtitle}
             </p>
 
-            <SearchBarDynamic surface="overlay" className="max-w-5xl" />
-
+            <SearchBarDynamic
+              surface="overlay"
+              className="max-w-5xl"
+              heroLocationPlaceholder={copy.heroLocationPlaceholder}
+              compactLocationPlaceholder={copy.compactLocationPlaceholder}
+            />
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {heroStats.map((stat) => (
                 <div
@@ -128,7 +143,7 @@ export default async function HomePage() {
       </section>
 
       <Suspense fallback={<FeaturedProvidersSectionSkeleton />}>
-        <HomeFeaturedProvidersSection />
+        <HomeFeaturedProvidersSection market={market} />
       </Suspense>
 
       {/* Browse by Program Type */}
@@ -145,9 +160,7 @@ export default async function HomePage() {
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
                 Browse by Program Type
               </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                Explore age-specific options across early education—from preschools and nurseries to Montessori, enrichment, and beyond—to find the best fit for your child&apos;s stage and interests.
-              </p>
+              <p className="mx-auto max-w-2xl text-muted-foreground">{copy.browseProgramTypesIntro}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -175,7 +188,7 @@ export default async function HomePage() {
       </section>
 
       <Suspense fallback={<HomePopularLocationsSectionSkeleton />}>
-        <HomePopularLocationsSection />
+        <HomePopularLocationsSection market={market} />
       </Suspense>
 
       {/* Why Parents Trust Us */}
@@ -188,9 +201,7 @@ export default async function HomePage() {
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
               Why Parents Trust Us
             </h2>
-            <p className="text-muted-foreground">
-              We make finding the right early childhood fit—education, preschools, nurseries, Montessori, enrichment, and more—simple and stress-free
-            </p>
+            <p className="text-muted-foreground">{copy.whyParentsTrustIntro}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -226,11 +237,11 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="rounded-3xl bg-primary p-8 md:p-12 text-center shadow-lg shadow-primary/25">
             <h2 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-4">
-              Are You an Early Childhood Education Provider?
+              List your nursery, school, or kids&apos; programme
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join thousands of schools and programs who use Twooky to connect with local families.
-              Get started in minutes, whether you&apos;re claiming an existing profile or adding a new listing.
+              Reach parents who are actively searching for childcare, classes, and camps in your area.
+              Claim a listing or add a new one, it only takes a few minutes.
             </p>
             <div className="mb-8 flex flex-col items-center gap-2 text-primary-foreground/80 text-sm">
               <span className="font-semibold uppercase tracking-wide text-xs opacity-90">

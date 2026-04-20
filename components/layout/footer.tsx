@@ -1,6 +1,8 @@
 import Link from "next/link"
 import Image from "next/image"
 import type { FooterCityLink } from "@/lib/locations"
+import type { MarketId } from "@/lib/market"
+import { getMarketCopy } from "@/lib/market-copy"
 
 const footerLinks = {
   company: [
@@ -9,24 +11,20 @@ const footerLinks = {
     { name: "Blog", href: "/blogs" },
     { name: "Contact", href: "/contact" },
     { name: "Browse Locations", href: "/childcare/locations" },
+    { name: "Region & language", href: "/region" },
     { name: "Privacy", href: "/privacy" },
     { name: "Terms", href: "/terms" },
     { name: "For providers", href: "/for-providers" },
-  ],
-  searches: [
-    { name: "Daycare Near Me", href: "/search" },
-    { name: "Preschools", href: "/programs/preschool" },
-    { name: "Montessori Programs", href: "/programs/montessori" },
-    { name: "Infant Care", href: "/programs/infant-care" },
-    { name: "After School Programs", href: "/programs/after-school" },
   ],
 }
 
 type FooterProps = {
   cities: FooterCityLink[]
+  market: MarketId
 }
 
-export function Footer({ cities }: FooterProps) {
+export function Footer({ cities, market }: FooterProps) {
+  const copy = getMarketCopy(market)
   const currentYear = new Date().getFullYear()
   return (
     <footer className="border-t border-border bg-muted/50">
@@ -44,9 +42,7 @@ export function Footer({ cities }: FooterProps) {
                 className="h-15 w-auto sm:h-16"
               />
             </Link>
-            <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-              The world of opportunities for kids & youngsters
-            </p>
+            <p className="mt-4 text-sm text-muted-foreground leading-relaxed">{copy.footerTagline}</p>
           </div>
 
           {/* Company Links */}
@@ -93,7 +89,7 @@ export function Footer({ cities }: FooterProps) {
               Popular Searches
             </h3>
             <ul className="mt-4 space-y-3">
-              {footerLinks.searches.map((link) => (
+              {copy.footerPopularSearches.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}

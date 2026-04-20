@@ -7,7 +7,9 @@ import { CookieConsentBannerLazy } from '@/components/cookie-consent-banner-lazy
 import { DeferredClientRender } from "@/components/deferred-client-render"
 import { AppShell } from '@/components/layout/app-shell'
 import { Footer } from '@/components/layout/footer'
-import { getRandomFooterCities } from '@/lib/locations'
+import { getRandomFooterCitiesForMarket } from '@/lib/locations'
+import { getMarketOptions } from "@/lib/market-options"
+import { getMarketFromCookies } from '@/lib/market-server'
 import { WebVitalsClient } from '@/components/web-vitals-client'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
@@ -55,7 +57,9 @@ export default async function RootLayout({
 }>) {
   const requestHeaders = await headers()
   const isMicrositeRequest = requestHeaders.get("x-microsite-request") === "1"
-  const footerCities = await getRandomFooterCities(7)
+  const market = await getMarketFromCookies()
+  const marketOptions = await getMarketOptions()
+  const footerCities = await getRandomFooterCitiesForMarket(7, market)
   const enableVercelObservability = process.env.VERCEL === "1"
 
   return (
@@ -67,7 +71,17 @@ export default async function RootLayout({
       <body className="font-sans antialiased min-h-screen flex flex-col" suppressHydrationWarning>
         <AuthRecoveryRedirect />
         <WebVitalsClient />
-        {isMicrositeRequest ? children : <AppShell footer={<Footer cities={footerCities} />}>{children}</AppShell>}
+        {isMicrositeRequest ? (
+          children
+        ) : (
+          <AppShell
+            footer={<Footer cities={footerCities} market={market} />}
+            initialMarket={market}
+            marketOptions={marketOptions}
+          >
+            {children}
+          </AppShell>
+        )}
         <Toaster />
         <SonnerToaster />
         <DeferredClientRender timeoutMs={1200}>

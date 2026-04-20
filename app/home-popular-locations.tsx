@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { ArrowRight, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { MarketId } from "@/lib/market"
+import { getMarketCopy } from "@/lib/market-copy"
 import { getPopularLocationsForHome } from "@/lib/popular-locations"
 
 export function HomePopularLocationsSectionSkeleton() {
@@ -31,8 +33,14 @@ export function HomePopularLocationsSectionSkeleton() {
   )
 }
 
-export async function HomePopularLocationsSection() {
-  const popularLocations = await getPopularLocationsForHome()
+type HomePopularProps = {
+  market: MarketId
+}
+
+export async function HomePopularLocationsSection({ market }: HomePopularProps) {
+  const copy = getMarketCopy(market)
+  const popularLocations = await getPopularLocationsForHome(market)
+  const isSingleCountry = popularLocations.length === 1
 
   return (
     <section id="cities" className="py-20 md:py-24">
@@ -44,19 +52,25 @@ export async function HomePopularLocationsSection() {
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight mb-2">
             Browse by City
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Discover trusted early childhood programs—education, preschools, nurseries, Montessori, enrichment, and more—in the most popular cities across the USA, UK and UAE.
-          </p>
+          <p className="text-muted-foreground max-w-2xl mx-auto">{copy.popularCitiesIntro}</p>
         </div>
 
-        <div className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur-sm shadow-sm p-6 md:p-8 lg:p-10">
-          <div className="grid gap-8 lg:gap-12 md:grid-cols-3">
+        <div
+          className={`rounded-3xl border border-border/60 bg-card/80 backdrop-blur-sm shadow-sm p-6 md:p-8 lg:p-10 ${
+            isSingleCountry ? "max-w-4xl mx-auto" : ""
+          }`}
+        >
+          <div
+            className={`grid gap-8 lg:gap-12 ${
+              isSingleCountry ? "md:grid-cols-1" : "md:grid-cols-2 lg:grid-cols-3"
+            }`}
+          >
             {popularLocations.map((group) => (
               <div key={group.country}>
                 <h3 className="text-base md:text-lg font-semibold text-foreground pb-3 mb-4 border-b border-border/60">
-                  {group.country}
+                  {isSingleCountry ? `${copy.label} (${group.country})` : group.country}
                 </h3>
-                <ul className="space-y-3">
+                <ul className={isSingleCountry ? "grid gap-3 sm:grid-cols-2" : "space-y-3"}>
                   {group.locations.map((location, i) => (
                     <li key={location.href}>
                       <Link

@@ -20,6 +20,8 @@ import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
 import { getDirectoryPlanPriority } from "@/lib/provider-plan-access"
 import { resolveLocationTextFromQuery } from "@/lib/search-location-query"
 import type { SearchFilterOptions } from "@/components/filter-sidebar"
+import { dailyFeeFilterCurrencyPrefix } from "@/lib/market"
+import { getMarketFromCookies } from "@/lib/market-server"
 
 export type SearchPageQueryParams = {
   location?: string
@@ -139,7 +141,6 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
       { data: languages },
       { data: curriculum },
       { data: features },
-      { data: defaultCurrency },
     ] = await Promise.all([
       supabase
         .from("age_groups")
@@ -171,13 +172,6 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
-      supabase
-        .from("currencies")
-        .select("symbol")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .limit(1)
-        .maybeSingle(),
     ])
 
     const programTypesBySlug: Record<string, string> = {}
@@ -185,8 +179,6 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
       const slug = (row as { slug?: string }).slug
       if (slug) programTypesBySlug[slug] = row.name
     }
-
-    const currencySymbol = (defaultCurrency as { symbol?: string } | null)?.symbol ?? "$"
 
     return {
       ageGroups: (ageGroups ?? []).map((row) => {
@@ -202,7 +194,8 @@ async function loadSearchFilterOptions(): Promise<SearchFilterOptions> {
       curriculum: (curriculum ?? []).map((row) => ({ value: row.name, label: row.name })),
       features: (features ?? []).map((row) => ({ value: row.name, label: row.name })),
       programTypesBySlug,
-      currencySymbol,
+      /** Overridden per request in `getSearchFilterOptions` from region cookie */
+      currencySymbol: "$",
     }
   } catch (error) {
     console.error("[search] Failed to load search filter options", error)
@@ -225,7 +218,12 @@ const loadSearchFilterOptionsCached = unstable_cache(
 )
 
 export async function getSearchFilterOptions(): Promise<SearchFilterOptions> {
-  return loadSearchFilterOptionsCached()
+  const base = await loadSearchFilterOptionsCached()
+  const market = await getMarketFromCookies()
+  return {
+    ...base,
+    currencySymbol: dailyFeeFilterCurrencyPrefix(market),
+  }
 }
 
 export async function getSearchPageData(options: {
@@ -267,7 +265,7 @@ export async function getSearchPageData(options: {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
 
   const [filterOptions, activeRows] = await Promise.all([
-    loadSearchFilterOptionsCached(),
+    getSearchFilterOptions(),
     getActiveProvidersFromDbCached(),
   ])
 

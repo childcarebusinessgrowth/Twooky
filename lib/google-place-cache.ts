@@ -1,6 +1,11 @@
 import type { GooglePlaceDetailsSummary } from "@/lib/google-place-reviews"
 
-const GOOGLE_REVIEWS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+/**
+ * Keep Google summary visible between monthly refresh runs.
+ * Cron refreshes on a monthly cadence, so a short TTL causes
+ * valid cached values to disappear and fall back to zero.
+ */
+const GOOGLE_REVIEWS_CACHE_TTL_MS = 45 * 24 * 60 * 60 * 1000
 
 export type ProviderGoogleCacheRow = {
   google_rating_cached?: number | null
@@ -46,5 +51,7 @@ export function hasFreshCachedGoogleReviews(row: ProviderGoogleCacheRow): boolea
     (typeof row.google_review_count_cached === "number" &&
       Number.isFinite(row.google_review_count_cached)) ||
     Boolean(row.google_reviews_url_cached?.trim())
-  return hasReviewValue && isGoogleReviewCacheFresh(row.google_reviews_cached_at)
+  // For directory display, prefer showing persisted cached values instead of
+  // dropping to 0 when the timestamp window expires between refresh runs.
+  return hasReviewValue
 }

@@ -142,6 +142,26 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                     <h1 className="text-2xl md:text-3xl font-bold text-foreground">
                       {p.name}
                     </h1>
+                    <div className="mt-3 flex items-center gap-4 flex-wrap text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                        <span className="font-semibold text-foreground">
+                          {p.displayRating > 0 ? p.displayRating.toFixed(1) : ","}
+                        </span>
+                        {p.googleReviewsUrl ? (
+                          <a
+                            href={p.googleReviewsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-foreground hover:underline transition-colors"
+                          >
+                            ({p.displayReviewCount} Google reviews)
+                          </a>
+                        ) : (
+                          <span>({p.displayReviewCount} reviews)</span>
+                        )}
+                      </div>
+                    </div>
                     <div className="mt-3 flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
                       <span>{p.address || "Location coming soon"}</span>
