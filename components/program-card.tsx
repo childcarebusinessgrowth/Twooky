@@ -11,6 +11,12 @@ interface ProgramCardProps {
 export function ProgramCard({ program, compact = false }: ProgramCardProps) {
   const Icon = iconMap[program.icon] ?? Baby
   const href = program.href ?? `/programs/${program.slug}`
+  const ageGroupChips = program.ageGroupLabel
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean)
+  const visibleAgeGroupChips = ageGroupChips.slice(0, 2)
+  const hiddenAgeGroupCount = Math.max(ageGroupChips.length - visibleAgeGroupChips.length, 0)
 
   if (compact) {
     return (
@@ -21,9 +27,22 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-tertiary/10 ring-1 ring-tertiary/20">
                 <Icon className="h-7 w-7 text-tertiary" />
               </div>
-              <span className="inline-flex shrink-0 items-center rounded-full border border-tertiary/25 bg-tertiary/8 px-3 py-1 text-[11px] font-medium text-tertiary">
-                {program.ageGroupLabel}
-              </span>
+              <div className="flex max-w-[72%] flex-wrap justify-end gap-1.5">
+                {visibleAgeGroupChips.map((ageLabel) => (
+                  <span
+                    key={ageLabel}
+                    className="inline-flex max-w-full items-center rounded-full border border-tertiary/25 bg-tertiary/8 px-2.5 py-1 text-[11px] font-medium text-tertiary"
+                    title={ageLabel}
+                  >
+                    <span className="truncate">{ageLabel}</span>
+                  </span>
+                ))}
+                {hiddenAgeGroupCount > 0 && (
+                  <span className="inline-flex items-center rounded-full border border-border/70 bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    +{hiddenAgeGroupCount} more
+                  </span>
+                )}
+              </div>
             </div>
 
             <h3 className="mb-2 text-lg font-semibold text-foreground transition-colors group-hover:text-tertiary">
