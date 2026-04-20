@@ -40,9 +40,9 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
-  title: 'Twooky | Find the Best Childcare Near You',
-  description: 'Search thousands of trusted daycare centers, preschools, and nurseries. Find verified childcare providers with real parent reviews.',
-  keywords: 'childcare, daycare, preschool, nursery, childcare near me, daycare centers, early learning',
+  title: 'Twooky | Find the Best Providers Near You',
+  description: 'Search thousands of trusted daycare centers, preschools, and nurseries. Find verified providers with real parent reviews.',
+  keywords: 'provider, daycare, preschool, nursery, providers near me, daycare centers, early learning',
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   icons: {
     icon: [{ url: '/favicon.png', type: 'image/png' }],

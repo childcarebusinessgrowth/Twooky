@@ -21,10 +21,20 @@ import {
 
 const navigation = [
   { name: "Home", href: "/" },
+  { name: "Parents area", href: "/parents" },
+]
+
+const aboutMenuLinks = [
+  { name: "Locations", href: "/provider/locations" },
+  { name: "Contact", href: "/contact" },
+]
+
+const mobileNavigation = [
+  { name: "Home", href: "/" },
+  { name: "Parents area", href: "/parents" },
   { name: "About", href: "/about" },
-  { name: "Pricing", href: "/pricing" },
-  { name: "Programs", href: "/programs" },
-  { name: "Locations", href: "/childcare/locations" },
+  { name: "Locations", href: "/provider/locations" },
+  { name: "Contact", href: "/contact" },
 ]
 
 const exploreGroups: Array<{
@@ -32,7 +42,7 @@ const exploreGroups: Array<{
   links: Array<{ name: string; href: string }>
 }> = [
   {
-    label: "Childcare",
+    label: "Providers",
     links: [
       { name: "Nurseries", href: "/nurseries" },
       { name: "Preschools", href: "/preschools" },
@@ -72,7 +82,9 @@ type HeaderProps = {
 
 export function Header({ initialMarket, marketOptions }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [aboutMenuOpen, setAboutMenuOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
+  const [providerMenuOpen, setProviderMenuOpen] = useState(false)
   const [resolvedRole, setResolvedRole] = useState<AuthRole | null>(null)
 
   useEffect(() => {
@@ -131,6 +143,49 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
 
           <div
             className="relative"
+            onMouseEnter={() => setAboutMenuOpen(true)}
+            onMouseLeave={() => setAboutMenuOpen(false)}
+          >
+            <div className="flex items-center gap-1">
+              <Link
+                href="/about"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                About
+              </Link>
+              <DropdownMenu open={aboutMenuOpen} onOpenChange={setAboutMenuOpen}>
+                <DropdownMenuTrigger
+                  className="rounded-sm p-0.5 text-muted-foreground transition-colors hover:text-foreground focus:outline-none cursor-pointer"
+                  aria-label="About menu"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    setAboutMenuOpen((prev) => !prev)
+                  }}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="mt-2 min-w-[220px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/70 p-2 shadow-lg"
+                >
+                  {aboutMenuLinks.map((link) => (
+                    <DropdownMenuItem
+                      key={link.href}
+                      asChild
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Link href={link.href} onClick={() => setAboutMenuOpen(false)}>
+                        {link.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <div
+            className="relative"
             onMouseEnter={() => setProvidersOpen(true)}
             onMouseLeave={() => setProvidersOpen(false)}
           >
@@ -185,11 +240,42 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>
-              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                <Link href="/for-providers" className="text-inherit">
-                  For providers
-                </Link>
-              </Button>
+              <DropdownMenu open={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1"
+                  >
+                    <span>For providers</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="mt-2 min-w-[240px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/60 p-2 shadow-lg"
+                >
+                  <DropdownMenuLabel className="px-3 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground/90">
+                    For providers
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem
+                    asChild
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <Link href="/for-providers" onClick={() => setProviderMenuOpen(false)}>
+                      Get started
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    asChild
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <Link href="/pricing" onClick={() => setProviderMenuOpen(false)}>
+                      Pricing
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div>
@@ -212,11 +298,11 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
       <div
         className={cn(
           "lg:hidden overflow-hidden transition-all duration-300 ease-in-out",
-          mobileMenuOpen ? "max-h-[32rem]" : "max-h-0",
+          mobileMenuOpen ? "max-h-128" : "max-h-0",
         )}
       >
         <div className="border-t border-border bg-background px-4 py-4 space-y-3">
-          {navigation.map((item) => (
+          {mobileNavigation.map((item) => (
             <Link
               key={item.name}
               href={item.href}
@@ -266,15 +352,26 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
                     Sign In
                   </Link>
                 </Button>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
+                <div className="rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/50 p-3 shadow-xs">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    For providers
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground/80">Tools and plans for your business</div>
                   <Link
                     href="/for-providers"
-                    className="text-inherit"
+                    className="mt-3 block rounded-lg px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    For providers
+                    Get started
                   </Link>
-                </Button>
+                  <Link
+                    href="/pricing"
+                    className="mt-1 block rounded-lg px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Pricing
+                  </Link>
+                </div>
               </>
             )}
           </div>

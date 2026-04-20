@@ -6,17 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPopularLocations } from "@/lib/popular-locations"
 
 export const metadata = {
-  title: "Childcare Locations | Twooky",
+  title: "Provider Locations | Twooky",
   description:
-    "Explore childcare locations across our supported countries. Browse cities and find trusted childcare providers near you.",
+    "Explore provider locations across our supported countries. Browse cities and find trusted providers near you.",
 }
 
 function getCityName(label: string) {
-  const prefix = "Childcares in "
+  const prefix = "Providers in "
   return label.startsWith(prefix) ? label.slice(prefix.length) : label
 }
 
-export default async function ChildcareLocationsPage() {
+export default async function ProviderLocationsPage() {
   const popularLocations = await getPopularLocations()
   const defaultCountry = popularLocations[0]?.country ?? "USA"
   const totalLocations = popularLocations.reduce(
@@ -33,10 +33,10 @@ export default async function ChildcareLocationsPage() {
             Global directory
           </div>
           <h1 className="mt-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground text-balance">
-            Browse Childcare Locations
+            Browse Provider Locations
           </h1>
           <p className="mt-4 max-w-2xl text-muted-foreground md:text-lg">
-            Find childcares in popular cities across our supported countries. Pick a country,
+            Find providers in popular cities across our supported countries. Pick a country,
             explore locations, and jump straight into your search.
           </p>
 
@@ -84,7 +84,7 @@ export default async function ChildcareLocationsPage() {
                   <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
                       <h2 className="text-xl md:text-2xl font-semibold text-foreground">
-                        Childcares in {group.country}
+                        Providers in {group.country}
                       </h2>
                       <p className="text-sm text-muted-foreground">
                         {group.locations.length} popular cities ready to explore
@@ -112,7 +112,7 @@ export default async function ChildcareLocationsPage() {
                                   {getCityName(location.label)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {group.country} childcare directory
+                                  {group.country} provider directory
                                 </p>
                               </div>
                             </div>
@@ -129,7 +129,7 @@ export default async function ChildcareLocationsPage() {
 
           <div className="mt-8 rounded-2xl border border-border/60 bg-muted/30 p-6 text-center">
             <p className="text-sm md:text-base text-muted-foreground">
-              Looking for more options? Use advanced filters to find the right childcare by city, program type, and age group.
+              Looking for more options? Use advanced filters to find the right provider by city, program type, and age group.
             </p>
             <div className="mt-4">
               <Button asChild>

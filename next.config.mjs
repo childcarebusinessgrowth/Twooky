@@ -101,6 +101,20 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      {
+        source: "/childcare/locations",
+        destination: "/provider/locations",
+        permanent: true,
+      },
+      {
+        source: "/childcare/locations/:path*",
+        destination: "/provider/locations/:path*",
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default withBundleAnalyzer(nextConfig)

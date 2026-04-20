@@ -210,7 +210,7 @@ export async function getPopularLocationGroups(
     }
 
     group.locations.push({
-      label: `Childcares in ${city.name}`,
+      label: `Providers in ${city.name}`,
       href: buildLocationHref(country.code, city.slug),
     })
   }

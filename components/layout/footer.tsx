@@ -11,7 +11,7 @@ const footerLinks = {
     { name: "Pricing", href: "/pricing" },
     { name: "Blog", href: "/blogs" },
     { name: "Contact", href: "/contact" },
-    { name: "Browse Locations", href: "/childcare/locations" },
+    { name: "Browse Provider Locations", href: "/provider/locations" },
     { name: "Region & language", href: "/region" },
     { name: "Privacy", href: "/privacy" },
     { name: "Terms", href: "/terms" },

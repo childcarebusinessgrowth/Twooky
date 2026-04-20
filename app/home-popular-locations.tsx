@@ -103,7 +103,7 @@ export async function HomePopularLocationsSection({ market }: HomePopularProps) 
 
           <div className="mt-10 flex justify-center">
             <Button variant="outline" asChild>
-              <Link href="/childcare/locations/">
+              <Link href="/provider/locations/">
                 View all locations
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Link>

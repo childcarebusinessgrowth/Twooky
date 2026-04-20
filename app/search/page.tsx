@@ -3,8 +3,8 @@ import { SearchResultsSection } from "@/app/search/search-results-section"
 import type { SearchPageQueryParams } from "@/lib/search-page-data"
 
 export const metadata = {
-  title: "Search Childcare | Twooky",
-  description: "Search and compare childcare providers in your area. Filter by age group, program type, price, and more.",
+  title: "Search Providers | Twooky",
+  description: "Search and compare providers in your area. Filter by age group, program type, price, and more.",
 }
 
 interface SearchPageProps {

@@ -14,7 +14,7 @@ const missionFeatures = [
     icon: Target,
     title: "Our Mission",
     description:
-      "Our mission is to help parents quickly understand their options, compare trusted providers, and feel confident in the childcare decisions they make for their family.",
+      "Our mission is to help parents quickly understand their options, compare trusted providers, and feel confident in the provider decisions they make for their family.",
   },
   {
     icon: Users,
@@ -68,7 +68,7 @@ export default function AboutPage() {
             </h1>
 
             <p className="max-w-2xl text-base md:text-xl text-white/90 leading-relaxed text-pretty">
-              We built Twooky to make finding quality childcare simpler, clearer,
+              We built Twooky to make finding quality providers simpler, clearer,
               and less stressful for families.
             </p>
           </div>
@@ -86,7 +86,7 @@ export default function AboutPage() {
               Mission & Values
             </h2>
             <p className="mx-auto max-w-2xl text-muted-foreground">
-              We&apos;re here to connect families with trusted childcare options and help providers
+              We&apos;re here to connect families with trusted provider options and help providers
               reach the families who need them.
             </p>
           </div>
@@ -123,7 +123,7 @@ export default function AboutPage() {
                 Our Impact
               </h2>
               <p className="mx-auto max-w-xl text-muted-foreground">
-                Numbers that reflect our commitment to connecting families with quality childcare.
+                Numbers that reflect our commitment to connecting families with quality providers.
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -157,7 +157,7 @@ export default function AboutPage() {
             </h2>
             <div className="space-y-6 text-muted-foreground leading-relaxed">
               <p>
-                Finding the right childcare is one of the most important decisions a family can make.
+                Finding the right provider is one of the most important decisions a family can make.
                 Yet for too long, parents have had to juggle multiple websites, scattered reviews, and
                 incomplete information,all while balancing work, life, and the needs of their children.
               </p>
@@ -175,7 +175,7 @@ export default function AboutPage() {
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Button asChild size="lg" className="rounded-full">
                 <Link href="/search">
-                  Find Childcare Near You
+                  Find Provider Near You
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
               </Button>

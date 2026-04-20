@@ -54,7 +54,7 @@ const UK: MarketCopy = {
     "Browse by age and programme—from baby rooms to preschool and after-school—so you can shortlist fast.",
   heroLocationPlaceholder: "City or postcode",
   compactLocationPlaceholder: "Location (city or postcode)",
-  footerTagline: "Childcare, classes, and activities for every family",
+  footerTagline: "Providers, classes, and activities for every family",
   footerPopularSearches: [
     { name: "Nursery search", href: "/search" },
     { name: "Preschools", href: "/programs/preschool" },
@@ -135,14 +135,14 @@ const UAE: MarketCopy = {
 
 const GLOBAL: MarketCopy = {
   label: "Global",
-  mainCareTerm: "childcare",
+  mainCareTerm: "providers",
   currency: "Local currency",
   regulationTrustLine: "Regulatory details vary by country",
   heroTitleLine1: "The world of opportunities",
   heroTitleLine2Prefix: "for ",
   heroTitleLine2Accent: "kids & youngsters",
   heroSubtitle:
-    "Find childcare, activities, tutoring, and camps. Compare trusted providers and reviews in places we currently support.",
+    "Find providers, activities, tutoring, and camps. Compare trusted providers and reviews in places we currently support.",
   heroPill: "Trusted by families in multiple countries",
   featuredProvidersSubtitle:
     "Top-rated providers from across our directory to help you get started quickly.",
@@ -157,9 +157,9 @@ const GLOBAL: MarketCopy = {
     "Browse by age and programme type to quickly narrow down the right fit for your family.",
   heroLocationPlaceholder: "City, area, or postcode",
   compactLocationPlaceholder: "Location",
-  footerTagline: "Childcare, classes, and activities for every family",
+  footerTagline: "Providers, classes, and activities for every family",
   footerPopularSearches: [
-    { name: "Childcare search", href: "/search" },
+    { name: "Provider search", href: "/search" },
     { name: "Preschools", href: "/programs/preschool" },
     { name: "Montessori", href: "/programs/montessori" },
     { name: "Infant care", href: "/programs/infant-care" },

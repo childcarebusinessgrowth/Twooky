@@ -7,7 +7,7 @@ import { BackToTopButton } from "@/components/layout/back-to-top-button"
 import type { MarketId } from "@/lib/market"
 import type { MarketOption } from "@/lib/market-options"
 
-const DASHBOARD_PREFIXES = ["/dashboard", "/admin", "/parents", "/site"]
+const DASHBOARD_PREFIXES = ["/dashboard", "/admin", "/site"]
 
 interface AppShellProps {
   children: ReactNode

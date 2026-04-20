@@ -23,8 +23,8 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-2">1. Overview</h2>
             <p>
-              Twooky is a discovery platform that helps families find childcare
-              providers. We do not own or operate the providers listed on the site.
+              Twooky is a discovery platform that helps families find providers.
+              We do not own or operate the providers listed on the site.
             </p>
           </div>
           <div>
