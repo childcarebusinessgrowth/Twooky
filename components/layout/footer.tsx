@@ -3,6 +3,7 @@ import Image from "next/image"
 import type { FooterCityLink } from "@/lib/locations"
 import type { MarketId } from "@/lib/market"
 import { getMarketCopy } from "@/lib/market-copy"
+import { getActiveProgramTypes } from "@/lib/program-types"
 
 const footerLinks = {
   company: [
@@ -23,8 +24,29 @@ type FooterProps = {
   market: MarketId
 }
 
-export function Footer({ cities, market }: FooterProps) {
+function makeFallbackHrefSafe(href: string): string {
+  if (!href.startsWith("/programs/")) return href
+  const slug = href.replace("/programs/", "").trim()
+  if (!slug) return "/search"
+  return `/search?program=${encodeURIComponent(slug)}`
+}
+
+export async function Footer({ cities, market }: FooterProps) {
   const copy = getMarketCopy(market)
+  const activeProgramTypes = await getActiveProgramTypes()
+  const dbPopularSearches = activeProgramTypes
+    .filter((programType) => Boolean(programType.slug))
+    .slice(0, 5)
+    .map((programType) => ({
+      name: programType.name,
+      href: `/programs/${programType.slug}`,
+    }))
+  const popularSearches = dbPopularSearches.length > 0
+    ? dbPopularSearches
+    : copy.footerPopularSearches.map((link) => ({
+      ...link,
+      href: makeFallbackHrefSafe(link.href),
+    }))
   const currentYear = new Date().getFullYear()
   return (
     <footer className="border-t border-border bg-muted/50">
@@ -89,8 +111,8 @@ export function Footer({ cities, market }: FooterProps) {
               Popular Searches
             </h3>
             <ul className="mt-4 space-y-3">
-              {copy.footerPopularSearches.map((link) => (
-                <li key={link.name}>
+              {popularSearches.map((link) => (
+                <li key={`${link.name}-${link.href}`}>
                   <Link
                     href={link.href}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
