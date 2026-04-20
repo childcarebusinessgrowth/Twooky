@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ImageIcon, Trash2 } from "lucide-react"
+import { ImageIcon, Star, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useToast } from "@/hooks/use-toast"
 import type { AdminListingDetailPhoto } from "../actions"
-import { deleteListingPhoto } from "../actions"
+import { deleteListingPhoto, setListingPrimaryPhoto } from "../actions"
 import { ListingPhotoUploader } from "./ListingPhotoUploader"
 
 type AdminListingPhotosSectionProps = {
@@ -46,6 +46,25 @@ export function AdminListingPhotosSection({
         variant: "success",
       })
       setDeleteTarget(null)
+      router.refresh()
+    })
+  }
+
+  const handleSetPrimary = (photoId: string) => {
+    startTransition(async () => {
+      const result = await setListingPrimaryPhoto(profileId, photoId)
+      if (!result.ok) {
+        toast({
+          title: "Update failed",
+          description: result.error,
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Primary photo updated",
+        variant: "success",
+      })
       router.refresh()
     })
   }
@@ -106,6 +125,19 @@ export function AdminListingPhotosSection({
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                  {!photo.is_primary && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 left-2 h-8 opacity-0 transition-opacity group-hover:opacity-100"
+                      disabled={isPending}
+                      onClick={() => handleSetPrimary(photo.id)}
+                    >
+                      <Star className="mr-1 h-3.5 w-3.5" />
+                      Set as Primary
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

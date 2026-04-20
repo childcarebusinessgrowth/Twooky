@@ -744,6 +744,74 @@ export async function deleteListingPhoto(
   return { ok: true }
 }
 
+export async function setListingPrimaryPhoto(
+  profileId: string,
+  photoId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await assertAdminPermission("listings.manage")
+  const supabase = getSupabaseAdminClient()
+
+  const { data: targetPhoto, error: targetPhotoError } = await supabase
+    .from("provider_photos")
+    .select("id, is_primary")
+    .eq("id", photoId)
+    .eq("provider_profile_id", profileId)
+    .maybeSingle()
+
+  if (targetPhotoError) return { ok: false, error: targetPhotoError.message }
+  if (!targetPhoto) return { ok: false, error: "Photo not found." }
+  if (targetPhoto.is_primary) return { ok: true }
+
+  const { data: currentPrimary, error: currentPrimaryError } = await supabase
+    .from("provider_photos")
+    .select("id")
+    .eq("provider_profile_id", profileId)
+    .eq("is_primary", true)
+    .maybeSingle()
+  if (currentPrimaryError) return { ok: false, error: currentPrimaryError.message }
+
+  const { error: unsetError } = await supabase
+    .from("provider_photos")
+    .update({ is_primary: false })
+    .eq("provider_profile_id", profileId)
+  if (unsetError) return { ok: false, error: unsetError.message }
+
+  const { error: setError } = await supabase
+    .from("provider_photos")
+    .update({ is_primary: true })
+    .eq("id", photoId)
+    .eq("provider_profile_id", profileId)
+  if (setError) {
+    if (currentPrimary?.id) {
+      await supabase
+        .from("provider_photos")
+        .update({ is_primary: true })
+        .eq("id", currentPrimary.id)
+        .eq("provider_profile_id", profileId)
+    }
+    return { ok: false, error: setError.message }
+  }
+
+  const { data: profile } = await supabase
+    .from("provider_profiles")
+    .select("provider_slug")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+
+  revalidatePath(LISTINGS_PATH)
+  revalidatePath(`${LISTINGS_PATH}/${profileId}`)
+  revalidatePath("/dashboard/provider")
+  revalidatePath("/dashboard/provider/photos")
+  revalidatePath("/search")
+  revalidatePath("/")
+  revalidateProviderDirectoryCaches()
+  if (profile?.provider_slug) {
+    revalidatePath(`/providers/${profile.provider_slug}`)
+  }
+
+  return { ok: true }
+}
+
 export async function deleteListing(profileId: string): Promise<{ error?: string }> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
