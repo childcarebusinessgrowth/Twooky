@@ -6,7 +6,7 @@ export type GooglePlaceAutocompleteSuggestion = {
   placeId: string
   description: string
   mainText: string
-  secondaryText?: string
+  secondaryText: string | undefined
 }
 
 type GooglePlaceAutocompletePrediction = {
