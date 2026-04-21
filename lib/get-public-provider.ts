@@ -124,7 +124,7 @@ function getAgeRangeFallbackSortValue(label: string): number {
   return ageUnitToMonths(Number(match[1]), match[2])
 }
 
-function buildSortedAgeRanges(
+export function buildSortedAgeRanges(
   servedTags: string[] | null | undefined,
   ageGroupRows: AgeGroupRow[]
 ): string[] {
@@ -145,11 +145,11 @@ function buildSortedAgeRanges(
       return {
         index,
         label,
-        sortValue: getAgeRangeFallbackSortValue(label),
         dbSortOrder: row?.sort_order ?? Number.MAX_SAFE_INTEGER,
+        sortValue: getAgeRangeFallbackSortValue(label),
       }
     })
-    .sort((a, b) => a.sortValue - b.sortValue || a.dbSortOrder - b.dbSortOrder || a.index - b.index)
+    .sort((a, b) => a.dbSortOrder - b.dbSortOrder || a.sortValue - b.sortValue || a.index - b.index)
     .map((item) => item.label)
 }
 
