@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 import { normalizeAgeRangeLabel, normalizeAgeRangeValues } from "@/lib/age-range-label"
+import { AgeRangeChipPicker } from "@/components/age-range-chip-picker"
 
 type AgeGroupOption = { value: string; label: string }
 
@@ -255,43 +255,17 @@ export default function ParentSettingsPage() {
                 <Label htmlFor="child-age" className="text-xs font-medium text-foreground">
                   Child age ranges
                 </Label>
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                  <div className="mb-3 text-xs text-muted-foreground">
-                    Select all age ranges that apply to your children.
-                  </div>
-                  <div className="grid gap-2">
-                    {childAgeOptions.map((opt) => {
-                      const checked = normalizeAgeRangeValues(parentProfile.childAgeGroups).some(
-                        (value) => value.toLowerCase() === opt.value.toLowerCase(),
-                      )
-
-                      return (
-                        <label
-                          key={opt.value}
-                          className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(nextChecked) => {
-                              const isChecked = nextChecked === true
-                              setParentProfile((current) => {
-                                const normalized = normalizeAgeRangeValues(current.childAgeGroups)
-                                return {
-                                  ...current,
-                                  childAgeGroups: isChecked
-                                    ? Array.from(new Set([...normalized, opt.value]))
-                                    : normalized.filter((value) => value.toLowerCase() !== opt.value.toLowerCase()),
-                                }
-                              })
-                            }}
-                            className="mt-0.5"
-                          />
-                          <span className="text-sm text-foreground">{opt.label}</span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
+                <AgeRangeChipPicker
+                  options={childAgeOptions}
+                  value={normalizeAgeRangeValues(parentProfile.childAgeGroups)}
+                  onChange={(nextValue) =>
+                    setParentProfile((current) => ({
+                      ...current,
+                      childAgeGroups: normalizeAgeRangeValues(nextValue),
+                    }))
+                  }
+                  helperText="Select all age ranges that apply to your children."
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="preferred-start" className="text-xs font-medium text-foreground">

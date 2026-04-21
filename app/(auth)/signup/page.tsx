@@ -23,12 +23,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/AuthProvider"
 import { normalizeAgeRangeValues } from "@/lib/age-range-label"
 import type { CountryOption, CityOption } from "@/lib/location-directory"
+import { AgeRangeChipPicker } from "@/components/age-range-chip-picker"
 
 type AccountType = "select" | "parent" | "provider"
 
@@ -677,43 +677,12 @@ function SignupPageContent() {
 
                   <Field>
                     <FieldLabel>Child Age Range</FieldLabel>
-                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                      <Baby className="h-4 w-4" />
-                      <span>Select one or more age ranges for your children</span>
-                    </div>
-                    {ageGroupOptions.length > 0 ? (
-                      <div className="grid gap-2">
-                        {ageGroupOptions.map((option) => {
-                          const checked = childAgeGroups.some((value) => value === option.value)
-                          return (
-                            <label
-                              key={option.value}
-                              className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(nextChecked) => {
-                                  const isChecked = nextChecked === true
-                                  setChildAgeGroups((current) =>
-                                    isChecked
-                                      ? Array.from(new Set([...current, option.value]))
-                                      : current.filter((value) => value !== option.value)
-                                  )
-                                }}
-                                className="mt-0.5"
-                              />
-                              <span className="text-sm text-foreground">
-                                {option.label}
-                              </span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Loading age ranges...</p>
-                    )}
-                  </div>
+                  <AgeRangeChipPicker
+                    options={ageGroupOptions}
+                    value={childAgeGroups}
+                    onChange={setChildAgeGroups}
+                    helperText="Select one or more age ranges for your children"
+                  />
                   </Field>
                 </div>
               </>
