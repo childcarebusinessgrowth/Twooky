@@ -9,15 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useAuth } from "@/components/AuthProvider"
 import {
   deactivateListing,
   deleteProviderAccount,
-  getProviderNotificationPrefs,
-  type ProviderNotificationPrefs,
-  updateNotificationPrefs,
+  requestProviderEmailChange,
   updateProviderPassword,
 } from "./actions"
 
@@ -30,34 +27,9 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false)
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
-  const [notificationPrefs, setNotificationPrefs] = useState<ProviderNotificationPrefs>({
-    notify_new_inquiries: true,
-    notify_new_reviews: true,
-    notify_weekly_analytics: true,
-  })
-  const [prefsLoading, setPrefsLoading] = useState(true)
-  const [prefsSaving, setPrefsSaving] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      const { data, error } = await getProviderNotificationPrefs()
-      if (cancelled) return
-      if (error) {
-        toast({ title: "Unable to load notification preferences", variant: "destructive" })
-      }
-      if (data) {
-        setNotificationPrefs(data)
-      }
-      setPrefsLoading(false)
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [toast])
 
   const handleDeactivateConfirm = async () => {
     const { error } = await deactivateListing()
@@ -122,19 +94,32 @@ export default function SettingsPage() {
     }
   }
 
-  const handleNotificationPrefsSave = async () => {
-    setPrefsSaving(true)
+  const handleEmailChangeSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!newEmail || !newEmail.includes("@")) {
+      toast({ title: "Please enter a valid email address.", variant: "destructive" })
+      return
+    }
+
+    setIsUpdatingEmail(true)
     try {
-      const { error } = await updateNotificationPrefs(notificationPrefs)
+      const { error } = await requestProviderEmailChange({ newEmail })
       if (error) {
         toast({ title: error, variant: "destructive" })
         return
       }
-      toast({ title: "Notification preferences updated", variant: "success" })
+
+      setNewEmail("")
+      toast({
+        title: "Confirmation email sent",
+        description: "Check your current email address to confirm the new login email.",
+        variant: "success",
+      })
     } catch {
-      toast({ title: "Unable to update preferences right now", variant: "destructive" })
+      toast({ title: "Unable to request an email change right now.", variant: "destructive" })
     } finally {
-      setPrefsSaving(false)
+      setIsUpdatingEmail(false)
     }
   }
 
@@ -153,141 +138,103 @@ export default function SettingsPage() {
             <Shield className="h-5 w-5" />
             Account Information
           </CardTitle>
-          <CardDescription>Update your login credentials</CardDescription>
+          <CardDescription>Update your login email or password</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handlePasswordSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Email Address</FieldLabel>
-              <Input
-                type="email"
-                value={user?.email ?? ""}
-                disabled
-                readOnly
-                className="bg-muted"
-              />
-            </Field>
-
-            <Separator />
-
-            <Field>
-              <FieldLabel>Current Password</FieldLabel>
-              <Input
-                type="password"
-                placeholder="Enter current password"
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                disabled={isUpdatingPassword}
-              />
-            </Field>
-
-            <div className="grid sm:grid-cols-2 gap-4">
+          <form onSubmit={handleEmailChangeSubmit}>
+            <FieldGroup>
               <Field>
-                <FieldLabel>New Password</FieldLabel>
+                <FieldLabel>Current Email Address</FieldLabel>
                 <Input
-                  type="password"
-                  placeholder="Enter new password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  disabled={isUpdatingPassword}
+                  type="email"
+                  value={user?.email ?? ""}
+                  disabled
+                  readOnly
+                  className="bg-muted"
                 />
               </Field>
 
               <Field>
-                <FieldLabel>Confirm New Password</FieldLabel>
+                <FieldLabel>New Email Address</FieldLabel>
                 <Input
-                  type="password"
-                  placeholder="Confirm new password"
-                  autoComplete="new-password"
-                  value={confirmNewPassword}
-                  onChange={(event) => setConfirmNewPassword(event.target.value)}
-                  disabled={isUpdatingPassword}
+                  type="email"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  value={newEmail}
+                  onChange={(event) => setNewEmail(event.target.value)}
+                  disabled={isUpdatingEmail}
                 />
               </Field>
-            </div>
 
-            <p className="text-sm text-muted-foreground">Use at least 8 characters for your new password.</p>
-            <Button type="submit" disabled={isUpdatingPassword}>
-              {isUpdatingPassword ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Update Password
-            </Button>
-          </FieldGroup>
+              <p className="text-sm text-muted-foreground">
+                We&apos;ll send a confirmation link to your current email address. After you confirm it, you&apos;ll be signed out and can
+                log in again with the new address.
+              </p>
+
+              <Button type="submit" disabled={isUpdatingEmail || !user?.email}>
+                {isUpdatingEmail ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Send Confirmation Email
+              </Button>
+            </FieldGroup>
           </form>
-        </CardContent>
-      </Card>
 
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Notification Preferences</CardTitle>
-          <CardDescription>Control which provider emails and dashboard alerts you receive</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
-            <div className="space-y-1 pr-2">
-              <p className="font-medium text-foreground">New inquiry emails</p>
-              <p className="text-sm text-muted-foreground">
-                Get emailed when a new parent or guest inquiry arrives.
-              </p>
-            </div>
-            <Switch
-              checked={notificationPrefs.notify_new_inquiries}
-              onCheckedChange={(checked) =>
-                setNotificationPrefs((prev) => ({ ...prev, notify_new_inquiries: checked }))
-              }
-              disabled={prefsLoading || prefsSaving}
-              aria-label="Toggle new inquiry emails"
-            />
-          </div>
+          <Separator className="my-6" />
 
-          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
-            <div className="space-y-1 pr-2">
-              <p className="font-medium text-foreground">New review emails</p>
-              <p className="text-sm text-muted-foreground">
-                Get emailed when a parent leaves a new review on your listing.
-              </p>
-            </div>
-            <Switch
-              checked={notificationPrefs.notify_new_reviews}
-              onCheckedChange={(checked) =>
-                setNotificationPrefs((prev) => ({ ...prev, notify_new_reviews: checked }))
-              }
-              disabled={prefsLoading || prefsSaving}
-              aria-label="Toggle new review emails"
-            />
-          </div>
+          <form onSubmit={handlePasswordSubmit}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel>Current Password</FieldLabel>
+                <Input
+                  type="password"
+                  placeholder="Enter current password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  disabled={isUpdatingPassword}
+                />
+              </Field>
 
-          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
-            <div className="space-y-1 pr-2">
-              <p className="font-medium text-foreground">Weekly analytics emails</p>
-              <p className="text-sm text-muted-foreground">
-                Receive a weekly summary of traffic and engagement for your listing.
-              </p>
-            </div>
-            <Switch
-              checked={notificationPrefs.notify_weekly_analytics}
-              onCheckedChange={(checked) =>
-                setNotificationPrefs((prev) => ({ ...prev, notify_weekly_analytics: checked }))
-              }
-              disabled={prefsLoading || prefsSaving}
-              aria-label="Toggle weekly analytics emails"
-            />
-          </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>New Password</FieldLabel>
+                  <Input
+                    type="password"
+                    placeholder="Enter new password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    disabled={isUpdatingPassword}
+                  />
+                </Field>
 
-          <Button onClick={() => void handleNotificationPrefsSave()} disabled={prefsLoading || prefsSaving}>
-            {prefsSaving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save Preferences
-          </Button>
+                <Field>
+                  <FieldLabel>Confirm New Password</FieldLabel>
+                  <Input
+                    type="password"
+                    placeholder="Confirm new password"
+                    autoComplete="new-password"
+                    value={confirmNewPassword}
+                    onChange={(event) => setConfirmNewPassword(event.target.value)}
+                    disabled={isUpdatingPassword}
+                  />
+                </Field>
+              </div>
+
+              <p className="text-sm text-muted-foreground">Use at least 8 characters for your new password.</p>
+              <Button type="submit" disabled={isUpdatingPassword}>
+                {isUpdatingPassword ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Update Password
+              </Button>
+            </FieldGroup>
+          </form>
         </CardContent>
       </Card>
 

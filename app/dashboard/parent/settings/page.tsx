@@ -5,18 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
-import { normalizeAgeRangeLabel } from "@/lib/age-range-label"
+import { normalizeAgeRangeLabel, normalizeAgeRangeValues } from "@/lib/age-range-label"
 
 type AgeGroupOption = { value: string; label: string }
 
@@ -26,14 +20,14 @@ type ProfileData = {
 }
 
 type ParentProfileData = {
-  childAgeGroup: string
+  childAgeGroups: string[]
   phone: string
   preferredStartDate: string
 }
 
 const emptyProfile: ProfileData = { displayName: "", email: "" }
 const emptyParentProfile: ParentProfileData = {
-  childAgeGroup: "",
+  childAgeGroups: [],
   phone: "",
   preferredStartDate: "",
 }
@@ -55,7 +49,7 @@ export default function ParentSettingsPage() {
     const supabase = getSupabaseClient()
     const [profileRes, parentRes, ageGroupsRes] = await Promise.all([
       supabase.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle(),
-      supabase.from("parent_profiles").select("child_age_group, phone, preferred_start_date").eq("profile_id", user.id).maybeSingle(),
+      supabase.from("parent_profiles").select("child_age_groups, phone, preferred_start_date").eq("profile_id", user.id).maybeSingle(),
       supabase.from("age_groups").select("tag, age_range").eq("is_active", true).order("sort_order", { ascending: true }),
     ])
     if (ageGroupsRes.data) {
@@ -74,10 +68,10 @@ export default function ParentSettingsPage() {
       })
     }
     if (parentRes.data) {
-      const row = parentRes.data as { child_age_group?: string | null; phone?: string | null; preferred_start_date?: string | null }
+      const row = parentRes.data as { child_age_groups?: string[] | null; phone?: string | null; preferred_start_date?: string | null }
       const dateVal = row.preferred_start_date
       setParentProfile({
-        childAgeGroup: row.child_age_group ?? "",
+        childAgeGroups: normalizeAgeRangeValues(row.child_age_groups ?? []),
         phone: row.phone ?? "",
         preferredStartDate: dateVal ? (typeof dateVal === "string" ? dateVal.slice(0, 10) : "") : "",
       })
@@ -90,43 +84,40 @@ export default function ParentSettingsPage() {
   }, [loadData])
 
   const childAgeOptions = useMemo(() => {
-    const current = parentProfile.childAgeGroup.trim()
-    if (!current) return ageGroupOptions
-    const inList = ageGroupOptions.some((o) => o.value.toLowerCase() === current.toLowerCase())
-    if (inList) return ageGroupOptions
-    return [{ value: current, label: current }, ...ageGroupOptions]
-  }, [ageGroupOptions, parentProfile.childAgeGroup])
+    const selected = normalizeAgeRangeValues(parentProfile.childAgeGroups)
+    const optionMap = new Map<string, AgeGroupOption>()
 
-  const childAgeSelectValue = useMemo(() => {
-    const saved = parentProfile.childAgeGroup.trim()
-    if (!saved) return undefined
-    const byValue = ageGroupOptions.find((o) => o.value.toLowerCase() === saved.toLowerCase())
-    if (byValue) return byValue.value
-    const legacyToTag: Record<string, string> = {
-      "school age": "school_age",
-      schoolage: "school_age",
-      school: "school_age",
-      "pre-k": "prek",
-    }
-    const mappedTag = legacyToTag[saved.toLowerCase()]
-    if (mappedTag) {
-      const mapped = ageGroupOptions.find((o) => o.value === mappedTag)
-      if (mapped) return mapped.value
-    }
-    const byLabel = ageGroupOptions.find((o) => o.label.toLowerCase() === saved.toLowerCase())
-    return byLabel ? byLabel.value : saved
-  }, [ageGroupOptions, parentProfile.childAgeGroup])
+    ageGroupOptions.forEach((option) => {
+      optionMap.set(option.value.toLowerCase(), option)
+    })
+
+    selected.forEach((value) => {
+      const key = value.toLowerCase()
+      if (!optionMap.has(key)) {
+        optionMap.set(key, { value, label: normalizeAgeRangeLabel(value) })
+      }
+    })
+
+    return Array.from(optionMap.values())
+  }, [ageGroupOptions, parentProfile.childAgeGroups])
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!user?.id) return
     setSaving(true)
     const supabase = getSupabaseClient()
+    const normalizedChildAgeGroups = normalizeAgeRangeValues(parentProfile.childAgeGroups)
     const preferredDate =
       parentProfile.preferredStartDate?.trim() &&
       /^\d{4}-\d{2}-\d{2}$/.test(parentProfile.preferredStartDate.trim())
         ? parentProfile.preferredStartDate.trim()
         : null
+
+    if (normalizedChildAgeGroups.length === 0) {
+      toast({ title: "Please select at least one child age range.", variant: "destructive" })
+      setSaving(false)
+      return
+    }
 
     try {
       const { error: profileError } = await supabase
@@ -143,7 +134,7 @@ export default function ParentSettingsPage() {
       const { error: parentError } = await supabase.from("parent_profiles").upsert(
         {
           profile_id: user.id,
-          child_age_group: parentProfile.childAgeGroup?.trim() || null,
+          child_age_groups: normalizedChildAgeGroups,
           phone: parentProfile.phone?.trim() || null,
           preferred_start_date: preferredDate,
         },
@@ -159,7 +150,7 @@ export default function ParentSettingsPage() {
       await loadData()
       toast({
         title: "Settings saved",
-        description: "Name, phone, child age, and preferred start date have been saved.",
+        description: "Name, phone, child age ranges, and preferred start date have been saved.",
         variant: "success",
       })
     } catch (e) {
@@ -262,23 +253,45 @@ export default function ParentSettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="child-age" className="text-xs font-medium text-foreground">
-                  Child age range
+                  Child age ranges
                 </Label>
-                <Select
-                  value={childAgeSelectValue}
-                  onValueChange={(value) => setParentProfile((p) => ({ ...p, childAgeGroup: value }))}
-                >
-                  <SelectTrigger id="child-age" className="h-9 w-full rounded-xl border-border/60 bg-muted/40">
-                    <SelectValue placeholder="Select age range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {childAgeOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                  <div className="mb-3 text-xs text-muted-foreground">
+                    Select all age ranges that apply to your children.
+                  </div>
+                  <div className="grid gap-2">
+                    {childAgeOptions.map((opt) => {
+                      const checked = normalizeAgeRangeValues(parentProfile.childAgeGroups).some(
+                        (value) => value.toLowerCase() === opt.value.toLowerCase(),
+                      )
+
+                      return (
+                        <label
+                          key={opt.value}
+                          className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(nextChecked) => {
+                              const isChecked = nextChecked === true
+                              setParentProfile((current) => {
+                                const normalized = normalizeAgeRangeValues(current.childAgeGroups)
+                                return {
+                                  ...current,
+                                  childAgeGroups: isChecked
+                                    ? Array.from(new Set([...normalized, opt.value]))
+                                    : normalized.filter((value) => value.toLowerCase() !== opt.value.toLowerCase()),
+                                }
+                              })
+                            }}
+                            className="mt-0.5"
+                          />
+                          <span className="text-sm text-foreground">{opt.label}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="preferred-start" className="text-xs font-medium text-foreground">

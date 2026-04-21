@@ -21,6 +21,7 @@ import { getRecommendedProvidersForDashboard } from "@/lib/search-providers-db"
 import { ParentSavedPreviewRow } from "@/components/parent-saved-preview-row"
 import { RecommendedProviderSaveButton } from "@/components/recommended-provider-save-button"
 import { cn } from "@/lib/utils"
+import { formatAgeRangeValues, normalizeAgeRangeValues } from "@/lib/age-range-label"
 
 type QuickStat = {
   id: string
@@ -35,33 +36,13 @@ type ParentProfileHeroData = {
   displayName: string
   cityName: string | null
   countryName: string | null
-  childAgeGroup: string | null
+  childAgeGroups: string[] | null
 }
 
-const CHILD_AGE_GROUP_RANGES: Record<string, string> = {
-  infant: "0-12 months",
-  toddler: "1-2 years",
-  preschool: "3-4 years",
-  prek: "4-5 years",
-  school: "5+ years",
-  schoolage: "5+ years",
-  school_age: "5+ years",
-}
-
-function getChildAgeGroupDisplay(value: string | null): string | null {
-  if (!value || typeof value !== "string") return null
-  const trimmed = value.trim().toLowerCase()
-  const rangeOnlyMatch = trimmed.match(/\(([^)]+)\)/)
-  if (rangeOnlyMatch?.[1]) return rangeOnlyMatch[1].trim()
-  return CHILD_AGE_GROUP_RANGES[trimmed] ?? trimmed
-}
-
-/** Maps parent_profiles.child_age_group to provider age_groups_served tags. */
-function childAgeGroupToSearchTags(childAgeGroup: string | null): string[] | undefined {
-  if (!childAgeGroup?.trim()) return undefined
-  const v = childAgeGroup.trim().toLowerCase()
-  const tag = v === "school" || v === "schoolage" ? "school_age" : v
-  return [tag]
+/** Maps parent_profiles.child_age_groups to provider age_groups_served tags. */
+function childAgeGroupsToSearchTags(childAgeGroups: string[] | null): string[] | undefined {
+  const tags = normalizeAgeRangeValues(childAgeGroups ?? [])
+  return tags.length > 0 ? tags : undefined
 }
 
 function toCleanString(value: unknown): string | null {
@@ -93,16 +74,18 @@ async function getParentProfileHeroData(): Promise<ParentProfileHeroData> {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return { displayName: "there", cityName: null, countryName: null, childAgeGroup: null }
+    return { displayName: "there", cityName: null, countryName: null, childAgeGroups: null }
   }
 
   const admin = getSupabaseAdminClient()
   const { data: parentProfileRow } = await admin
     .from("parent_profiles")
-    .select("child_age_group")
+    .select("child_age_groups")
     .eq("profile_id", user.id)
     .maybeSingle()
-  const childAgeGroup = toCleanString(parentProfileRow?.child_age_group)
+  const childAgeGroups = Array.isArray(parentProfileRow?.child_age_groups)
+    ? normalizeAgeRangeValues(parentProfileRow.child_age_groups)
+    : []
 
   const metadataDisplayName =
     toCleanString(user.user_metadata?.display_name) ??
@@ -115,7 +98,7 @@ async function getParentProfileHeroData(): Promise<ParentProfileHeroData> {
     displayName: metadataDisplayName ?? "there",
     cityName: metadataCityName,
     countryName: metadataCountryName,
-    childAgeGroup,
+    childAgeGroups,
   }
 
   const { data: profileWithLocation, error: profileWithLocationError } = await admin
@@ -129,7 +112,7 @@ async function getParentProfileHeroData(): Promise<ParentProfileHeroData> {
       displayName: toCleanString(profileWithLocation?.display_name) ?? fallbackData.displayName,
       cityName: toCleanString(profileWithLocation?.city_name) ?? fallbackData.cityName,
       countryName: toCleanString(profileWithLocation?.country_name) ?? fallbackData.countryName,
-      childAgeGroup: fallbackData.childAgeGroup,
+      childAgeGroups: fallbackData.childAgeGroups,
     }
   }
 
@@ -153,7 +136,7 @@ async function getParentProfileHeroData(): Promise<ParentProfileHeroData> {
     displayName: toCleanString(profileWithoutLocation?.display_name) ?? fallbackData.displayName,
     cityName: fallbackData.cityName,
     countryName: fallbackData.countryName,
-    childAgeGroup: fallbackData.childAgeGroup,
+    childAgeGroups: fallbackData.childAgeGroups,
   }
 }
 
@@ -211,6 +194,7 @@ export default async function ParentDashboardPage() {
   const searchLocation = parentProfile.cityName && parentProfile.countryName
     ? `${parentProfile.cityName}, ${parentProfile.countryName}`
     : parentProfile.cityName ?? parentProfile.countryName ?? "your area"
+  const childAgeDisplay = formatAgeRangeValues(parentProfile.childAgeGroups)
 
   const favoriteCount = user ? await getFavoriteCount(supabase, user.id) : 0
   const reviewCount = user ? await getReviewCount(supabase, user.id) : 0
@@ -233,7 +217,7 @@ export default async function ParentDashboardPage() {
     3,
     {
       visitorGeo: parentVisitorGeo,
-      ageTags: childAgeGroupToSearchTags(parentProfile.childAgeGroup),
+      ageTags: childAgeGroupsToSearchTags(parentProfile.childAgeGroups),
       parentCityName: parentProfile.cityName,
     }
   )
@@ -259,10 +243,10 @@ export default async function ParentDashboardPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs lg:text-sm text-muted-foreground">
-                  {getChildAgeGroupDisplay(parentProfile.childAgeGroup) && (
+                  {childAgeDisplay && (
                     <div className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1 shadow-sm border border-border/60">
                       <Baby className="h-3.5 w-3.5 text-primary" />
-                      <span>Age · {getChildAgeGroupDisplay(parentProfile.childAgeGroup)}</span>
+                      <span>Age · {childAgeDisplay}</span>
                     </div>
                   )}
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1 shadow-sm border border-border/60">
@@ -547,7 +531,7 @@ export default async function ParentDashboardPage() {
                           </p>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell py-2 align-top text-xs text-muted-foreground">
-                          {getChildAgeGroupDisplay(parentProfile.childAgeGroup) ?? ","}
+                          {childAgeDisplay ?? ","}
                         </TableCell>
                         <TableCell className="hidden md:table-cell py-2 align-top text-xs text-muted-foreground max-w-xs">
                           <span className="line-clamp-2">

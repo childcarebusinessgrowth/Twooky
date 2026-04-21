@@ -21,7 +21,7 @@ type AuthContextValue = {
       phone?: string
       countryName?: string
       cityName?: string
-      childAgeGroup?: string
+      childAgeGroups?: string[]
       countryId?: string
       cityId?: string
       customCityName?: string
@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             phone: profile.phone,
             countryName: profile.countryName,
             cityName: profile.cityName,
-            childAgeGroup: profile.childAgeGroup,
+            childAgeGroups: profile.childAgeGroups,
             countryId: profile.countryId,
             cityId: profile.cityId,
             customCityName: profile.customCityName,

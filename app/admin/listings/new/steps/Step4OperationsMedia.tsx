@@ -297,8 +297,8 @@ export function Step4OperationsMedia({
 
       <Card className="border-border/60">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Virtual Tours</CardTitle>
-          <p className="text-sm text-muted-foreground">YouTube video URLs for virtual tours.</p>
+          <CardTitle className="text-base">Videos</CardTitle>
+          <p className="text-sm text-muted-foreground">YouTube video URLs for the provider listing.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-end">

@@ -296,13 +296,13 @@ export default async function ProviderDashboardPage() {
         ))}
       </div>
 
-      {/* Virtual tour quick access */}
+      {/* Video quick access */}
       <Card className="border-border/50">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle>Virtual Tour</CardTitle>
+            <CardTitle>Video</CardTitle>
             <CardDescription>
-              Add or update your YouTube virtual tour link so families can view it on your public provider details page.
+              Add or update your YouTube video link so families can view it on your public provider details page.
             </CardDescription>
           </div>
           <Button asChild>

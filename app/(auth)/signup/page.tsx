@@ -23,9 +23,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/AuthProvider"
+import { normalizeAgeRangeValues } from "@/lib/age-range-label"
 import type { CountryOption, CityOption } from "@/lib/location-directory"
 
 type AccountType = "select" | "parent" | "provider"
@@ -33,14 +35,6 @@ type AccountType = "select" | "parent" | "provider"
 type AgeGroupOption = {
   value: string
   label: string
-}
-
-function normalizeAgeGroupValue(value: string): string {
-  const normalized = value.trim().toLowerCase()
-  if (normalized === "schoolage" || normalized === "school age" || normalized === "school") {
-    return "school_age"
-  }
-  return normalized
 }
 
 function SignupPageContent() {
@@ -52,7 +46,7 @@ function SignupPageContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [childAgeGroup, setChildAgeGroup] = useState<string>("")
+  const [childAgeGroups, setChildAgeGroups] = useState<string[]>([])
   const [ageGroupOptions, setAgeGroupOptions] = useState<AgeGroupOption[]>([])
   const [fullName, setFullName] = useState("")
   const [businessName, setBusinessName] = useState("")
@@ -90,7 +84,7 @@ function SignupPageContent() {
         const nextOptions = new Map<string, AgeGroupOption>()
         for (const option of data.ageGroups ?? []) {
           if (typeof option?.value !== "string" || typeof option?.label !== "string") continue
-          const value = normalizeAgeGroupValue(option.value)
+          const value = normalizeAgeRangeValues([option.value])[0] ?? ""
           const label = option.label.trim()
           if (!value || !label || nextOptions.has(value)) continue
           nextOptions.set(value, { value, label })
@@ -200,8 +194,8 @@ function SignupPageContent() {
         return
       }
 
-      if (!childAgeGroup) {
-        setError("Please select your child's age group.")
+      if (childAgeGroups.length === 0) {
+        setError("Please select at least one child's age range.")
         return
       }
 
@@ -292,7 +286,7 @@ function SignupPageContent() {
       phone: step === "provider" ? phone.trim() : undefined,
       countryName: resolvedCountryName,
       cityName: resolvedCityName,
-      childAgeGroup: step === "parent" ? normalizeAgeGroupValue(childAgeGroup) : undefined,
+      childAgeGroups: step === "parent" ? normalizeAgeRangeValues(childAgeGroups) : undefined,
       ...providerLocation,
     })
 
@@ -683,24 +677,43 @@ function SignupPageContent() {
 
                   <Field>
                     <FieldLabel>Child Age Range</FieldLabel>
-                    <div className="relative">
-                      <Baby className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Select
-                        value={childAgeGroup}
-                        onValueChange={(value) => setChildAgeGroup(value)}
-                      >
-                        <SelectTrigger className="pl-10">
-                          <SelectValue placeholder={ageGroupOptions.length > 0 ? "Select age range" : "Loading age ranges..."} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ageGroupOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                      <Baby className="h-4 w-4" />
+                      <span>Select one or more age ranges for your children</span>
                     </div>
+                    {ageGroupOptions.length > 0 ? (
+                      <div className="grid gap-2">
+                        {ageGroupOptions.map((option) => {
+                          const checked = childAgeGroups.some((value) => value === option.value)
+                          return (
+                            <label
+                              key={option.value}
+                              className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(nextChecked) => {
+                                  const isChecked = nextChecked === true
+                                  setChildAgeGroups((current) =>
+                                    isChecked
+                                      ? Array.from(new Set([...current, option.value]))
+                                      : current.filter((value) => value !== option.value)
+                                  )
+                                }}
+                                className="mt-0.5"
+                              />
+                              <span className="text-sm text-foreground">
+                                {option.label}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Loading age ranges...</p>
+                    )}
+                  </div>
                   </Field>
                 </div>
               </>

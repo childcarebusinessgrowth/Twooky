@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabaseDatabase"
+import { formatAgeRangeValues } from "@/lib/age-range-label"
 
 type TypedClient = SupabaseClient<Database>
 
@@ -69,9 +70,8 @@ function formatChildAgeFromDob(childDob: string | null | undefined): string {
   return `${years}y ${remainderMonths}m`
 }
 
-function formatChildAgeGroup(childAgeGroup: string | null | undefined): string {
-  const trimmed = childAgeGroup?.trim()
-  return trimmed && trimmed.length > 0 ? trimmed : ","
+function formatChildAgeGroup(childAgeGroup: string[] | string | null | undefined): string {
+  return formatAgeRangeValues(childAgeGroup) ?? ","
 }
 
 export async function getProviderOverviewData(
@@ -167,7 +167,7 @@ export async function getProviderOverviewData(
     id: row.id,
     type: "thread" as const,
     parentName: resolveParentName(row.parent_display_name, row.parent_email),
-    childAge: formatChildAgeGroup((row as { child_age_group?: string | null }).child_age_group),
+    childAge: formatChildAgeGroup((row as { child_age_groups?: string[] | null }).child_age_groups),
     messagePreview: row.inquiry_subject?.trim() || "Message sent",
     date: row.updated_at,
     status: (repliedIds.has(row.id) ? "replied" : "new") as "new" | "replied",

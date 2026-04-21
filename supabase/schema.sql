@@ -499,7 +499,7 @@
   -- ============================================================================
   create table if not exists public.parent_profiles (
     profile_id uuid primary key references public.profiles(id) on delete cascade,
-    child_age_group text,
+    child_age_groups text[] not null default '{}'::text[],
     phone text,
     preferred_start_date date,
     created_at timestamptz not null default timezone('utc'::text, now())

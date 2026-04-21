@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabaseDatabase"
+import { formatAgeRangeValues } from "@/lib/age-range-label"
 import {
   extractDirectoryBadgeRelation,
   toDirectoryBadgeView,
@@ -809,7 +810,7 @@ export async function getInquiriesByProviderProfileId(
     parent_display_name: string | null
     parent_email: string | null
     lead_status: string | null
-    child_age_group: string | null
+    child_age_groups: string[] | null
     source: string | null
     first_provider_response_at: string | null
   }
@@ -825,7 +826,7 @@ export async function getInquiriesByProviderProfileId(
     parent_display_name: row.parent_display_name ?? null,
     parent_email: row.parent_email ?? null,
     lead_status: row.lead_status ?? "new",
-    child_age_group: row.child_age_group ?? null,
+    child_age_group: formatAgeRangeValues(row.child_age_groups) ?? null,
     source: row.source ?? null,
     first_provider_response_at: row.first_provider_response_at ?? null,
   }))
@@ -896,6 +897,21 @@ export async function getFavoriteLeadsByProviderProfileId(
     (row) => row != null && row.id != null && row.parent_profile_id != null && row.provider_profile_id != null
   )
 
+  type RpcRow = {
+    id: string
+    parent_profile_id: string
+    provider_profile_id: string
+    created_at: string
+    lead_status: string | null
+    parent_display_name: string | null
+    parent_email: string | null
+    parent_phone: string | null
+    parent_country_name: string | null
+    parent_city_name: string | null
+    child_age_groups: string[] | null
+    preferred_start_date: string | null
+  }
+
   return filteredRows.map((row) => ({
     id: row.id,
     parent_profile_id: row.parent_profile_id,
@@ -907,7 +923,7 @@ export async function getFavoriteLeadsByProviderProfileId(
     parent_phone: row.parent_phone ?? null,
     parent_country_name: row.parent_country_name ?? null,
     parent_city_name: row.parent_city_name ?? null,
-    child_age_group: row.child_age_group ?? null,
+    child_age_group: formatAgeRangeValues((row as RpcRow).child_age_groups) ?? null,
     preferred_start_date: row.preferred_start_date ?? null,
   }))
 }

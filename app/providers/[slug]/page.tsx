@@ -307,7 +307,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="programs">Programs</TabsTrigger>
-                <TabsTrigger value="virtual-tour">Virtual Tour</TabsTrigger>
+                <TabsTrigger value="virtual-tour">Video</TabsTrigger>
                 <TabsTrigger value="location">Location</TabsTrigger>
                 <TabsTrigger value="reviews">Twooky Reviews</TabsTrigger>
                 <TabsTrigger value="photos">Photos</TabsTrigger>
@@ -488,11 +488,11 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 )}
               </TabsContent>
 
-              {/* Virtual Tour Tab */}
+              {/* Video Tab */}
               <TabsContent value="virtual-tour" className="mt-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Virtual Tour</CardTitle>
+                    <CardTitle>Video</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {p.virtualTourEmbedUrls.length > 0 ? (
@@ -518,9 +518,9 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-border p-8 text-center">
-                        <p className="font-medium text-foreground">Virtual tour coming soon</p>
+                        <p className="font-medium text-foreground">Video coming soon</p>
                         <p className="mt-2 text-sm text-muted-foreground">
-                          This provider has not added a video tour yet.
+                          This provider has not added a video yet.
                         </p>
                       </div>
                     )}

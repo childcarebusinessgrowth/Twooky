@@ -3,6 +3,7 @@ import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
 import { resolveProviderLocation } from "@/lib/resolve-provider-city"
+import { normalizeAgeRangeValues } from "@/lib/age-range-label"
 
 type SignupPayload = {
   email?: string
@@ -13,7 +14,7 @@ type SignupPayload = {
   phone?: string
   countryName?: string
   cityName?: string
-  childAgeGroup?: string
+  childAgeGroups?: string[]
   countryId?: string
   cityId?: string
   customCityName?: string
@@ -108,7 +109,8 @@ export async function POST(request: Request) {
     const phone = body.phone?.trim()
     const countryName = body.countryName?.trim()
     const cityName = body.cityName?.trim()
-    const childAgeGroup = body.childAgeGroup?.trim()
+    const childAgeGroups = Array.isArray(body.childAgeGroups) ? body.childAgeGroups : []
+    const normalizedChildAgeGroups = normalizeAgeRangeValues(childAgeGroups)
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 })
@@ -134,9 +136,9 @@ export async function POST(request: Request) {
         )
       }
 
-      if (!childAgeGroup) {
+      if (normalizedChildAgeGroups.length === 0) {
         return NextResponse.json(
-          { error: "Child age group is required for parent accounts." },
+          { error: "At least one child age range is required for parent accounts." },
           { status: 400 },
         )
       }
@@ -265,7 +267,7 @@ export async function POST(request: Request) {
           .upsert(
             {
               profile_id: userId,
-              child_age_group: childAgeGroup,
+              child_age_groups: normalizedChildAgeGroups,
             } as never,
             { onConflict: "profile_id" },
           )
@@ -292,7 +294,7 @@ export async function POST(request: Request) {
         .upsert(
           {
             profile_id: userId,
-            child_age_group: childAgeGroup,
+              child_age_groups: normalizedChildAgeGroups,
           } as never,
           { onConflict: "profile_id" },
         )

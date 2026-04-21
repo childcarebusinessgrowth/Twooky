@@ -439,7 +439,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
         )}
 
         {hasVirtualTour && (
-          <Section title="Virtual tour" icon={Video}>
+          <Section title="Video" icon={Video}>
             <div className="space-y-2">
               {virtualTourUrls.map((url, i) => (
                 <a

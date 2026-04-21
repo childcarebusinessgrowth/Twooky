@@ -52,3 +52,57 @@ export function normalizeAgeRangeLabel(value: string): string {
     .replace(/\(\s*/g, "(")
     .replace(/\s*\)/g, ")")
 }
+
+export function normalizeAgeRangeTag(value: string | null | undefined): string {
+  const trimmed = String(value ?? "").trim()
+  if (!trimmed) return ""
+
+  const lower = trimmed.toLowerCase()
+  const knownTags: Record<string, string> = {
+    infant: "infant",
+    infants: "infant",
+    "0-12 months": "infant",
+    "0-12 month": "infant",
+    "0-12 mos": "infant",
+    toddler: "toddler",
+    toddlers: "toddler",
+    "1-2 years": "toddler",
+    "1-2 year": "toddler",
+    "1-2y": "toddler",
+    preschool: "preschool",
+    "3-4 years": "preschool",
+    "3-4 year": "preschool",
+    prek: "prek",
+    "pre-k": "prek",
+    "4-5 years": "prek",
+    "4-5 year": "prek",
+    school: "school_age",
+    schoolage: "school_age",
+    school_age: "school_age",
+    "5+": "school_age",
+    "5+ years": "school_age",
+  }
+
+  return knownTags[lower] ?? lower.replace(/\s+/g, "_")
+}
+
+export function normalizeAgeRangeValues(values: string[] | string | null | undefined): string[] {
+  const source = Array.isArray(values)
+    ? values
+    : typeof values === "string"
+      ? values.split(",")
+      : []
+
+  const normalized = source
+    .map((value) => normalizeAgeRangeTag(value))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+
+  return Array.from(new Set(normalized))
+}
+
+export function formatAgeRangeValues(values: string[] | string | null | undefined): string | null {
+  const normalized = normalizeAgeRangeValues(values)
+  if (normalized.length === 0) return null
+  return normalized.map((value) => normalizeAgeRangeLabel(value)).join(", ")
+}

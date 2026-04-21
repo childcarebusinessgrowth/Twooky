@@ -118,6 +118,11 @@ function LoginForm() {
 
   const queryError = searchParams.get("error")
   const queryMessage = queryError === "role_unresolved" ? ROLE_UNRESOLVED_MESSAGE : null
+  const queryNotice = searchParams.get("notice")
+  const noticeMessage =
+    queryNotice === "email_changed"
+      ? "Your email has been updated. Sign in again with your new email address."
+      : null
 
   return (
     <Card className="w-full max-w-md shadow-lg border-border/50 bg-card/95 backdrop-blur-sm">
@@ -197,9 +202,13 @@ function LoginForm() {
           </FieldGroup>
         </form>
 
-        {(error || authError || queryMessage) && (
-          <p className="mt-4 text-sm text-destructive text-center">
-            {error ?? authError ?? queryMessage}
+        {(error || authError || queryMessage || noticeMessage) && (
+          <p
+            className={`mt-4 text-sm text-center ${
+              noticeMessage ? "text-emerald-600" : "text-destructive"
+            }`}
+          >
+            {error ?? authError ?? queryMessage ?? noticeMessage}
           </p>
         )}
 

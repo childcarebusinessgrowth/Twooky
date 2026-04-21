@@ -1394,9 +1394,9 @@ export default function ManageListingPage() {
             </Field>
 
             <Field>
-              <FieldLabel>Virtual Tours (YouTube URLs)</FieldLabel>
+              <FieldLabel>Videos (YouTube URLs)</FieldLabel>
               <FieldDescription>
-                Add one or more YouTube links to show as virtual tours on your public provider page.
+                Add one or more YouTube links to show as videos on your public provider page.
               </FieldDescription>
               <div className="space-y-3 mt-2">
                 {virtualTourUrls.map((url, index) => (

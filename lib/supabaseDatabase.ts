@@ -1475,21 +1475,21 @@ export interface Database {
       parent_profiles: {
         Row: {
           profile_id: string
-          child_age_group: string | null
+          child_age_groups: string[]
           phone: string | null
           preferred_start_date: string | null
           created_at: string
         }
         Insert: {
           profile_id: string
-          child_age_group?: string | null
+          child_age_groups?: string[]
           phone?: string | null
           preferred_start_date?: string | null
           created_at?: string
         }
         Update: {
           profile_id?: string
-          child_age_group?: string | null
+          child_age_groups?: string[]
           phone?: string | null
           preferred_start_date?: string | null
           created_at?: string
@@ -1736,7 +1736,7 @@ export interface Database {
           parent_phone: string | null
           parent_country_name: string | null
           parent_city_name: string | null
-          child_age_group: string | null
+          child_age_groups: string[] | null
           preferred_start_date: string | null
         }[]
       }
@@ -1806,7 +1806,7 @@ export interface Database {
           parent_display_name: string | null
           parent_email: string | null
           lead_status: string | null
-          child_age_group: string | null
+          child_age_groups: string[] | null
           source: string | null
           first_provider_response_at: string | null
         }[]
