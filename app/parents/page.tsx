@@ -192,7 +192,7 @@ export default async function ParentsPage() {
 
             <p className="mt-4 text-sm text-muted-foreground">No credit card needed · GDPR compliant</p>
           </div>
-          <div className="relative isolate overflow-hidden rounded-4xl border border-border/70 shadow-xl shadow-primary/10">
+          <div className="relative isolate h-[520px] overflow-hidden rounded-4xl border border-border/70 shadow-xl shadow-primary/10 lg:h-[520px]">
             <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-t from-black/25 via-black/5 to-transparent" />
             <div className="pointer-events-none absolute -left-12 -top-12 z-10 h-36 w-36 rounded-full bg-primary/18 blur-2xl" />
             <div className="pointer-events-none absolute -right-10 bottom-4 z-10 h-36 w-36 rounded-full bg-tertiary/18 blur-2xl" />
@@ -201,7 +201,7 @@ export default async function ParentsPage() {
               alt="Parent smiling with child outdoors"
               width={960}
               height={1120}
-              className="h-full min-h-[420px] w-full object-cover object-center"
+              className="h-full w-full object-cover object-center"
               sizes="(max-width: 1024px) 100vw, 42vw"
               priority
             />
@@ -380,23 +380,35 @@ export default async function ParentsPage() {
       <section className="py-20 md:py-24">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">From parents, in their own words</h2>
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+              <Users className="h-3.5 w-3.5" />
+              Parent stories
+            </span>
+            <h2 className="mt-5 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+              From parents, in their own words
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
+              Honest feedback from families using Twooky to make everyday decisions a little easier.
+            </p>
           </div>
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+
+          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
             {testimonials.map((item, index) => (
-              <Card key={item.name} className="rounded-3xl border-border/60 bg-card/95">
+              <Card
+                key={item.name}
+                className="rounded-3xl border-border/70 bg-card/95 shadow-[0_10px_30px_-18px_rgba(32,62,104,0.28)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_-20px_rgba(32,62,104,0.34)]"
+              >
                 <div
                   className={`h-1.5 bg-linear-to-r ${
                     index === 0
-                      ? "from-primary/25 via-primary/10 to-transparent"
+                      ? "from-primary/30 via-primary/10 to-transparent"
                       : index === 1
-                        ? "from-secondary/25 via-secondary/10 to-transparent"
-                        : "from-tertiary/25 via-tertiary/10 to-transparent"
+                        ? "from-secondary/30 via-secondary/10 to-transparent"
+                        : "from-tertiary/30 via-tertiary/10 to-transparent"
                   }`}
                 />
-                <CardContent className="p-6">
-                  <p className="text-base leading-relaxed text-foreground">"{item.quote}"</p>
-                  <div className="mt-5 flex items-center gap-3">
+                <CardContent className="flex h-full flex-col p-6">
+                  <div className="flex items-center justify-between">
                     <span
                       className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${
                         index === 0
@@ -408,10 +420,18 @@ export default async function ParentsPage() {
                     >
                       {item.name[0]}
                     </span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.details}</p>
+                    <div className="flex items-center gap-0.5 text-secondary">
+                      {[...Array(5)].map((_, starIndex) => (
+                        <Star key={starIndex} className="h-3.5 w-3.5 fill-current" />
+                      ))}
                     </div>
+                  </div>
+
+                  <p className="mt-5 text-[15px] leading-relaxed text-foreground">"{item.quote}"</p>
+
+                  <div className="mt-auto pt-6">
+                    <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.details}</p>
                   </div>
                 </CardContent>
               </Card>
