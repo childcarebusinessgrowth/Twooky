@@ -88,7 +88,7 @@ export function ProviderSocialProofPopup({ providerSlug }: Props) {
     <a
       href={profileUrl}
       className={cn(
-        "fixed bottom-4 left-4 z-50 w-[min(340px,calc(100vw-2rem))] rounded-xl border border-[#D8E1F3] bg-card/95 p-3 text-card-foreground shadow-2xl backdrop-blur transition duration-300",
+        "font-sans fixed bottom-4 left-4 z-50 w-[min(340px,calc(100vw-2rem))] rounded-xl border border-[#D8E1F3] bg-card/95 p-3 text-card-foreground shadow-2xl backdrop-blur transition duration-300",
         isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none",
       )}
       aria-label="View provider on Twooky"
