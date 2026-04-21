@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import type { MarketId } from "@/lib/market"
 import type { MarketOption } from "@/lib/market-options"
 import { MarketSelector } from "@/components/market-selector"
+import { getSupabaseClient } from "@/lib/supabaseClient"
 
 import {
   DropdownMenu,
@@ -89,6 +90,7 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
 
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | undefined
 
     const resolveRole = async () => {
       try {
@@ -105,8 +107,28 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
     }
 
     void resolveRole()
+
+    const supabase = getSupabaseClient()
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return
+
+      if (!session?.user || event === "SIGNED_OUT") {
+        setResolvedRole(null)
+        return
+      }
+
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void resolveRole()
+      }
+    })
+
+    unsubscribe = () => subscription.unsubscribe()
+
     return () => {
       cancelled = true
+      if (unsubscribe) unsubscribe()
     }
   }, [])
 
