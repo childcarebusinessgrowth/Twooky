@@ -42,11 +42,13 @@ type Props = {
 
 type FormState = {
   ageRange: string
+  sortOrder: string
   isActive: boolean
 }
 
 const EMPTY_FORM: FormState = {
   ageRange: "",
+  sortOrder: "",
   isActive: true,
 }
 
@@ -60,10 +62,14 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
   const [itemToDelete, setItemToDelete] = useState<AgeGroupRecord | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
+  const nextSortOrder = Math.max(0, ...initialAgeGroups.map((item) => item.sort_order)) + 1
 
   const openCreateDialog = () => {
     setEditingItem(null)
-    setForm(EMPTY_FORM)
+    setForm({
+      ...EMPTY_FORM,
+      sortOrder: String(nextSortOrder),
+    })
     setError(null)
     setDialogOpen(true)
   }
@@ -72,6 +78,7 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
     setEditingItem(item)
     setForm({
       ageRange: item.age_range,
+      sortOrder: String(item.sort_order),
       isActive: item.is_active,
     })
     setError(null)
@@ -84,17 +91,28 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
       setError("Age range is required.")
       return
     }
+    const sortOrderValue = form.sortOrder.trim()
+    const resolvedSortOrder =
+      sortOrderValue === ""
+        ? editingItem?.sort_order ?? nextSortOrder
+        : Number(sortOrderValue)
+    if (!Number.isInteger(resolvedSortOrder) || resolvedSortOrder < 0) {
+      setError("Sort order must be a whole number.")
+      return
+    }
 
     startTransition(async () => {
       try {
         if (editingItem) {
           await updateAgeGroup(editingItem.id, {
             ageRange,
+            sortOrder: resolvedSortOrder,
             isActive: form.isActive,
           })
         } else {
           await createAgeGroup({
             ageRange,
+            sortOrder: resolvedSortOrder,
             isActive: form.isActive,
           })
         }
@@ -163,6 +181,7 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Order</TableHead>
                 <TableHead>Age range</TableHead>
                 <TableHead className="hidden md:table-cell">Tag</TableHead>
                 <TableHead className="hidden md:table-cell">Active</TableHead>
@@ -172,6 +191,7 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
             <TableBody>
               {initialAgeGroups.map((item) => (
                 <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.sort_order}</TableCell>
                   <TableCell>{item.age_range}</TableCell>
                   <TableCell className="hidden md:table-cell font-mono text-xs">{item.tag}</TableCell>
                   <TableCell className="hidden md:table-cell">
@@ -209,7 +229,7 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
               ))}
               {initialAgeGroups.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground text-sm">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground text-sm">
                     No age groups configured yet. Add your first age range to get started.
                   </TableCell>
                 </TableRow>
@@ -236,6 +256,19 @@ export function AdminAgeGroupsPageClient({ initialAgeGroups }: Props) {
                 onChange={(event) => setForm((prev) => ({ ...prev, ageRange: event.target.value }))}
                 placeholder="0-12 months"
               />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="age-sort-order">Sort order</Label>
+              <Input
+                id="age-sort-order"
+                type="number"
+                min={0}
+                step={1}
+                value={form.sortOrder}
+                onChange={(event) => setForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
+                placeholder="1"
+              />
+              <p className="text-xs text-muted-foreground">Lower numbers appear first.</p>
             </div>
             <div className="space-y-1 flex items-center gap-2">
               <Switch

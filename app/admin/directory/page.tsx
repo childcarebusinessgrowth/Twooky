@@ -108,6 +108,7 @@ async function loadDirectoryData() {
     supabase
       .from("age_groups")
       .select("id, tag, age_range, sort_order, is_active")
+      .order("sort_order", { ascending: true })
       .order("age_range", { ascending: true }),
     supabase
       .from("program_types")

@@ -13,10 +13,19 @@ type AgeGroupInput = {
 
 const ADMIN_AGE_GROUPS_PATH = "/admin/age-groups"
 
+function normalizeSortOrder(sortOrder?: number) {
+  if (sortOrder === undefined) return undefined
+  if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+    throw new Error("Sort order must be a whole number.")
+  }
+  return sortOrder
+}
+
 export async function createAgeGroup(input: AgeGroupInput) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const normalizedAgeRange = input.ageRange.trim()
+  const normalizedSortOrder = normalizeSortOrder(input.sortOrder)
   if (!normalizedAgeRange) {
     throw new Error("Age range is required.")
   }
@@ -25,7 +34,7 @@ export async function createAgeGroup(input: AgeGroupInput) {
     tag: derivedTag || `age_group_${Date.now()}`,
     age_range: normalizedAgeRange,
     is_active: input.isActive ?? true,
-    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+    ...(normalizedSortOrder !== undefined ? { sort_order: normalizedSortOrder } : {}),
   }
   const { error } = await supabase.from("age_groups").insert(values)
 
@@ -42,13 +51,14 @@ export async function updateAgeGroup(id: string, input: AgeGroupInput) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
   const normalizedAgeRange = input.ageRange.trim()
+  const normalizedSortOrder = normalizeSortOrder(input.sortOrder)
   if (!normalizedAgeRange) {
     throw new Error("Age range is required.")
   }
   const values = {
     age_range: normalizedAgeRange,
     is_active: input.isActive ?? true,
-    ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+    ...(normalizedSortOrder !== undefined ? { sort_order: normalizedSortOrder } : {}),
   }
   const { error } = await supabase
     .from("age_groups")
