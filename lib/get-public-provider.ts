@@ -66,6 +66,8 @@ export type PublicProviderView = {
   earlyLearningExcellenceBadge: boolean
   verifiedProviderBadge: boolean
   verifiedProviderBadgeColor: string | null
+  isAdminManaged: boolean
+  isClaimed: boolean
   availabilityStatus: PublicAvailabilityStatus
   availableSpotsCount: number | null
   availabilityLabel: string
@@ -390,6 +392,8 @@ export async function getActivePublicProviderBySlug(
     earlyLearningExcellenceBadge: isSproutPlan ? false : (profile.early_learning_excellence_badge ?? false),
     verifiedProviderBadge: isSproutPlan ? false : (profile.verified_provider_badge ?? false),
     verifiedProviderBadgeColor: profile.verified_provider_badge_color ?? "emerald",
+    isAdminManaged: Boolean(profile.is_admin_managed),
+    isClaimed,
     availabilityStatus: isSproutPlan ? "openings" : availabilityStatus,
     availableSpotsCount: isSproutPlan ? null : availableSpotsCount,
     availabilityLabel: isSproutPlan ? "" : availabilityLabel,

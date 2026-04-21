@@ -105,6 +105,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
   const faqSchema = buildFaqPageSchema(p.faqs)
   const localBusinessJsonLd = stringifyJsonLd(localBusinessSchema)
   const faqJsonLd = faqSchema ? stringifyJsonLd(faqSchema) : null
+  const showProviderClaimStrip = p.isAdminManaged && !p.isClaimed
 
   return (
     <AuthProviderClient>
@@ -184,6 +185,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 </div>
               </CardContent>
             </Card>
+            <ProviderProgramOwnerStrip isVisible={showProviderClaimStrip} />
           </div>
         </>
       ) : (
@@ -202,7 +204,6 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 lg:px-8 -mt-20 relative z-10">
-        <ProviderProgramOwnerStrip />
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Content */}
           <div className="flex-1">
@@ -299,6 +300,7 @@ export default async function ProviderPage({ params }: ProviderPageProps) {
                 </div>
               </CardContent>
             </Card>
+            <ProviderProgramOwnerStrip isVisible={showProviderClaimStrip} />
 
             {/* Tabs */}
             <Tabs defaultValue="overview" className="mb-8">

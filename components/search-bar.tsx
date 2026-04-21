@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { KeyboardEvent } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, MapPin, User, Layers, Loader2, LocateFixed } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -60,6 +61,13 @@ function isCoordinateLocationText(value: string): boolean {
   return /^-?\d{1,3}(?:\.\d+)?,\s*-?\d{1,3}(?:\.\d+)?$/.test(value.trim())
 }
 
+type LocationSuggestion = {
+  placeId: string
+  description: string
+  mainText: string
+  secondaryText?: string
+}
+
 export function SearchBar({
   ...props
 }: SearchBarProps) {
@@ -100,7 +108,12 @@ function SearchBarContent({
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([])
+  const [isLocationSuggestionsLoading, setIsLocationSuggestionsLoading] = useState(false)
+  const [isLocationFocused, setIsLocationFocused] = useState(false)
+  const [activeLocationSuggestionIndex, setActiveLocationSuggestionIndex] = useState(-1)
   const hasAutoDetectedRef = useRef(false)
+  const locationSuggestionRequestIdRef = useRef(0)
 
   const geolocationHint = useMemo(() => {
     if (mapsApiKey) return null
@@ -138,9 +151,62 @@ function SearchBarContent({
   }, [searchParams])
   const isOnTargetPath = pathname === targetPath
 
-  const handleSearch = () => {
+  useEffect(() => {
+    const query = location.trim()
+
+    if (!query || query.length < 2) {
+      locationSuggestionRequestIdRef.current += 1
+      setLocationSuggestions([])
+      setActiveLocationSuggestionIndex(-1)
+      setIsLocationSuggestionsLoading(false)
+      return
+    }
+
+    const requestId = ++locationSuggestionRequestIdRef.current
+    setLocationSuggestions([])
+    setActiveLocationSuggestionIndex(-1)
+    setIsLocationSuggestionsLoading(true)
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch(`/api/locations/autocomplete?input=${encodeURIComponent(query)}`, {
+            cache: "no-store",
+          })
+          const data = (await response.json().catch(() => ({}))) as {
+            suggestions?: LocationSuggestion[]
+          }
+
+          if (requestId !== locationSuggestionRequestIdRef.current) return
+
+          if (!response.ok) {
+            setLocationSuggestions([])
+            setActiveLocationSuggestionIndex(-1)
+            return
+          }
+
+          const nextSuggestions = Array.isArray(data.suggestions) ? data.suggestions.slice(0, 8) : []
+          setLocationSuggestions(nextSuggestions)
+          setActiveLocationSuggestionIndex(-1)
+        } catch {
+          if (requestId !== locationSuggestionRequestIdRef.current) return
+          setLocationSuggestions([])
+          setActiveLocationSuggestionIndex(-1)
+        } finally {
+          if (requestId === locationSuggestionRequestIdRef.current) {
+            setIsLocationSuggestionsLoading(false)
+          }
+        }
+      })()
+    }, 250)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [location])
+
+  const handleSearch = (locationOverride?: string) => {
     const params = new URLSearchParams()
-    const normalizedLocation = location.trim()
+    const normalizedLocation = (locationOverride ?? location).trim()
     if (normalizedLocation) params.set("location", normalizedLocation)
     if (ageGroup) params.set("age", ageGroup)
     if (defaultProviderType && defaultProviderType !== "all") {
@@ -152,6 +218,114 @@ function SearchBarContent({
 
     const query = params.toString()
     router.push(query ? `${targetPath}?${query}` : targetPath)
+  }
+
+  const applyLocationSuggestion = (suggestion: LocationSuggestion) => {
+    setLocation(suggestion.description)
+    setLocationSuggestions([])
+    setActiveLocationSuggestionIndex(-1)
+    setIsLocationFocused(false)
+    handleSearch(suggestion.description)
+  }
+
+  const locationQuery = location.trim()
+  const showLocationSuggestions =
+    isLocationFocused &&
+    locationQuery.length >= 2 &&
+    (isLocationSuggestionsLoading || locationSuggestions.length > 0)
+  const showNoLocationSuggestions =
+    isLocationFocused &&
+    locationQuery.length >= 2 &&
+    !isLocationSuggestionsLoading &&
+    locationSuggestions.length === 0
+
+  const locationSuggestionsDropdown = showLocationSuggestions || showNoLocationSuggestions ? (
+    <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-border/70 bg-popover shadow-xl">
+      {isLocationSuggestionsLoading ? (
+        <div className="px-4 py-3 text-sm text-muted-foreground">Searching locations...</div>
+      ) : locationSuggestions.length > 0 ? (
+        <div className="max-h-72 overflow-auto py-2">
+          {locationSuggestions.map((suggestion, index) => {
+            const isActive = index === activeLocationSuggestionIndex
+            return (
+              <button
+                key={suggestion.placeId}
+                type="button"
+                className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
+                  isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/60"
+                }`}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onMouseEnter={() => setActiveLocationSuggestionIndex(index)}
+                onClick={() => applyLocationSuggestion(suggestion)}
+              >
+                <MapPin
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${
+                    isActive ? "text-accent-foreground" : "text-muted-foreground"
+                  }`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{suggestion.mainText}</span>
+                  {suggestion.secondaryText && (
+                    <span
+                      className={`block truncate text-xs ${
+                        isActive ? "text-accent-foreground/80" : "text-muted-foreground"
+                      }`}
+                    >
+                      {suggestion.secondaryText}
+                    </span>
+                  )}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="px-4 py-3 text-sm text-muted-foreground">No matching locations found.</div>
+      )}
+    </div>
+  ) : null
+
+  const handleLocationKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown" && locationSuggestions.length > 0) {
+      event.preventDefault()
+      setIsLocationFocused(true)
+      setActiveLocationSuggestionIndex((current) => (current < locationSuggestions.length - 1 ? current + 1 : 0))
+      return
+    }
+
+    if (event.key === "ArrowUp" && locationSuggestions.length > 0) {
+      event.preventDefault()
+      setIsLocationFocused(true)
+      setActiveLocationSuggestionIndex((current) =>
+        current <= 0 ? locationSuggestions.length - 1 : current - 1,
+      )
+      return
+    }
+
+    if (event.key === "Escape") {
+      setIsLocationFocused(false)
+      setActiveLocationSuggestionIndex(-1)
+      setLocationSuggestions([])
+      return
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault()
+      if (activeLocationSuggestionIndex >= 0 && activeLocationSuggestionIndex < locationSuggestions.length) {
+        applyLocationSuggestion(locationSuggestions[activeLocationSuggestionIndex])
+        return
+      }
+      handleSearch()
+    }
+  }
+
+  const handleLocationBlur = () => {
+    window.setTimeout(() => {
+      setIsLocationFocused(false)
+      setActiveLocationSuggestionIndex(-1)
+    }, 120)
   }
 
   const detectCurrentLocation = useCallback(async () => {
@@ -290,13 +464,13 @@ function SearchBarContent({
             placeholder={compactLocationPlaceholder}
             className="pl-10 pr-10 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none"
             value={locationInputValue}
-            onChange={(e) => setLocation(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                handleSearch()
-              }
+            onChange={(e) => {
+              setLocation(e.target.value)
+              setActiveLocationSuggestionIndex(-1)
             }}
+            onFocus={() => setIsLocationFocused(true)}
+            onBlur={handleLocationBlur}
+            onKeyDown={handleLocationKeyDown}
           />
           <button
             type="button"
@@ -311,6 +485,7 @@ function SearchBarContent({
               <LocateFixed className="h-4 w-4" />
             )}
           </button>
+          {locationSuggestionsDropdown}
         </div>
         <Select value={programType} onValueChange={setProgramType}>
           <SelectTrigger className="sm:w-48 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none">
@@ -370,14 +545,15 @@ function SearchBarContent({
                 placeholder={heroLocationPlaceholder}
                 className={`w-full pl-10 pr-4 h-11 text-base rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${inputClassName}`}
                 value={locationInputValue}
-                onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleSearch()
-                  }
+                onChange={(e) => {
+                  setLocation(e.target.value)
+                  setActiveLocationSuggestionIndex(-1)
                 }}
+                onFocus={() => setIsLocationFocused(true)}
+                onBlur={handleLocationBlur}
+                onKeyDown={handleLocationKeyDown}
               />
+              {locationSuggestionsDropdown}
             </div>
             {(locationError || geolocationHint) && (
               <p className="text-xs text-muted-foreground mt-1">
