@@ -11,6 +11,7 @@ import {
   type PaidPlanId,
   type PlanId,
 } from "@/lib/pricing-data"
+import type { MarketId } from "@/lib/market"
 import { getStripeServerClient } from "@/lib/stripe"
 import type { Database } from "@/lib/supabaseDatabase"
 
@@ -53,17 +54,43 @@ function readStripePriceEnv(name: string): string {
   return value
 }
 
-export function getStripePriceId(planId: PaidPlanId, billingPeriod: BillingPeriod): string {
+function readStripePriceEnvOptional(name: string): string | null {
+  return process.env[name]?.trim() || null
+}
+
+function getStripePriceEnvName(
+  planId: PaidPlanId,
+  billingPeriod: BillingPeriod,
+  market: MarketId,
+): string {
+  const currencySuffix = market === "uk" ? "_GBP" : ""
+
   if (planId === "grow" && billingPeriod === "monthly") {
-    return readStripePriceEnv("STRIPE_PRICE_GROW_MONTHLY")
+    return `STRIPE_PRICE_GROW_MONTHLY${currencySuffix}`
   }
   if (planId === "grow" && billingPeriod === "yearly") {
-    return readStripePriceEnv("STRIPE_PRICE_GROW_YEARLY")
+    return `STRIPE_PRICE_GROW_YEARLY${currencySuffix}`
   }
   if (planId === "thrive" && billingPeriod === "monthly") {
-    return readStripePriceEnv("STRIPE_PRICE_THRIVE_MONTHLY")
+    return `STRIPE_PRICE_THRIVE_MONTHLY${currencySuffix}`
   }
-  return readStripePriceEnv("STRIPE_PRICE_THRIVE_YEARLY")
+  return `STRIPE_PRICE_THRIVE_YEARLY${currencySuffix}`
+}
+
+export function getStripePriceId(
+  planId: PaidPlanId,
+  billingPeriod: BillingPeriod,
+  market: MarketId = "global",
+): string {
+  return readStripePriceEnv(getStripePriceEnvName(planId, billingPeriod, market))
+}
+
+function getStripePriceIdIfConfigured(
+  planId: PaidPlanId,
+  billingPeriod: BillingPeriod,
+  market: MarketId,
+): string | null {
+  return readStripePriceEnvOptional(getStripePriceEnvName(planId, billingPeriod, market))
 }
 
 export function getPlanFromStripePriceId(
@@ -75,15 +102,25 @@ export function getPlanFromStripePriceId(
     planId: PaidPlanId
     billingPeriod: BillingPeriod
     billingInterval: ProviderBillingInterval
+    market: MarketId
   }> = [
-    { planId: "grow", billingPeriod: "monthly", billingInterval: "month" },
-    { planId: "grow", billingPeriod: "yearly", billingInterval: "year" },
-    { planId: "thrive", billingPeriod: "monthly", billingInterval: "month" },
-    { planId: "thrive", billingPeriod: "yearly", billingInterval: "year" },
+    { planId: "grow", billingPeriod: "monthly", billingInterval: "month", market: "global" },
+    { planId: "grow", billingPeriod: "yearly", billingInterval: "year", market: "global" },
+    { planId: "thrive", billingPeriod: "monthly", billingInterval: "month", market: "global" },
+    { planId: "thrive", billingPeriod: "yearly", billingInterval: "year", market: "global" },
+    { planId: "grow", billingPeriod: "monthly", billingInterval: "month", market: "uk" },
+    { planId: "grow", billingPeriod: "yearly", billingInterval: "year", market: "uk" },
+    { planId: "thrive", billingPeriod: "monthly", billingInterval: "month", market: "uk" },
+    { planId: "thrive", billingPeriod: "yearly", billingInterval: "year", market: "uk" },
   ]
 
   for (const candidate of candidates) {
-    if (getStripePriceId(candidate.planId, candidate.billingPeriod) === priceId) {
+    const configuredPriceId = getStripePriceIdIfConfigured(
+      candidate.planId,
+      candidate.billingPeriod,
+      candidate.market,
+    )
+    if (configuredPriceId === priceId) {
       return {
         planId: candidate.planId,
         billingInterval: candidate.billingInterval,

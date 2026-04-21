@@ -9,6 +9,7 @@ import {
   getProviderBillingSnapshot,
   isBillingPeriod,
 } from "@/lib/provider-billing"
+import { getMarketFromCookies } from "@/lib/market-server"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSiteUrl } from "@/lib/sitemap"
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
 
     const providerProfileId = await resolveOwnedProviderProfileId(supabase, user.id)
     const { providerPlanId, billing } = await getProviderBillingSnapshot(supabase, providerProfileId)
+    const market = await getMarketFromCookies()
 
     if (
       billing?.stripe_subscription_id &&
@@ -127,7 +129,7 @@ export async function POST(request: Request) {
       client_reference_id: providerProfileId,
       line_items: [
         {
-          price: getStripePriceId(planId, billingPeriod),
+            price: getStripePriceId(planId, billingPeriod, market),
           quantity: 1,
         },
       ],

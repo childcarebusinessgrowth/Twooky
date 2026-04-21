@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   annualUsdTotal,
+  formatCurrencyAmount,
   getPricingPlan,
+  getPlanMonthlyPrice,
+  getPricingCurrencyCode,
   isPaidPlanId,
   PRICING_PLANS,
   type BillingPeriod,
@@ -18,6 +21,8 @@ import {
   getProviderBillingSnapshot,
   hasPaidSubscriptionEntitlement,
 } from "@/lib/provider-billing"
+import type { MarketId } from "@/lib/market"
+import { getMarketFromCookies } from "@/lib/market-server"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
 import { createSupabaseServerClient } from "@/lib/supabaseServer"
 import { cn } from "@/lib/utils"
@@ -26,11 +31,17 @@ type PageProps = {
   searchParams?: Promise<{ checkout?: string }>
 }
 
-function formatPlanPrice(planId: "grow" | "thrive", billingPeriod: BillingPeriod) {
+function formatPlanPrice(
+  planId: "grow" | "thrive",
+  billingPeriod: BillingPeriod,
+  market: MarketId,
+) {
   const plan = getPricingPlan(planId)
-  if (!plan || plan.monthlyUsd == null || plan.monthlyUsd === undefined) return "Contact us"
-  if (billingPeriod === "monthly") return `$${plan.monthlyUsd}/mo`
-  return `$${annualUsdTotal(plan.monthlyUsd)}/yr`
+  const monthly = plan ? ((getPlanMonthlyPrice(plan, market) ?? plan.monthlyUsd) as number) : null
+  if (!plan || monthly == null) return "Contact us"
+  const currencyCode = getPricingCurrencyCode(market)
+  if (billingPeriod === "monthly") return `${formatCurrencyAmount(monthly, currencyCode)}/mo`
+  return `${formatCurrencyAmount(annualUsdTotal(monthly), currencyCode)}/yr`
 }
 
 function formatDate(value: string | null | undefined) {
@@ -47,6 +58,7 @@ function formatDate(value: string | null | undefined) {
 export default async function SubscriptionPage({ searchParams }: PageProps) {
   const params = searchParams ? await searchParams : {}
   const supabase = await createSupabaseServerClient()
+  const market = await getMarketFromCookies()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -194,10 +206,10 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
                     <>
                       <p className="text-sm text-muted-foreground">Monthly</p>
                       <p className="text-3xl font-bold text-foreground">
-                        {paidPlanId ? formatPlanPrice(paidPlanId, "monthly") : "Contact us"}
+                        {paidPlanId ? formatPlanPrice(paidPlanId, "monthly", market) : "Contact us"}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Yearly: {paidPlanId ? formatPlanPrice(paidPlanId, "yearly") : "Contact us"} billed once per year.
+                        Yearly: {paidPlanId ? formatPlanPrice(paidPlanId, "yearly", market) : "Contact us"} billed once per year.
                       </p>
                     </>
                   )}

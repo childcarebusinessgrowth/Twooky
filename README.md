@@ -135,6 +135,10 @@ Copy `.env.example` to `.env.local` and fill values.
   - `STRIPE_PRICE_GROW_YEARLY`
   - `STRIPE_PRICE_THRIVE_MONTHLY`
   - `STRIPE_PRICE_THRIVE_YEARLY`
+  - `STRIPE_PRICE_GROW_MONTHLY_GBP`
+  - `STRIPE_PRICE_GROW_YEARLY_GBP`
+  - `STRIPE_PRICE_THRIVE_MONTHLY_GBP`
+  - `STRIPE_PRICE_THRIVE_YEARLY_GBP`
   - `STRIPE_BILLING_PORTAL_RETURN_URL` (optional)
 - **Feature flags / diagnostics**
   - `NEXT_PUBLIC_PROVIDER_WEBSITE_BUILDER_ENABLED` (optional)
@@ -194,6 +198,7 @@ If you’re deploying, ensure migrations are applied to your production project 
 Stripe is already wired in; to enable end-to-end billing:
 
 - Create Stripe products/prices for the paid plans and set the `STRIPE_PRICE_*` env vars.
+- If you support the UK market, add matching GBP Stripe price IDs for Grow and Thrive.
 - Add Stripe API keys and webhook secret to env.
 - Configure a webhook endpoint at `POST /api/billing/webhook` and subscribe to the events listed in `docs/stripe-setup.md`.
 - Enable Stripe Customer Portal.

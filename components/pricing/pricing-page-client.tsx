@@ -15,12 +15,16 @@ import {
   PLAN_IDS,
   PRICING_FOOTNOTE,
   PRICING_PLANS,
+  formatCurrencyAmount,
+  getPlanMonthlyPrice,
+  getPricingCurrencyCode,
   type FeatureRow,
   type PlanTheme,
   type PricingPlan,
   isPaidPlanId,
   type PlanId,
 } from "@/lib/pricing-data"
+import type { MarketId } from "@/lib/market"
 
 type PricingBillingCycle = "monthly" | "annual"
 
@@ -117,10 +121,12 @@ function PriceBlock({
   plan,
   featured,
   billing,
+  market,
 }: {
   plan: PricingPlan
   featured?: boolean
   billing: PricingBillingCycle
+  market: MarketId
 }) {
   const theme = THEME[plan.theme]
 
@@ -165,7 +171,8 @@ function PriceBlock({
     )
   }
 
-  const monthly = plan.monthlyUsd
+  const monthly = (getPlanMonthlyPrice(plan, market) ?? plan.monthlyUsd) as number
+  const currencyCode = getPricingCurrencyCode(market)
   const annualTotal = annualUsdTotal(monthly)
   const save = annualSavingsUsd(monthly)
 
@@ -179,7 +186,7 @@ function PriceBlock({
             theme.accentText
           )}
         >
-          ${monthly}
+          {formatCurrencyAmount(monthly, currencyCode)}
           <span
             className={cn(
               "font-semibold text-muted-foreground",
@@ -190,7 +197,7 @@ function PriceBlock({
           </span>
         </p>
         <p className="text-sm italic leading-snug text-muted-foreground">
-          Pay annually — 1 month free (save ${save})
+          Pay annually — 1 month free (save {formatCurrencyAmount(save, currencyCode)})
         </p>
       </div>
     )
@@ -205,7 +212,7 @@ function PriceBlock({
           theme.accentText
         )}
       >
-        ${annualTotal}
+        {formatCurrencyAmount(annualTotal, currencyCode)}
         <span
           className={cn(
             "font-semibold text-muted-foreground",
@@ -218,13 +225,21 @@ function PriceBlock({
       <p className="text-sm leading-snug text-muted-foreground">
         <span className="font-medium text-foreground/90">1 month free</span>
         {" · "}
-        save ${save} vs monthly · billed once per year
+        save {formatCurrencyAmount(save, currencyCode)} vs monthly · billed once per year
       </p>
     </div>
   )
 }
 
-function ComparePriceCell({ plan, billing }: { plan: PricingPlan; billing: PricingBillingCycle }) {
+function ComparePriceCell({
+  plan,
+  billing,
+  market,
+}: {
+  plan: PricingPlan
+  billing: PricingBillingCycle
+  market: MarketId
+}) {
   if (plan.monthlyUsd === null) {
     return (
       <div className="flex flex-col items-center gap-0.5 text-center">
@@ -243,17 +258,18 @@ function ComparePriceCell({ plan, billing }: { plan: PricingPlan; billing: Prici
       </div>
     )
   }
-  const m = plan.monthlyUsd
+  const m = (getPlanMonthlyPrice(plan, market) ?? plan.monthlyUsd) as number
+  const currencyCode = getPricingCurrencyCode(market)
   const save = annualSavingsUsd(m)
   if (billing === "monthly") {
     return (
       <div className="flex flex-col items-center gap-1 text-center">
         <span className="font-semibold text-foreground">
-          ${m}
+          {formatCurrencyAmount(m, currencyCode)}
           <span className="text-muted-foreground">/mo</span>
         </span>
         <span className="max-w-36 text-[11px] italic leading-tight text-muted-foreground">
-          Pay annually — 1 month free (save ${save})
+          Pay annually — 1 month free (save {formatCurrencyAmount(save, currencyCode)})
         </span>
       </div>
     )
@@ -261,11 +277,11 @@ function ComparePriceCell({ plan, billing }: { plan: PricingPlan; billing: Prici
   return (
     <div className="flex flex-col items-center gap-1 text-center">
       <span className="font-semibold text-foreground">
-        ${annualUsdTotal(m)}
+        {formatCurrencyAmount(annualUsdTotal(m), currencyCode)}
         <span className="text-muted-foreground">/yr</span>
       </span>
       <span className="max-w-36 text-[11px] leading-tight text-muted-foreground">
-        1 month free · save ${save}
+        1 month free · save {formatCurrencyAmount(save, currencyCode)}
       </span>
     </div>
   )
@@ -328,7 +344,7 @@ function MobileFeatureValue({ row, planId }: { row: FeatureRow; planId: PlanId }
   )
 }
 
-export function PricingPageClient() {
+export function PricingPageClient({ market }: { market: MarketId }) {
   const [billing, setBilling] = useState<PricingBillingCycle>("monthly")
 
   return (
@@ -440,7 +456,7 @@ export function PricingPageClient() {
                           theme.softBg
                         )}
                       >
-                        <PriceBlock plan={plan} featured={isPopular} billing={billing} />
+                        <PriceBlock plan={plan} featured={isPopular} billing={billing} market={market} />
                       </div>
                       <ul className="space-y-3 text-sm leading-snug text-muted-foreground">
                         {plan.highlights.map((h) => (
@@ -526,7 +542,7 @@ export function PricingPageClient() {
                       {billing === "monthly" ? "Price (monthly)" : "Price (annual)"}
                     </p>
                     <div className="mt-2 text-sm">
-                      <ComparePriceCell plan={plan} billing={billing} />
+                      <ComparePriceCell plan={plan} billing={billing} market={market} />
                     </div>
                   </div>
 
@@ -593,7 +609,7 @@ export function PricingPageClient() {
                   </th>
                   {PRICING_PLANS.map((p) => (
                     <td key={p.id} className="border-b-2 border-border px-4 py-4 align-top">
-                      <ComparePriceCell plan={p} billing={billing} />
+                      <ComparePriceCell plan={p} billing={billing} market={market} />
                     </td>
                   ))}
                 </tr>

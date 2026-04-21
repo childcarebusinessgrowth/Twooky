@@ -22,7 +22,14 @@ Recommended setup:
 
 These yearly amounts match the existing app pricing rule of 1 month free.
 
-After creating them, copy the four Stripe `price_...` IDs.
+If you also support the UK market, create matching GBP recurring prices:
+
+- `Grow` monthly: `£22/month`
+- `Grow` yearly: `£242/year`
+- `Thrive` monthly: `£44/month`
+- `Thrive` yearly: `£484/year`
+
+After creating them, copy the Stripe `price_...` IDs for the currencies you support.
 
 ## 2. Fill in the Stripe environment variables
 
@@ -37,6 +44,10 @@ STRIPE_PRICE_GROW_MONTHLY=
 STRIPE_PRICE_GROW_YEARLY=
 STRIPE_PRICE_THRIVE_MONTHLY=
 STRIPE_PRICE_THRIVE_YEARLY=
+STRIPE_PRICE_GROW_MONTHLY_GBP=
+STRIPE_PRICE_GROW_YEARLY_GBP=
+STRIPE_PRICE_THRIVE_MONTHLY_GBP=
+STRIPE_PRICE_THRIVE_YEARLY_GBP=
 ```
 
 Notes:

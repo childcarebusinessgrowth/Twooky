@@ -1,6 +1,9 @@
+import type { MarketId } from "@/lib/market"
+
 export type PlanId = "sprout" | "grow" | "thrive" | "kinderpathPro"
 export type PaidPlanId = Extract<PlanId, "grow" | "thrive">
 export type BillingPeriod = "monthly" | "yearly"
+export type PricingCurrencyCode = "USD" | "GBP"
 
 export type PlanTheme = "blue" | "lightGreen" | "darkGreen" | "orange"
 
@@ -10,8 +13,9 @@ export type PricingPlan = {
   tagline: string
   theme: PlanTheme
   badge?: string
-  /** Monthly price in USD; null = free; undefined = custom */
+  /** Monthly price in USD; null = free; undefined = custom. GBP mirrors UK pricing when present. */
   monthlyUsd: number | null | undefined
+  monthlyGbp?: number | null | undefined
   ctaLabel: string
   ctaHref: string
   /** Short highlights for card body (★ items marked in copy) */
@@ -39,6 +43,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     tagline: "Stand out locally",
     theme: "lightGreen",
     monthlyUsd: 29,
+    monthlyGbp: 22,
     ctaLabel: "Choose Grow",
     ctaHref: "/pricing",
     highlights: [
@@ -54,6 +59,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     theme: "darkGreen",
     badge: "Most Popular",
     monthlyUsd: 59,
+    monthlyGbp: 44,
     ctaLabel: "Choose Thrive",
     ctaHref: "/pricing",
     highlights: [
@@ -366,12 +372,20 @@ export const PAID_PLAN_IDS: PaidPlanId[] = ["grow", "thrive"]
 /** Annual billing: pay for 11 months, 12th month free (matches package spreadsheet). */
 export const ANNUAL_PAID_MONTHS = 11
 
+export function annualPriceTotal(monthlyPrice: number): number {
+  return monthlyPrice * ANNUAL_PAID_MONTHS
+}
+
+export function annualSavingsAmount(monthlyPrice: number): number {
+  return monthlyPrice
+}
+
 export function annualUsdTotal(monthlyUsd: number): number {
-  return monthlyUsd * ANNUAL_PAID_MONTHS
+  return annualPriceTotal(monthlyUsd)
 }
 
 export function annualSavingsUsd(monthlyUsd: number): number {
-  return monthlyUsd
+  return annualSavingsAmount(monthlyUsd)
 }
 
 export const PRICING_FOOTNOTE =
@@ -383,4 +397,28 @@ export function getPricingPlan(planId: PlanId): PricingPlan | undefined {
 
 export function isPaidPlanId(value: string | null | undefined): value is PaidPlanId {
   return value === "grow" || value === "thrive"
+}
+
+export function getPricingCurrencyCode(market: MarketId): PricingCurrencyCode {
+  return market === "uk" ? "GBP" : "USD"
+}
+
+export function getPricingLocale(market: MarketId): string {
+  return market === "uk" ? "en-GB" : "en-US"
+}
+
+export function getPlanMonthlyPrice(
+  plan: PricingPlan,
+  market: MarketId,
+): number | null | undefined {
+  if (market === "uk" && plan.monthlyGbp != null) return plan.monthlyGbp
+  return plan.monthlyUsd
+}
+
+export function formatCurrencyAmount(amount: number, currencyCode: PricingCurrencyCode): string {
+  return new Intl.NumberFormat(currencyCode === "GBP" ? "en-GB" : "en-US", {
+    style: "currency",
+    currency: currencyCode,
+    maximumFractionDigits: 0,
+  }).format(amount)
 }

@@ -17,6 +17,10 @@ describe("syncProviderSubscriptionFromStripe", () => {
     vi.stubEnv("STRIPE_PRICE_GROW_YEARLY", "price_grow_yearly")
     vi.stubEnv("STRIPE_PRICE_THRIVE_MONTHLY", "price_thrive_monthly")
     vi.stubEnv("STRIPE_PRICE_THRIVE_YEARLY", "price_thrive_yearly")
+    vi.stubEnv("STRIPE_PRICE_GROW_MONTHLY_GBP", "price_grow_monthly_gbp")
+    vi.stubEnv("STRIPE_PRICE_GROW_YEARLY_GBP", "price_grow_yearly_gbp")
+    vi.stubEnv("STRIPE_PRICE_THRIVE_MONTHLY_GBP", "price_thrive_monthly_gbp")
+    vi.stubEnv("STRIPE_PRICE_THRIVE_YEARLY_GBP", "price_thrive_yearly_gbp")
   })
 
   it("calls atomic sync RPC with resolved paid plan", async () => {
