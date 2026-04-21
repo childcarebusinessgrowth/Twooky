@@ -501,7 +501,7 @@ function SearchBarContent({
           </SelectContent>
         </Select>
         <Button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           className="bg-primary hover:bg-primary/90 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none"
         >
           <Search className="h-4 w-4" />
@@ -614,7 +614,7 @@ function SearchBarContent({
 
         {/* Search Button - Full width */}
         <Button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           size="lg"
           className={`w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none ${ctaClassName}`}
         >
