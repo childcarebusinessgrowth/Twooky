@@ -3,7 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SearchCriteria } from "./search-providers"
 import { haversineDistanceKm } from "./search-providers"
 import { CACHE_TAGS } from "@/lib/cache-tags"
-import { PROVIDER_TYPES, type ProviderTypeId } from "./provider-types"
 import type { GooglePlaceDetailsSummary } from "./google-place-reviews"
 import { formatDailyFeeRange } from "./currency"
 import { getProgramTypeBySlug } from "./program-types"
@@ -128,7 +127,7 @@ export type ProviderCardDataFromDb = {
   reviewCount: number
   location: string
   priceRange: string
-  providerTypes: ProviderTypeId[]
+  providerTypes: string[]
   programTypes: string[]
   shortDescription: string
   image: string
@@ -143,11 +142,17 @@ export type ProviderCardDataFromDb = {
   directoryBadges: DirectoryBadgeView[]
 }
 
-const VALID_PROVIDER_TYPE_IDS = new Set<ProviderTypeId>(PROVIDER_TYPES.map((type) => type.id))
-
-function toProviderTypeIds(values: string[] | null): ProviderTypeId[] {
+function toProviderTypeValues(values: string[] | null): string[] {
   if (!values?.length) return []
-  return values.filter((value): value is ProviderTypeId => VALID_PROVIDER_TYPE_IDS.has(value as ProviderTypeId))
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const value of values) {
+    const normalized = value.trim().toLowerCase()
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    result.push(normalized)
+  }
+  return result
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -556,7 +561,7 @@ export async function getHomeFeaturedProvidersCached(limit = 3): Promise<Provide
           reviewCount,
           location: [row.city, row.address].filter(Boolean).join(", ") || ",",
           priceRange: formatDailyFeeRange(row.daily_fee_from, row.daily_fee_to, symbol),
-          providerTypes: toProviderTypeIds(row.provider_types),
+          providerTypes: toProviderTypeValues(row.provider_types),
           programTypes: (programTypesByProfile[row.profile_id] ?? []).map((programType) => programType.name),
           shortDescription: (row.description ?? "").slice(0, 200),
           image,
@@ -1010,7 +1015,7 @@ export function activeProviderRowToCardData(
     reviewCount: row.review_count,
     location,
     priceRange,
-    providerTypes: toProviderTypeIds(row.provider_types),
+    providerTypes: toProviderTypeValues(row.provider_types),
     programTypes,
     shortDescription: (row.description ?? "").slice(0, 200),
     image,

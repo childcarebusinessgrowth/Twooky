@@ -2,7 +2,12 @@ import { PROVIDER_TYPES } from "@/lib/provider-types"
 import { AGE_GROUPS, AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
 
 export function getProviderTypeLabel(id: string): string {
-  return PROVIDER_TYPES.find((t) => t.id === id)?.label ?? id
+  const found = PROVIDER_TYPES.find((t) => t.id === id)
+  if (found) return found.label
+  return id
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 export function getAgeGroupLabel(id: string): string {

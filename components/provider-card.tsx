@@ -16,6 +16,13 @@ const TOP_RATED_MIN_REVIEWS = 10
 const PARENT_FAVOURITE_MIN_SAVES = 2
 const DESCRIPTION_MAX_LENGTH = 150
 
+function formatProviderTypeLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 function isTopRated(provider: { rating: number; reviewCount: number }): boolean {
   const rating = Number(provider.rating)
   const reviewCount = Number(provider.reviewCount ?? 0)
@@ -45,7 +52,6 @@ export type ProviderCardData = Pick<
   | "reviewCount"
   | "location"
   | "priceRange"
-  | "providerTypes"
   | "programTypes"
   | "shortDescription"
   | "image"
@@ -59,6 +65,7 @@ export type ProviderCardData = Pick<
   verifiedProviderBadgeColor?: string | null
   savedByParentCount?: number
   directoryBadges?: DirectoryBadgeView[]
+  providerTypes: string[]
 }
 
 interface ProviderCardProps {
@@ -150,7 +157,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                 <div className="flex flex-wrap gap-1.5">
                   {provider.providerTypes.map((type) => (
                     <Badge key={type} variant="outline" className="text-[10px] font-medium">
-                      {type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      {formatProviderTypeLabel(type)}
                     </Badge>
                   ))}
                 </div>
@@ -241,9 +248,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
             <div className="flex flex-wrap gap-1">
               {provider.providerTypes.map((type) => (
                 <Badge key={type} variant="outline" className="text-[10px] font-medium">
-                  {type
-                    .replace(/_/g, " ")
-                    .replace(/\b\w/g, (c) => c.toUpperCase())}
+                  {formatProviderTypeLabel(type)}
                 </Badge>
               ))}
             </div>

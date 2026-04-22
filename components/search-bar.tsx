@@ -1,6 +1,7 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { KeyboardEvent } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, MapPin, User, Layers, Loader2, LocateFixed } from "lucide-react"
@@ -112,7 +113,9 @@ function SearchBarContent({
   const [isLocationSuggestionsLoading, setIsLocationSuggestionsLoading] = useState(false)
   const [isLocationFocused, setIsLocationFocused] = useState(false)
   const [activeLocationSuggestionIndex, setActiveLocationSuggestionIndex] = useState(-1)
+  const [locationFieldRect, setLocationFieldRect] = useState<DOMRect | null>(null)
   const hasAutoDetectedRef = useRef(false)
+  const locationFieldRef = useRef<HTMLDivElement | null>(null)
   const locationSuggestionRequestIdRef = useRef(0)
 
   const geolocationHint = useMemo(() => {
@@ -239,53 +242,99 @@ function SearchBarContent({
     !isLocationSuggestionsLoading &&
     locationSuggestions.length === 0
 
-  const locationSuggestionsDropdown = showLocationSuggestions || showNoLocationSuggestions ? (
-    <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-border/70 bg-popover shadow-xl">
-      {isLocationSuggestionsLoading ? (
-        <div className="px-4 py-3 text-sm text-muted-foreground">Searching locations...</div>
-      ) : locationSuggestions.length > 0 ? (
-        <div className="max-h-72 overflow-auto py-2">
-          {locationSuggestions.map((suggestion, index) => {
-            const isActive = index === activeLocationSuggestionIndex
-            return (
-              <button
-                key={suggestion.placeId}
-                type="button"
-                className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                  isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/60"
-                }`}
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                }}
-                onMouseEnter={() => setActiveLocationSuggestionIndex(index)}
-                onClick={() => applyLocationSuggestion(suggestion)}
-              >
-                <MapPin
-                  className={`mt-0.5 h-4 w-4 shrink-0 ${
-                    isActive ? "text-accent-foreground" : "text-muted-foreground"
-                  }`}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{suggestion.mainText}</span>
-                  {suggestion.secondaryText && (
-                    <span
-                      className={`block truncate text-xs ${
-                        isActive ? "text-accent-foreground/80" : "text-muted-foreground"
+  const syncLocationFieldRect = useCallback(() => {
+    const element = locationFieldRef.current
+    if (!element) return
+    setLocationFieldRect(element.getBoundingClientRect())
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!showLocationSuggestions && !showNoLocationSuggestions) {
+      setLocationFieldRect(null)
+      return
+    }
+
+    syncLocationFieldRect()
+  }, [showLocationSuggestions, showNoLocationSuggestions, syncLocationFieldRect, location])
+
+  useEffect(() => {
+    if (!showLocationSuggestions && !showNoLocationSuggestions) return
+    if (typeof window === "undefined") return
+
+    const update = () => syncLocationFieldRect()
+    const element = locationFieldRef.current
+    const resizeObserver = typeof ResizeObserver === "undefined" || !element ? null : new ResizeObserver(update)
+
+    resizeObserver?.observe(element)
+    window.addEventListener("resize", update)
+    window.addEventListener("scroll", update, true)
+
+    return () => {
+      resizeObserver?.disconnect()
+      window.removeEventListener("resize", update)
+      window.removeEventListener("scroll", update, true)
+    }
+  }, [showLocationSuggestions, showNoLocationSuggestions, syncLocationFieldRect])
+
+  const locationSuggestionsDropdown =
+    (showLocationSuggestions || showNoLocationSuggestions) && locationFieldRect && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed z-80 overflow-hidden rounded-2xl border border-border/70 bg-popover/98 shadow-[0_22px_50px_rgba(15,23,42,0.18)] backdrop-blur-md"
+            style={{
+              top: locationFieldRect.bottom + 8,
+              left: locationFieldRect.left,
+              width: locationFieldRect.width,
+              maxWidth: "calc(100vw - 1rem)",
+            }}
+          >
+            {isLocationSuggestionsLoading ? (
+              <div className="px-4 py-3 text-sm text-muted-foreground">Searching locations...</div>
+            ) : locationSuggestions.length > 0 ? (
+              <div className="max-h-72 overflow-auto py-2">
+                {locationSuggestions.map((suggestion, index) => {
+                  const isActive = index === activeLocationSuggestionIndex
+                  return (
+                    <button
+                      key={suggestion.placeId}
+                      type="button"
+                      className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
+                        isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/60"
                       }`}
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                      }}
+                      onMouseEnter={() => setActiveLocationSuggestionIndex(index)}
+                      onClick={() => applyLocationSuggestion(suggestion)}
                     >
-                      {suggestion.secondaryText}
-                    </span>
-                  )}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="px-4 py-3 text-sm text-muted-foreground">No matching locations found.</div>
-      )}
-    </div>
-  ) : null
+                      <MapPin
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          isActive ? "text-accent-foreground" : "text-muted-foreground"
+                        }`}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{suggestion.mainText}</span>
+                        {suggestion.secondaryText && (
+                          <span
+                            className={`block truncate text-xs ${
+                              isActive ? "text-accent-foreground/80" : "text-muted-foreground"
+                            }`}
+                          >
+                            {suggestion.secondaryText}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-sm text-muted-foreground">No matching locations found.</div>
+            )}
+          </div>,
+          document.body,
+        )
+      : null
 
   const handleLocationKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown" && locationSuggestions.length > 0) {
@@ -458,7 +507,7 @@ function SearchBarContent({
   if (variant === "compact") {
     return (
       <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
-        <div className="relative flex-1 min-w-[200px]">
+        <div ref={locationFieldRef} className="relative flex-1 min-w-[200px]">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={compactLocationPlaceholder}
@@ -485,7 +534,6 @@ function SearchBarContent({
               <LocateFixed className="h-4 w-4" />
             )}
           </button>
-          {locationSuggestionsDropdown}
         </div>
         <Select value={programType} onValueChange={setProgramType}>
           <SelectTrigger className="sm:w-48 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 transition-none">
@@ -507,6 +555,7 @@ function SearchBarContent({
           <Search className="h-4 w-4" />
           <span className="ml-2">{searchButtonLabel ?? "Search"}</span>
         </Button>
+        {locationSuggestionsDropdown}
         {(locationError || geolocationHint) && (
           <p className="sm:basis-full text-xs text-muted-foreground">
             {locationError ?? geolocationHint}
@@ -535,7 +584,7 @@ function SearchBarContent({
         {/* Fields row */}
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Location */}
-          <div className="flex-1 min-w-[200px]">
+          <div ref={locationFieldRef} className="flex-1 min-w-[200px]">
             <label className={`text-xs font-medium mb-2 block ${labelClassName}`}>
               Location
             </label>
@@ -553,7 +602,6 @@ function SearchBarContent({
                 onBlur={handleLocationBlur}
                 onKeyDown={handleLocationKeyDown}
               />
-              {locationSuggestionsDropdown}
             </div>
             {(locationError || geolocationHint) && (
               <p className="text-xs text-muted-foreground mt-1">
@@ -621,6 +669,7 @@ function SearchBarContent({
           <Search className="h-5 w-5 mr-2" />
           {searchButtonLabel ?? "Search Providers"}
         </Button>
+        {locationSuggestionsDropdown}
       </div>
     </div>
   )

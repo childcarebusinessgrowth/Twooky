@@ -72,6 +72,7 @@ export default async function AdminEditListingPage({ params }: PageProps) {
             currencies={options.currencies}
             ageGroups={options.ageGroups}
             programTypes={options.programTypes}
+            providerTypeOptions={options.providerTypes}
           />
         </CardContent>
       </Card>

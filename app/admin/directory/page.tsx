@@ -81,6 +81,23 @@ type BadgeRow = {
   is_active: boolean
 }
 
+type ProviderTypeCategoryRow = {
+  id: string
+  name: string
+  sort_order: number
+  is_active: boolean
+}
+
+type ProviderTypeRow = {
+  id: string
+  category_id: string
+  category_name: string
+  name: string
+  slug: string
+  sort_order: number
+  is_active: boolean
+}
+
 async function loadDirectoryData() {
   const supabase = getSupabaseAdminClient()
 
@@ -94,6 +111,8 @@ async function loadDirectoryData() {
     { data: features, error: featuresError },
     { data: currencies, error: currenciesError },
     { data: badges, error: badgesError },
+    { data: providerTypeCategories, error: providerTypeCategoriesError },
+    { data: providerTypes, error: providerTypesError },
   ] = await Promise.all([
     supabase
       .from("countries")
@@ -134,6 +153,16 @@ async function loadDirectoryData() {
       .from("directory_badges")
       .select("id, name, description, color, icon, is_active")
       .order("name", { ascending: true }),
+    supabase
+      .from("provider_type_categories")
+      .select("id, name, sort_order, is_active")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("provider_types")
+      .select("id, category_id, name, slug, sort_order, is_active, provider_type_categories!inner(name)")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
   ])
 
   if (countriesError) console.error("[admin/directory] Failed to load countries", countriesError.message)
@@ -145,6 +174,28 @@ async function loadDirectoryData() {
   if (featuresError) console.error("[admin/directory] Failed to load provider features", featuresError.message)
   if (currenciesError) console.error("[admin/directory] Failed to load currencies", currenciesError.message)
   if (badgesError) console.error("[admin/directory] Failed to load badges", badgesError.message)
+  if (providerTypeCategoriesError) console.error("[admin/directory] Failed to load provider type categories", providerTypeCategoriesError.message)
+  if (providerTypesError) console.error("[admin/directory] Failed to load provider types", providerTypesError.message)
+
+  const categoryRows = (providerTypeCategories ?? []) as ProviderTypeCategoryRow[]
+  const categoryById = new Map(categoryRows.map((row) => [row.id, row]))
+  const providerTypeRows = ((providerTypes ?? []) as Array<{
+    id: string
+    category_id: string
+    name: string
+    slug: string
+    sort_order: number
+    is_active: boolean
+    provider_type_categories?: { name?: string } | null
+  }>).map((row) => ({
+    id: row.id,
+    category_id: row.category_id,
+    category_name: categoryById.get(row.category_id)?.name ?? row.provider_type_categories?.name ?? "Providers",
+    name: row.name,
+    slug: row.slug,
+    sort_order: row.sort_order,
+    is_active: row.is_active,
+  }))
 
   return {
     countries: (countries ?? []) as CountryRow[],
@@ -156,6 +207,8 @@ async function loadDirectoryData() {
     features: (features ?? []) as FeatureRow[],
     currencies: (currencies ?? []) as CurrencyRow[],
     badges: (badges ?? []) as BadgeRow[],
+    providerTypeCategories: categoryRows,
+    providerTypes: providerTypeRows,
   }
 }
 
@@ -174,6 +227,8 @@ export default async function AdminDirectoryPage() {
         initialFeatures={initialData.features}
         initialCurrencies={initialData.currencies}
         initialBadges={initialData.badges}
+        initialProviderTypeCategories={initialData.providerTypeCategories}
+        initialProviderTypes={initialData.providerTypes}
       />
     </Suspense>
   )

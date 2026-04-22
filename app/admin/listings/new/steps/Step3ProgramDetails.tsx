@@ -4,13 +4,13 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
-import { PROVIDER_TYPES } from "@/lib/provider-types"
 import { AMENITIES } from "@/lib/listing-options"
 import type {
   AdminProviderAgeGroupOption,
   AdminProviderCurriculumOption,
   AdminProviderLanguageOption,
   AdminProviderProgramTypeOption,
+  AdminProviderTypeOption,
 } from "../actions"
 
 type Step3ProgramDetailsProps = {
@@ -28,6 +28,7 @@ type Step3ProgramDetailsProps = {
   setAmenities: (v: string[]) => void
   ageGroups: AdminProviderAgeGroupOption[]
   programTypes: AdminProviderProgramTypeOption[]
+  providerTypeOptions: AdminProviderTypeOption[]
   curriculum: AdminProviderCurriculumOption[]
   languages: AdminProviderLanguageOption[]
 }
@@ -47,9 +48,17 @@ export function Step3ProgramDetails({
   setAmenities,
   ageGroups,
   programTypes,
+  providerTypeOptions,
   curriculum,
   languages,
 }: Step3ProgramDetailsProps) {
+  const providerTypeGroups = providerTypeOptions.reduce<Record<string, AdminProviderTypeOption[]>>((acc, item) => {
+    const current = acc[item.category_id] ?? []
+    current.push(item)
+    acc[item.category_id] = current
+    return acc
+  }, {})
+
   return (
     <div className="space-y-6">
       <WizardStepHeader
@@ -62,23 +71,35 @@ export function Step3ProgramDetails({
           <CardTitle className="text-base">Provider Types</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {PROVIDER_TYPES.map((type) => (
-              <label key={type.id} className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50">
-                <Checkbox
-                  checked={providerTypes.includes(type.id)}
-                  onCheckedChange={(checked) =>
-                    setProviderTypes(
-                      checked
-                        ? providerTypes.includes(type.id)
-                          ? providerTypes
-                          : [...providerTypes, type.id]
-                        : providerTypes.filter((id) => id !== type.id),
-                    )
-                  }
-                />
-                <span className="text-sm font-medium">{type.label}</span>
-              </label>
+          <div className="space-y-4">
+            {Object.entries(providerTypeGroups).map(([categoryId, items]) => (
+              <div key={categoryId} className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {items[0]?.category_name ?? "Providers"}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {items.map((type) => (
+                    <label
+                      key={type.id}
+                      className="flex cursor-pointer items-center gap-3 rounded-md border border-transparent p-3 transition-colors hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={providerTypes.includes(type.slug)}
+                        onCheckedChange={(checked) =>
+                          setProviderTypes(
+                            checked
+                              ? providerTypes.includes(type.slug)
+                                ? providerTypes
+                                : [...providerTypes, type.slug]
+                              : providerTypes.filter((id) => id !== type.slug),
+                          )
+                        }
+                      />
+                      <span className="text-sm font-medium">{type.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </CardContent>

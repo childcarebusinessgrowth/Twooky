@@ -4,13 +4,13 @@ import { Building2, MapPin, Clock, ImageIcon, HelpCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WizardStepHeader } from "../_components/WizardStepHeader"
 import { Badge } from "@/components/ui/badge"
-import { PROVIDER_TYPES } from "@/lib/provider-types"
 import { AMENITIES } from "@/lib/listing-options"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import type { FaqItem, PhotoItem } from "../types"
 import type {
   AdminProviderAgeGroupOption,
   AdminProviderProgramTypeOption,
+  AdminProviderTypeOption,
 } from "../actions"
 
 type Step5ReviewSubmitProps = {
@@ -48,6 +48,7 @@ type Step5ReviewSubmitProps = {
   curriculumOptions: { id: string; name: string }[]
   ageGroups: AdminProviderAgeGroupOption[]
   programTypes: AdminProviderProgramTypeOption[]
+  providerTypeOptions: AdminProviderTypeOption[]
 }
 
 function formatValue(value: string | undefined, fallback = ",") {
@@ -89,9 +90,10 @@ export function Step5ReviewSubmit({
   curriculumOptions,
   ageGroups,
   programTypes,
+  providerTypeOptions,
 }: Step5ReviewSubmitProps) {
   const providerTypeLabels = providerTypes
-    .map((id) => PROVIDER_TYPES.find((t) => t.id === id)?.label)
+    .map((id) => providerTypeOptions.find((t) => t.slug === id)?.name)
     .filter(Boolean)
   const programTypeLabels = selectedProgramTypeIds
     .map((id) => programTypes.find((type) => type.id === id)?.name)

@@ -12,6 +12,7 @@ import {
   getProviderProgramTypesByProfileIds,
   type ProviderProgramType,
 } from "@/lib/provider-program-types"
+import { getProviderTypesByProfileIds } from "@/lib/provider-taxonomy"
 import {
   extractDirectoryBadgeRelation,
   toDirectoryBadgeView,
@@ -444,7 +445,14 @@ export async function getAdminListingDetail(
       : Promise.resolve({ data: null }),
   ])
 
-  const [{ data: photoRows }, { data: faqRows }, { data: docRows }, { data: providerBadgeRows }, programTypesByProfile] = await Promise.all([
+  const [
+    { data: photoRows },
+    { data: faqRows },
+    { data: docRows },
+    { data: providerBadgeRows },
+    programTypesByProfile,
+    providerTypesByProfile,
+  ] = await Promise.all([
     supabase
       .from("provider_photos")
       .select("id, storage_path, caption, is_primary, sort_order")
@@ -467,6 +475,7 @@ export async function getAdminListingDetail(
       .select("provider_profile_id, directory_badges(id, name, description, color, icon)")
       .eq("provider_profile_id", profileId),
     getProviderProgramTypesByProfileIds(supabase, [profileId]),
+    getProviderTypesByProfileIds(supabase, [profileId]),
   ])
 
   const docPaths = (docRows ?? []).map((d) => d.storage_path)
@@ -508,6 +517,7 @@ export async function getAdminListingDetail(
   return {
     profile: {
       ...profile,
+      provider_types: providerTypesByProfile[profileId]?.map((item) => item.slug) ?? profile.provider_types,
       country_name: countryRow?.name ?? null,
       city_name: cityRow?.name ?? null,
       listing_status: profile.listing_status ?? "pending",

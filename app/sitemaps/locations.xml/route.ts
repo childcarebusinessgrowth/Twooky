@@ -1,9 +1,8 @@
-import { PROVIDER_TYPES } from "@/lib/provider-types"
 import {
   buildLocationHref,
-  buildLocationProviderTypeHref,
   getActiveLocationRouteParams,
 } from "@/lib/locations"
+import { getProviderTypes } from "@/lib/provider-taxonomy"
 import { buildUrlSetXml, toAbsoluteUrl, xmlResponse } from "@/lib/sitemap"
 
 export const revalidate = 3600
@@ -11,8 +10,9 @@ export const revalidate = 3600
 export async function GET(): Promise<Response> {
   const now = new Date().toISOString()
   let routes: Awaited<ReturnType<typeof getActiveLocationRouteParams>>
+  let providerTypes: Awaited<ReturnType<typeof getProviderTypes>>
   try {
-    routes = await getActiveLocationRouteParams()
+    ;[routes, providerTypes] = await Promise.all([getActiveLocationRouteParams(), getProviderTypes()])
   } catch (e) {
     if (process.env.CI || process.env.GITHUB_ACTIONS) {
       console.warn("[sitemap:locations] Skipped in CI:", e)
@@ -21,17 +21,15 @@ export async function GET(): Promise<Response> {
     throw e
   }
 
-  const entries = routes.flatMap((route) => {
-    const cityUrl = {
+  const entries = [
+    ...routes.map((route) => ({
       loc: toAbsoluteUrl(buildLocationHref(route.country, route.city)),
       lastmod: now,
-    }
-    const providerTypeUrls = PROVIDER_TYPES.map((type) => ({
-      loc: toAbsoluteUrl(buildLocationProviderTypeHref(route.country, route.city, type.id)),
+    })),
+    ...providerTypes.map((type) => ({
+      loc: toAbsoluteUrl(`/${type.slug}`),
       lastmod: now,
-    }))
-    return [cityUrl, ...providerTypeUrls]
-  })
-
+    })),
+  ]
   return xmlResponse(buildUrlSetXml(entries))
 }

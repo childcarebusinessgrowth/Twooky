@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PROVIDER_TYPES, type ProviderTypeId } from "@/lib/provider-types"
+import type { ProviderTypeId } from "@/lib/provider-types"
 import { AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
 import { useAuth } from "@/components/AuthProvider"
 import { getSupabaseClient } from "@/lib/supabaseClient"
@@ -38,6 +38,7 @@ import {
 import { getProviderPlanAccess, type ProviderPlanAccess } from "@/lib/provider-plan-access"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { resolveOwnedProviderProfileId } from "@/lib/provider-ownership"
+import { normalizeProviderTypeSelections } from "@/lib/provider-type-normalization"
 
 const DOCUMENT_TYPES = ["Business License", "ID Verification", "Utility Bill", "Other"] as const
 
@@ -84,6 +85,14 @@ type ProgramTypeOption = {
   id: string
   label: string
   slug: string | null
+}
+
+type ProviderTypeOption = {
+  id: string
+  name: string
+  slug: string
+  category_id: string
+  category_name: string
 }
 
 function saveDraftToStorage(snapshot: ListingDraftSnapshot) {
@@ -179,6 +188,7 @@ export default function ManageListingPage() {
   const [ageGroupsServed, setAgeGroupsServed] = useState<string[]>([])
   const [availableAgeGroups, setAvailableAgeGroups] = useState<AgeGroupOption[]>([])
   const [availableProgramTypes, setAvailableProgramTypes] = useState<ProgramTypeOption[]>([])
+  const [availableProviderTypes, setAvailableProviderTypes] = useState<ProviderTypeOption[]>([])
   const [curriculumTypes, setCurriculumTypes] = useState<string[]>(["play-based"])
   const [languagesSpoken, setLanguagesSpoken] = useState("english-spanish")
   const [amenities, setAmenities] = useState<string[]>(["meals_included", "outdoor_play_area", "nap_room", "security_cameras", "parent_app"])
@@ -228,6 +238,15 @@ export default function ManageListingPage() {
         const payload = (await response.json()) as {
           ageGroups?: Array<{ value?: string; label?: string }>
           programTypes?: Array<{ id?: string; label?: string; slug?: string | null }>
+          providerTaxonomy?: {
+            providerTypes?: Array<{
+              id?: string
+              name?: string
+              slug?: string
+              category_id?: string
+              category_name?: string
+            }>
+          }
         }
 
         if (!isMounted) return
@@ -256,6 +275,34 @@ export default function ManageListingPage() {
 
         setAvailableAgeGroups(Array.from(nextOptions.values()))
         setAvailableProgramTypes(Array.from(nextProgramTypes.values()))
+
+        const nextProviderTypes = new Map<string, ProviderTypeOption>()
+        for (const option of payload.providerTaxonomy?.providerTypes ?? []) {
+          if (
+            typeof option?.id !== "string" ||
+            typeof option?.name !== "string" ||
+            typeof option?.slug !== "string" ||
+            typeof option?.category_id !== "string" ||
+            typeof option?.category_name !== "string"
+          ) {
+            continue
+          }
+          const id = option.id.trim()
+          const name = option.name.trim()
+          const slug = option.slug.trim()
+          const categoryId = option.category_id.trim()
+          const categoryName = option.category_name.trim()
+          if (!id || !name || !slug || !categoryId || !categoryName || nextProviderTypes.has(id)) continue
+          nextProviderTypes.set(id, {
+            id,
+            name,
+            slug,
+            category_id: categoryId,
+            category_name: categoryName,
+          })
+        }
+
+        setAvailableProviderTypes(Array.from(nextProviderTypes.values()))
       } catch (error) {
         console.error("[Manage Listing] Failed to load listing options", error)
       }
@@ -469,6 +516,20 @@ export default function ManageListingPage() {
       isMounted = false
     }
   }, [user])
+
+  useEffect(() => {
+    if (availableProviderTypes.length === 0 || providerTypes.length === 0) return
+    setProviderTypes((current) => {
+      const normalized = normalizeProviderTypeSelections(current, availableProviderTypes)
+      if (
+        normalized.length === current.length &&
+        normalized.every((value, index) => value === current[index])
+      ) {
+        return current
+      }
+      return normalized
+    })
+  }, [availableProviderTypes, providerTypes])
 
   const draftSnapshot = useMemo(
     () => ({
@@ -1195,24 +1256,38 @@ export default function ManageListingPage() {
                 <Field data-tour-provider-type>
                   <FieldLabel>Provider Type</FieldLabel>
                   <FieldDescription>Select the provider types you want displayed on your basic listing.</FieldDescription>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {PROVIDER_TYPES.map((type) => {
-                      const selected = providerTypes.includes(type.id)
-                      return (
-                        <Badge
-                          key={type.id}
-                          variant={selected ? "default" : "outline"}
-                          className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
-                          onClick={() =>
-                            setProviderTypes((prev) =>
-                              selected ? prev.filter((id) => id !== type.id) : [...prev, type.id],
+                  <div className="space-y-4 pt-2">
+                    {Object.entries(
+                      availableProviderTypes.reduce<Record<string, ProviderTypeOption[]>>((acc, item) => {
+                        ;(acc[item.category_id] ??= []).push(item)
+                        return acc
+                      }, {}),
+                    ).map(([, items]) => (
+                      <div key={items[0]?.category_id} className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {items[0]?.category_name ?? "Providers"}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {items.map((type) => {
+                            const selected = providerTypes.includes(type.slug)
+                            return (
+                              <Badge
+                                key={type.id}
+                                variant={selected ? "default" : "outline"}
+                                className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                                onClick={() =>
+                                  setProviderTypes((prev) =>
+                                    selected ? prev.filter((id) => id !== type.slug) : [...prev, type.slug],
+                                  )
+                                }
+                              >
+                                {type.name}
+                              </Badge>
                             )
-                          }
-                        >
-                          {type.label}
-                        </Badge>
-                      )
-                    })}
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </Field>
 
@@ -1521,24 +1596,38 @@ export default function ManageListingPage() {
               <FieldDescription>
                 Select all that apply to your organisation (e.g. nursery, preschool, afterschool program).
               </FieldDescription>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {PROVIDER_TYPES.map((type) => {
-                  const selected = providerTypes.includes(type.id)
-                  return (
-                    <Badge
-                      key={type.id}
-                      variant={selected ? "default" : "outline"}
-                      className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
-                      onClick={() =>
-                        setProviderTypes((prev) =>
-                          selected ? prev.filter((id) => id !== type.id) : [...prev, type.id],
+              <div className="space-y-4 pt-2">
+                {Object.entries(
+                  availableProviderTypes.reduce<Record<string, ProviderTypeOption[]>>((acc, item) => {
+                    ;(acc[item.category_id] ??= []).push(item)
+                    return acc
+                  }, {}),
+                ).map(([, items]) => (
+                  <div key={items[0]?.category_id} className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {items[0]?.category_name ?? "Providers"}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {items.map((type) => {
+                        const selected = providerTypes.includes(type.slug)
+                        return (
+                          <Badge
+                            key={type.id}
+                            variant={selected ? "default" : "outline"}
+                            className="cursor-pointer px-3 py-1.5 text-sm transition-colors hover:opacity-90"
+                            onClick={() =>
+                              setProviderTypes((prev) =>
+                                selected ? prev.filter((id) => id !== type.slug) : [...prev, type.slug],
+                              )
+                            }
+                          >
+                            {type.name}
+                          </Badge>
                         )
-                      }
-                    >
-                      {type.label}
-                    </Badge>
-                  )
-                })}
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </Field>
 

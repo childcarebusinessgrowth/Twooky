@@ -192,12 +192,12 @@ export function AdminProgramTypesPageClient({
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Age</TableHead>
-                <TableHead className="hidden md:table-cell">Active</TableHead>
+                <TableHead className="w-1/4">Name</TableHead>
+                <TableHead className="hidden md:table-cell w-[50%]">Age</TableHead>
+                <TableHead className="hidden md:table-cell w-28">Active</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -211,42 +211,44 @@ export function AdminProgramTypesPageClient({
                     .filter(Boolean) ?? []
                 return (
                   <TableRow key={item.id}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell className="hidden md:table-cell">
+                    <TableCell className="whitespace-normal wrap-break-word">
+                      {item.name}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell whitespace-normal wrap-break-word">
                       {ageLabels.length > 0 ? ageLabels.join(", ") : ","}
                     </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {item.is_active ? (
-                      <span className="text-xs rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="text-xs rounded-full bg-slate-100 text-slate-700 px-2 py-0.5">
-                        Inactive
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openEditDialog(item)}
-                      disabled={isSubmitting}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDeleteClick(item)}
-                      disabled={isSubmitting}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                    <TableCell className="hidden md:table-cell">
+                      {item.is_active ? (
+                        <span className="text-xs rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="text-xs rounded-full bg-slate-100 text-slate-700 px-2 py-0.5">
+                          Inactive
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right space-x-1 whitespace-nowrap">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openEditDialog(item)}
+                        disabled={isSubmitting}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => handleDeleteClick(item)}
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
               {initialProgramTypes.length === 0 && (

@@ -11,6 +11,7 @@ import type {
   AdminProviderCurrencyOption,
   AdminProviderLanguageOption,
   AdminProviderProgramTypeOption,
+  AdminProviderTypeOption,
 } from "./actions"
 import { createAdminProvider } from "./actions"
 import { WIZARD_STEPS, type WizardStepId } from "./types"
@@ -34,6 +35,7 @@ export function AdminCreateProviderForm({
   currencies,
   ageGroups,
   programTypes,
+  providerTypeOptions,
 }: {
   countries: AdminProviderCountryOption[]
   cities: AdminProviderCityOption[]
@@ -42,6 +44,7 @@ export function AdminCreateProviderForm({
   currencies: AdminProviderCurrencyOption[]
   ageGroups: AdminProviderAgeGroupOption[]
   programTypes: AdminProviderProgramTypeOption[]
+  providerTypeOptions: AdminProviderTypeOption[]
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -284,6 +287,7 @@ export function AdminCreateProviderForm({
             languages={languages}
             ageGroups={ageGroups}
             programTypes={programTypes}
+            providerTypeOptions={providerTypeOptions}
           />
         )}
         {currentStep === 4 && (
@@ -367,6 +371,7 @@ export function AdminCreateProviderForm({
             curriculumOptions={curriculum}
             ageGroups={ageGroups}
             programTypes={programTypes}
+            providerTypeOptions={providerTypeOptions}
           />
         )}
       </div>

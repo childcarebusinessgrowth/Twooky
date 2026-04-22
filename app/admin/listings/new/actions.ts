@@ -13,6 +13,11 @@ import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-ur
 import { startPerfTimer } from "@/lib/perf-metrics"
 import { shouldAutoGrantVerifiedBadgeOnApproval } from "@/lib/provider-plan-access"
 import { syncProviderProgramTypes } from "@/lib/provider-program-types"
+import {
+  getProviderTypes,
+  resolveActiveProviderTypeSlugs,
+  syncProviderTypeAssignments,
+} from "@/lib/provider-taxonomy"
 
 const PROVIDER_PHOTOS_BUCKET = "provider-photos"
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
@@ -30,6 +35,15 @@ export type AdminProviderCurriculumOption = { id: string; name: string }
 export type AdminProviderCurrencyOption = { id: string; code: string; name: string; symbol: string }
 export type AdminProviderAgeGroupOption = { id: string; tag: string; age_range: string }
 export type AdminProviderProgramTypeOption = { id: string; name: string; slug: string | null }
+export type AdminProviderTypeOption = {
+  id: string
+  name: string
+  slug: string
+  href: string
+  category_id: string
+  category_name: string
+  description: string | null
+}
 
 export type CreateAdminProviderResult =
   | { ok: true; profileId: string; slug: string }
@@ -190,9 +204,11 @@ export async function getAdminProviderCreateOptions(): Promise<{
   currencies: AdminProviderCurrencyOption[]
   ageGroups: AdminProviderAgeGroupOption[]
   programTypes: AdminProviderProgramTypeOption[]
+  providerTypes: AdminProviderTypeOption[]
 }> {
   await assertAdminPermission("listings.manage")
   const supabase = getSupabaseAdminClient()
+  const providerTypes = await getProviderTypes()
 
   const [
     { data: countries },
@@ -272,6 +288,15 @@ export async function getAdminProviderCreateOptions(): Promise<{
       name: row.name,
       slug: row.slug ?? null,
     })),
+    providerTypes: providerTypes.map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      href: row.href,
+      category_id: row.category_id,
+      category_name: row.category_name,
+      description: row.description,
+    })),
   }
 }
 
@@ -341,6 +366,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   if (!description) return { ok: false, error: "Description is required." }
   if (!address) return { ok: false, error: "Address is required." }
   if (!city && !cityId) return { ok: false, error: "Directory city is required." }
+  if (providerTypes.length === 0) return { ok: false, error: "Select at least one provider type." }
   if (programTypeIds.length === 0) return { ok: false, error: "Select at least one program type." }
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
@@ -424,9 +450,14 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
   let resolvedCityId: string | null = null
   let resolvedCityName = city
   let resolvedCurrencyId: string | null = null
+  const {
+    slugs: resolvedProviderTypeSlugs,
+    error: providerTypeError,
+  } = await resolveActiveProviderTypeSlugs(supabase, providerTypes)
   const { ids: resolvedProgramTypeIds, error: programTypeError } =
     await resolveActiveProgramTypeIds(programTypeIds)
 
+  if (providerTypeError) return { ok: false, error: providerTypeError }
   if (programTypeError) return { ok: false, error: programTypeError }
 
   const [{ data: currencyRow, error: currencyError }, { data: countryRow, error: countryError }, { data: cityRow, error: cityError }] =
@@ -500,7 +531,7 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       website: website || null,
       address: address || null,
       google_place_id: resolvedGooglePlaceId,
-      provider_types: providerTypes.length > 0 ? providerTypes : null,
+      provider_types: resolvedProviderTypeSlugs.length > 0 ? resolvedProviderTypeSlugs : null,
       age_groups_served: ageGroupsServed.length > 0 ? ageGroupsServed : null,
       curriculum_type: curriculumTypes.length > 0 ? curriculumTypes : null,
       languages_spoken: languagesSpoken || null,
@@ -548,6 +579,14 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
     )
     if (syncProgramTypesResult.error) {
       throw new Error(syncProgramTypesResult.error)
+    }
+    const syncProviderTypesResult = await syncProviderTypeAssignments(
+      supabase,
+      profileId,
+      resolvedProviderTypeSlugs
+    )
+    if (syncProviderTypesResult.error) {
+      throw new Error(syncProviderTypesResult.error)
     }
     perf.mark("synced_provider_program_types", { count: resolvedProgramTypeIds.length })
 
@@ -703,6 +742,7 @@ export async function updateAdminProvider(
   if (!description) return { ok: false, error: "Description is required." }
   if (!address) return { ok: false, error: "Address is required." }
   if (!city && !cityId) return { ok: false, error: "Directory city is required." }
+  if (providerTypes.length === 0) return { ok: false, error: "Select at least one provider type." }
   if (programTypeIds.length === 0) return { ok: false, error: "Select at least one program type." }
   if (!["active", "pending", "inactive"].includes(listingStatus)) {
     return { ok: false, error: "Invalid listing status." }
@@ -786,9 +826,14 @@ export async function updateAdminProvider(
   let resolvedCityId: string | null = null
   let resolvedCityName = city
   let resolvedCurrencyId: string | null = null
+  const {
+    slugs: resolvedProviderTypeSlugs,
+    error: providerTypeError,
+  } = await resolveActiveProviderTypeSlugs(supabase, providerTypes)
   const { ids: resolvedProgramTypeIds, error: programTypeError } =
     await resolveActiveProgramTypeIds(programTypeIds)
 
+  if (providerTypeError) return { ok: false, error: providerTypeError }
   if (programTypeError) return { ok: false, error: programTypeError }
 
   const [{ data: currencyRow, error: currencyError }, { data: countryRow, error: countryError }, { data: cityRow, error: cityError }] =
@@ -868,7 +913,7 @@ export async function updateAdminProvider(
       website: website || null,
       address: address || null,
       google_place_id: nextGooglePlaceId,
-      provider_types: providerTypes.length > 0 ? providerTypes : null,
+      provider_types: resolvedProviderTypeSlugs.length > 0 ? resolvedProviderTypeSlugs : null,
       age_groups_served: ageGroupsServed.length > 0 ? ageGroupsServed : null,
       curriculum_type: curriculumTypes.length > 0 ? curriculumTypes : null,
       languages_spoken: languagesSpoken || null,
@@ -914,6 +959,14 @@ export async function updateAdminProvider(
   )
   if (syncProgramTypesResult.error) {
     return { ok: false, error: syncProgramTypesResult.error }
+  }
+  const syncProviderTypesResult = await syncProviderTypeAssignments(
+    supabase,
+    profileId,
+    resolvedProviderTypeSlugs
+  )
+  if (syncProviderTypesResult.error) {
+    return { ok: false, error: syncProviderTypesResult.error }
   }
   perf.mark("synced_provider_program_types", { count: resolvedProgramTypeIds.length })
 

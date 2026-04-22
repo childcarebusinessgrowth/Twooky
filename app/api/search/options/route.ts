@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { getProviderTaxonomy } from "@/lib/provider-taxonomy"
 
 type Option = { value: string; label: string; id?: string; slug?: string | null }
 
@@ -10,8 +11,12 @@ function normalizeAgeTag(tag: string): string {
 export async function GET() {
   try {
     const supabase = getSupabaseAdminClient()
+    const taxonomy = await getProviderTaxonomy()
 
-    const [{ data: ageGroups, error: ageGroupsError }, { data: programTypes, error: programTypesError }] =
+    const [
+      { data: ageGroups, error: ageGroupsError },
+      { data: programTypes, error: programTypesError },
+    ] =
       await Promise.all([
         supabase
           .from("age_groups")
@@ -54,6 +59,7 @@ export async function GET() {
       {
         ageGroups: ageGroupOptions,
         programTypes: programTypeOptions,
+        providerTaxonomy: taxonomy,
       },
       {
         headers: {
@@ -64,7 +70,7 @@ export async function GET() {
   } catch (error) {
     console.error("[search-options] Unexpected error", error)
     return NextResponse.json(
-      { ageGroups: [], programTypes: [] },
+      { ageGroups: [], programTypes: [], providerTaxonomy: { categories: [], providerTypes: [] } },
       {
         status: 200,
         headers: {

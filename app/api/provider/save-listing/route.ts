@@ -7,6 +7,10 @@ import { deriveProviderSlug } from "@/lib/provider-slug"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { getProviderPlanAccessForUser } from "@/lib/provider-plan-access"
 import { syncProviderProgramTypes } from "@/lib/provider-program-types"
+import {
+  resolveActiveProviderTypeSlugs,
+  syncProviderTypeAssignments,
+} from "@/lib/provider-taxonomy"
 import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
 
@@ -121,6 +125,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Select at least one provider type." }, { status: 400 })
     }
 
+    const {
+      slugs: resolvedProviderTypeSlugs,
+      error: providerTypeError,
+    } = await resolveActiveProviderTypeSlugs(admin, normalizedProviderTypes)
+    if (providerTypeError) {
+      return NextResponse.json({ success: false, error: providerTypeError }, { status: 400 })
+    }
+
     if (planAccess.canAccessEnhancedListing) {
       const programTypeIds = uniqueTrimmedStrings(body.programTypeIds)
       if (programTypeIds.length === 0) {
@@ -141,7 +153,7 @@ export async function POST(request: Request) {
           website: normalizeProviderWebsiteUrl(readOptionalString(body.website) ?? ""),
           google_place_id: readOptionalString(body.googlePlaceId),
           address: readOptionalString(body.address),
-          provider_types: normalizedProviderTypes.length > 0 ? normalizedProviderTypes : null,
+          provider_types: resolvedProviderTypeSlugs.length > 0 ? resolvedProviderTypeSlugs : null,
           age_groups_served: normalizedAgeGroupsServed.length > 0 ? normalizedAgeGroupsServed : null,
           curriculum_type: normalizedCurriculumTypes.length > 0 ? normalizedCurriculumTypes : null,
           languages_spoken: readOptionalString(body.languagesSpoken),
@@ -171,6 +183,14 @@ export async function POST(request: Request) {
       if (syncProgramTypesResult.error) {
         return NextResponse.json({ success: false, error: syncProgramTypesResult.error }, { status: 400 })
       }
+      const syncProviderTypesResult = await syncProviderTypeAssignments(
+        admin,
+        providerProfileId,
+        resolvedProviderTypeSlugs,
+      )
+      if (syncProviderTypesResult.error) {
+        return NextResponse.json({ success: false, error: syncProviderTypesResult.error }, { status: 400 })
+      }
     } else {
       const address = readOptionalString(body.address)
       if (!address) {
@@ -186,13 +206,22 @@ export async function POST(request: Request) {
           business_name: businessName,
           google_place_id: readOptionalString(body.googlePlaceId),
           address,
-          provider_types: normalizedProviderTypes,
+          provider_types: resolvedProviderTypeSlugs,
         } as never,
         { onConflict: "profile_id" }
       )
 
       if (saveError) {
         return NextResponse.json({ success: false, error: saveError.message }, { status: 400 })
+      }
+
+      const syncProviderTypesResult = await syncProviderTypeAssignments(
+        admin,
+        providerProfileId,
+        resolvedProviderTypeSlugs,
+      )
+      if (syncProviderTypesResult.error) {
+        return NextResponse.json({ success: false, error: syncProviderTypesResult.error }, { status: 400 })
       }
     }
 

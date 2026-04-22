@@ -41,6 +41,7 @@ import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { DirectoryBadge } from "@/components/directory-badge"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
+import { getProviderTypes } from "@/lib/provider-taxonomy"
 
 type PageProps = {
   params: Promise<{ profileId: string }>
@@ -134,6 +135,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
       .eq("is_active", true),
     getActiveDirectoryBadges(),
   ])
+  const providerTypes = await getProviderTypes()
   if (!data) notFound()
 
   const { profile, photos, faqs, documents } = data
@@ -142,6 +144,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
   const ageGroupLabelByTag = new Map(
     (ageGroupsResult.data ?? []).map((row) => [row.tag, row.age_range] as const)
   )
+  const providerTypeLabelBySlug = new Map(providerTypes.map((type) => [type.slug, type.name] as const))
 
   const hasVirtualTour =
     (profile.virtual_tour_urls?.length ?? 0) > 0 || !!profile.virtual_tour_url
@@ -290,7 +293,7 @@ export default async function AdminListingDetailPage({ params }: PageProps) {
             <div className="mt-1.5">
               <BadgeList
                 ids={profile.provider_types ?? []}
-                getLabel={getProviderTypeLabel}
+                getLabel={(id) => providerTypeLabelBySlug.get(id) ?? getProviderTypeLabel(id)}
               />
               {!profile.provider_types?.length && (
                 <span className="text-muted-foreground">,</span>

@@ -21,7 +21,7 @@ import {
   getCityByCountryAndSlug,
   resolveLegacyCitySlugToCanonical,
 } from "@/lib/locations"
-import { getProviderTypeById, PROVIDER_TYPES, type ProviderTypeId } from "@/lib/provider-types"
+import { getProviderTypeBySlug, getProviderTypes } from "@/lib/provider-taxonomy"
 import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
 import { buildFaqPageSchema, stringifyJsonLd } from "@/lib/schema"
 
@@ -33,9 +33,7 @@ interface LocationPageProps {
 type ParsedSegments =
   | { kind: "legacy"; legacyCity: string }
   | { kind: "city"; country: string; city: string }
-  | { kind: "providerType"; country: string; city: string; providerType: ProviderTypeId }
-
-const PROVIDER_TYPE_IDS = new Set<ProviderTypeId>(PROVIDER_TYPES.map((type) => type.id))
+  | { kind: "providerType"; country: string; city: string; providerType: string }
 
 function parseSegments(segments: string[]): ParsedSegments | null {
   if (segments.length === 1) {
@@ -49,40 +47,24 @@ function parseSegments(segments: string[]): ParsedSegments | null {
     }
   }
   if (segments.length === 3) {
-    const providerType = (segments[2]?.toLowerCase() ?? "") as ProviderTypeId
-    if (!PROVIDER_TYPE_IDS.has(providerType)) {
-      return null
-    }
     return {
       kind: "providerType",
       country: segments[0]?.toLowerCase() ?? "",
       city: segments[1]?.toLowerCase() ?? "",
-      providerType,
+      providerType: segments[2]?.toLowerCase() ?? "",
     }
   }
   return null
 }
 
-function getProviderTypeSeoLabel(typeId: ProviderTypeId): string {
-  const map: Record<ProviderTypeId, string> = {
-    nursery: "Nurseries",
-    preschool: "Preschools",
-    afterschool_program: "Afterschool Programs",
-    sports_academy: "Sports Academies",
-    holiday_camp: "Holiday Camps",
-    tutoring: "Tutoring Services",
-    therapy_service: "Therapy Services",
-  }
-  return map[typeId]
-}
-
 export async function generateStaticParams() {
   try {
     const routes = await getActiveLocationRouteParams()
+    const providerTypes = await getProviderTypes()
     return routes.flatMap((route) => {
       const cityRoute = { segments: [route.country, route.city] }
-      const typeRoutes = PROVIDER_TYPES.map((type) => ({
-        segments: [route.country, route.city, type.id],
+      const typeRoutes = providerTypes.map((type) => ({
+        segments: [route.country, route.city, type.slug],
       }))
       return [cityRoute, ...typeRoutes]
     })
@@ -131,11 +113,11 @@ export async function generateMetadata({ params }: LocationPageProps) {
   const providerCount = fallbackCity?.providerCount ?? 0
 
   if (parsed.kind === "providerType") {
-    const providerType = getProviderTypeById(parsed.providerType)
+    const providerType = await getProviderTypeBySlug(parsed.providerType)
     if (!providerType) {
       return { title: "Location Not Found" }
     }
-    const providerTypeLabel = getProviderTypeSeoLabel(parsed.providerType)
+    const providerTypeLabel = providerType.name
     const countryCode = parsed.country.toUpperCase()
     const canonicalPath = buildLocationProviderTypeHref(parsed.country, parsed.city, parsed.providerType)
     return {
@@ -230,15 +212,16 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     if (!dbCity) {
       notFound()
     }
-    const providerType = getProviderTypeById(parsed.providerType)
+    const providerType = await getProviderTypeBySlug(parsed.providerType)
     if (!providerType) {
       notFound()
     }
 
     const cityName = dbCity.name
     const countryCode = parsed.country.toUpperCase()
-    const providerTypeLabel = getProviderTypeSeoLabel(parsed.providerType)
+    const providerTypeLabel = providerType.name
     const headerTitle = `Best ${providerTypeLabel} in ${cityName}, ${countryCode}`
+    const providerTypes = await getProviderTypes()
     const resolvedSearchParams = searchParams ? (await searchParams) ?? {} : {}
     const { providers, filterOptions } = await getSearchPageData({
       searchParams: resolvedSearchParams,
@@ -319,17 +302,17 @@ export default async function LocationPage({ params, searchParams }: LocationPag
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {PROVIDER_TYPES.map((type) => (
+            {providerTypes.map((type) => (
               <Link
-                key={type.id}
-                href={buildLocationProviderTypeHref(parsed.country, parsed.city, type.id)}
+                key={type.slug}
+                href={buildLocationProviderTypeHref(parsed.country, parsed.city, type.slug)}
                 className="group"
               >
                 <Card className="h-full border-border/60 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                   <CardContent className="p-5">
-                    <p className="font-semibold text-foreground">{getProviderTypeSeoLabel(type.id)}</p>
+                    <p className="font-semibold text-foreground">{type.name}</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {type.description ?? `See ${type.label.toLowerCase()} options in ${displayName}`}
+                      {type.description ?? `See ${type.name.toLowerCase()} options in ${displayName}`}
                     </p>
                   </CardContent>
                 </Card>

@@ -12,11 +12,13 @@ import { AdminCurriculumPageClient } from "@/app/admin/curriculum/pageClient"
 import { AdminFeaturesPageClient } from "@/app/admin/features/pageClient"
 import { AdminCurrenciesPageClient } from "@/app/admin/currencies/pageClient"
 import { AdminBadgesPageClient } from "@/app/admin/badges/pageClient"
+import { AdminProviderTypesPageClient } from "@/app/admin/provider-types/pageClient"
 
 const TAB_VALUES = [
   "locations",
   "age-groups",
   "program-types",
+  "provider-types",
   "languages",
   "curriculum",
   "features",
@@ -71,6 +73,23 @@ type ProgramTypeRow = {
   age_group_ids: string[] | null
 }
 
+type ProviderTypeCategoryRow = {
+  id: string
+  name: string
+  sort_order: number
+  is_active: boolean
+}
+
+type ProviderTypeRow = {
+  id: string
+  category_id: string
+  category_name: string
+  name: string
+  slug: string
+  sort_order: number
+  is_active: boolean
+}
+
 type LanguageRow = {
   id: string
   name: string
@@ -106,6 +125,8 @@ type AdminDirectoryPageClientProps = {
   initialCities: CityRow[]
   initialAgeGroups: AgeGroupRow[]
   initialProgramTypes: ProgramTypeRow[]
+  initialProviderTypeCategories: ProviderTypeCategoryRow[]
+  initialProviderTypes: ProviderTypeRow[]
   initialLanguages: LanguageRow[]
   initialCurriculum: CurriculumRow[]
   initialFeatures: FeatureRow[]
@@ -125,6 +146,8 @@ export function AdminDirectoryPageClient({
   initialCities,
   initialAgeGroups,
   initialProgramTypes,
+  initialProviderTypeCategories,
+  initialProviderTypes,
   initialLanguages,
   initialCurriculum,
   initialFeatures,
@@ -163,6 +186,7 @@ export function AdminDirectoryPageClient({
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="age-groups">Age groups</TabsTrigger>
           <TabsTrigger value="program-types">Program types</TabsTrigger>
+          <TabsTrigger value="provider-types">Provider taxonomy</TabsTrigger>
           <TabsTrigger value="languages">Languages</TabsTrigger>
           <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
           <TabsTrigger value="features">Provider features</TabsTrigger>
@@ -185,6 +209,13 @@ export function AdminDirectoryPageClient({
           <AdminProgramTypesPageClient
             initialProgramTypes={initialProgramTypes}
             initialAgeGroups={initialAgeGroups}
+          />
+        </TabsContent>
+
+        <TabsContent value="provider-types" className="space-y-4 mt-4">
+          <AdminProviderTypesPageClient
+            initialCategories={initialProviderTypeCategories}
+            initialProviderTypes={initialProviderTypes}
           />
         </TabsContent>
 

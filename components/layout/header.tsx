@@ -38,35 +38,15 @@ const mobileNavigation = [
   { name: "Contact", href: "/contact" },
 ]
 
-const exploreGroups: Array<{
+type ExploreLink = {
+  name: string
+  href: string
+}
+
+type ExploreGroup = {
   label: string
-  links: Array<{ name: string; href: string }>
-}> = [
-  {
-    label: "Providers",
-    links: [
-      { name: "Nurseries", href: "/nurseries" },
-      { name: "Preschools", href: "/preschools" },
-      { name: "After-school programs", href: "/afterschool-programs" },
-    ],
-  },
-  {
-    label: "Classes & activities",
-    links: [{ name: "Sports & activities", href: "/sports-academies" }],
-  },
-  {
-    label: "Tutoring & education",
-    links: [{ name: "Tutoring", href: "/tutoring" }],
-  },
-  {
-    label: "Camps",
-    links: [{ name: "Holiday camps", href: "/holiday-camps" }],
-  },
-  {
-    label: "Support",
-    links: [{ name: "Therapy & support services", href: "/therapy-services" }],
-  },
-]
+  links: ExploreLink[]
+}
 
 type AuthRole = "parent" | "provider" | "admin"
 
@@ -86,11 +66,12 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
   const [aboutMenuOpen, setAboutMenuOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
   const [providerMenuOpen, setProviderMenuOpen] = useState(false)
+  const [exploreGroups, setExploreGroups] = useState<ExploreGroup[]>([])
+  const [exploreLoading, setExploreLoading] = useState(true)
   const [resolvedRole, setResolvedRole] = useState<AuthRole | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    let unsubscribe: (() => void) | undefined
 
     const resolveRole = async () => {
       try {
@@ -124,11 +105,56 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
       }
     })
 
-    unsubscribe = () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadExploreGroups() {
+      try {
+        const response = await fetch("/api/search/options", { cache: "no-store" })
+        if (!response.ok) return
+
+        const payload = (await response.json()) as {
+          providerTaxonomy?: {
+            providerTypes?: Array<{
+              name?: string
+              slug?: string
+              category_name?: string
+            }>
+          }
+        }
+
+        const grouped = new Map<string, ExploreGroup>()
+        for (const item of payload.providerTaxonomy?.providerTypes ?? []) {
+          const name = item?.name?.trim()
+          const slug = item?.slug?.trim()
+          const categoryName = item?.category_name?.trim()
+          if (!name || !slug || !categoryName) continue
+          const href = `/${encodeURIComponent(slug)}`
+          const current = grouped.get(categoryName) ?? { label: categoryName, links: [] }
+          current.links.push({ name, href })
+          grouped.set(categoryName, current)
+        }
+
+        if (!cancelled) {
+          setExploreGroups(Array.from(grouped.values()))
+        }
+      } catch {
+        // Leave the menu empty if taxonomy loading fails.
+      } finally {
+        if (!cancelled) setExploreLoading(false)
+      }
+    }
+
+    void loadExploreGroups()
 
     return () => {
       cancelled = true
-      if (unsubscribe) unsubscribe()
     }
   }, [])
 
@@ -225,25 +251,38 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="mt-2 max-h-[min(70vh,520px)] overflow-y-auto min-w-[260px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/70 p-2 shadow-lg"
+                className="mt-2 w-[min(92vw,760px)] min-w-[280px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/70 p-3 shadow-lg"
               >
-                {exploreGroups.map((group, index) => (
-                  <div key={group.label}>
-                    {index > 0 ? <DropdownMenuSeparator className="my-1.5" /> : null}
-                    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground/90">
-                      {group.label}
-                    </DropdownMenuLabel>
-                    {group.links.map((link) => (
-                      <DropdownMenuItem
-                        key={link.href}
-                        asChild
-                        className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <Link href={link.href}>{link.name}</Link>
-                      </DropdownMenuItem>
+                {exploreLoading ? (
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground/90">
+                    Loading...
+                  </DropdownMenuLabel>
+                ) : exploreGroups.length === 0 ? (
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground/90">
+                    No explore categories yet
+                  </DropdownMenuLabel>
+                ) : (
+                  <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {exploreGroups.map((group) => (
+                      <div key={group.label} className="space-y-1.5">
+                        <DropdownMenuLabel className="px-0 text-[11px] uppercase tracking-wide text-muted-foreground/90">
+                          {group.label}
+                        </DropdownMenuLabel>
+                        <div className="space-y-1">
+                          {group.links.map((link) => (
+                            <DropdownMenuItem
+                              key={link.href}
+                              asChild
+                              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                            >
+                              <Link href={link.href}>{link.name}</Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                ))}
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

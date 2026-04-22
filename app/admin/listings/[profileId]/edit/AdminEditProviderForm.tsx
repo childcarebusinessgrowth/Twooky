@@ -11,6 +11,7 @@ import type {
   AdminProviderCurrencyOption,
   AdminProviderLanguageOption,
   AdminProviderProgramTypeOption,
+  AdminProviderTypeOption,
 } from "../../new/actions"
 import type { AdminListingDetail } from "../../actions"
 import { updateAdminProvider } from "../../new/actions"
@@ -22,6 +23,7 @@ import { Step2LocationVisibility } from "../../new/steps/Step2LocationVisibility
 import { Step3ProgramDetails } from "../../new/steps/Step3ProgramDetails"
 import { Step4OperationsMedia } from "../../new/steps/Step4OperationsMedia"
 import { Step5ReviewSubmit } from "../../new/steps/Step5ReviewSubmit"
+import { normalizeProviderTypeSelections } from "@/lib/provider-type-normalization"
 
 function toFileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`
@@ -42,6 +44,7 @@ export function AdminEditProviderForm({
   currencies,
   ageGroups,
   programTypes,
+  providerTypeOptions,
 }: {
   profileId: string
   initialData: AdminListingDetail
@@ -52,6 +55,7 @@ export function AdminEditProviderForm({
   currencies: AdminProviderCurrencyOption[]
   ageGroups: AdminProviderAgeGroupOption[]
   programTypes: AdminProviderProgramTypeOption[]
+  providerTypeOptions: AdminProviderTypeOption[]
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -107,7 +111,9 @@ export function AdminEditProviderForm({
     }))
   )
   const [photoItems, setPhotoItems] = useState<Array<{ key: string; file: File; caption: string }>>([])
-  const [providerTypes, setProviderTypes] = useState<string[]>(p.provider_types ?? [])
+  const [providerTypes, setProviderTypes] = useState<string[]>(
+    normalizeProviderTypeSelections(p.provider_types ?? [], providerTypeOptions),
+  )
   const [selectedProgramTypeIds, setSelectedProgramTypeIds] = useState<string[]>(
     initialData.programTypes.map((programType) => programType.id)
   )
@@ -326,6 +332,7 @@ export function AdminEditProviderForm({
             languages={languages}
             ageGroups={ageGroups}
             programTypes={programTypes}
+            providerTypeOptions={providerTypeOptions}
           />
         )}
         {currentStep === 4 && (
@@ -383,7 +390,7 @@ export function AdminEditProviderForm({
             city={cityDisplayName}
             listingStatus={listingStatus}
             featured={featured}
-            providerTypes={providerTypes}
+            providerTypes={providerTypeOptions}
             selectedProgramTypeIds={selectedProgramTypeIds}
             ageGroupsServed={ageGroupsServed}
             selectedCurriculumTypes={selectedCurriculumTypes}
@@ -409,6 +416,7 @@ export function AdminEditProviderForm({
             curriculumOptions={curriculum}
             ageGroups={ageGroups}
             programTypes={programTypes}
+            providerTypeOptions={providerTypeOptions}
           />
         )}
       </div>
