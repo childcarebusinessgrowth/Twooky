@@ -23,6 +23,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { SearchMapPanelLazy } from "@/components/search-map-panel-lazy"
+import type { MarketId } from "@/lib/market"
+import { getPublicProviderTypeLabel } from "@/lib/listing-labels"
 
 const PAGE_SIZE = 9
 const AGE_TAG_TO_LABEL: Record<string, string> = {
@@ -46,6 +48,7 @@ type SearchResultsProps = {
   listTitle?: string
   emptyStateTitle?: string
   emptyStateDescription?: string
+  market?: MarketId
 }
 
 export function SearchResults(props: SearchResultsProps) {
@@ -66,6 +69,7 @@ function SearchResultsInner({
   listTitle = "Providers",
   emptyStateTitle = "No providers found",
   emptyStateDescription = "Try adjusting filters or increasing your search radius.",
+  market,
 }: SearchResultsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -143,7 +147,7 @@ function SearchResultsInner({
         key: `providerType:${providerType}`,
         param: "providerType",
         value: providerType,
-        label: providerType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        label: getPublicProviderTypeLabel(providerType, market),
       })
     }
 
@@ -260,7 +264,7 @@ function SearchResultsInner({
     }
 
     return chips
-  }, [defaultProviderType, filterOptions, searchParams])
+  }, [defaultProviderType, filterOptions, market, searchParams])
 
   const activeFilters = useMemo(() => buildActiveFilters(), [buildActiveFilters])
 
@@ -455,7 +459,13 @@ function SearchResultsInner({
 
               <div className="space-y-5">
                 {visibleProviders.map((provider) => (
-                  <ProviderCard key={provider.id} provider={provider} layout="horizontal" featured={provider.featured} />
+                  <ProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    layout="horizontal"
+                    featured={provider.featured}
+                    market={market}
+                  />
                 ))}
               </div>
 

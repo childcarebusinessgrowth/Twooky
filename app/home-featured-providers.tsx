@@ -103,7 +103,7 @@ export async function HomeFeaturedProvidersSection({ market }: HomeFeaturedProps
           </Button>
         </div>
 
-        <HomeFeaturedProvidersClient initialProviders={featuredProviders} />
+        <HomeFeaturedProvidersClient initialProviders={featuredProviders} market={market} />
 
         <div className="mt-8 text-center md:hidden">
           <Button asChild>

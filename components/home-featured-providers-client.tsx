@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import type { MarketId } from "@/lib/market"
 import { ProviderCard } from "@/components/provider-card"
 import {
   getCurrentPosition,
@@ -11,6 +12,7 @@ import type { ProviderCardDataFromDb } from "@/lib/search-providers-db"
 
 type HomeFeaturedProvidersClientProps = {
   initialProviders: ProviderCardDataFromDb[]
+  market: MarketId
 }
 
 type FeaturedProvidersApiResponse = { providers?: ProviderCardDataFromDb[] }
@@ -37,7 +39,7 @@ async function fetchPersonalizedProviders(params: {
   return payload.providers
 }
 
-export function HomeFeaturedProvidersClient({ initialProviders }: HomeFeaturedProvidersClientProps) {
+export function HomeFeaturedProvidersClient({ initialProviders, market }: HomeFeaturedProvidersClientProps) {
   const [providers, setProviders] = useState(initialProviders)
   const attemptedRef = useRef(false)
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -105,7 +107,7 @@ export function HomeFeaturedProvidersClient({ initialProviders }: HomeFeaturedPr
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {providers.length > 0 ? (
         providers.map((provider) => (
-          <ProviderCard key={provider.id} provider={provider} featured />
+          <ProviderCard key={provider.id} provider={provider} featured market={market} />
         ))
       ) : (
         <p className="col-span-full rounded-2xl border border-dashed border-border/70 bg-muted/25 px-6 py-10 text-center text-muted-foreground">

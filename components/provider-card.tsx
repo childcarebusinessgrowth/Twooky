@@ -9,19 +9,14 @@ import { TopRatedBadge } from "@/components/top-rated-badge"
 import { VerifiedProviderBadge } from "@/components/verified-provider-badge"
 import { DirectoryBadge } from "@/components/directory-badge"
 import type { DirectoryBadgeView } from "@/lib/directory-badges"
+import type { MarketId } from "@/lib/market"
+import { getPublicProviderTypeLabel } from "@/lib/listing-labels"
 import type { Provider } from "@/lib/mock-data"
 
 const TOP_RATED_MIN_RATING = 4.8
 const TOP_RATED_MIN_REVIEWS = 10
 const PARENT_FAVOURITE_MIN_SAVES = 2
 const DESCRIPTION_MAX_LENGTH = 150
-
-function formatProviderTypeLabel(value: string): string {
-  return value
-    .replace(/[_-]+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-}
 
 function isTopRated(provider: { rating: number; reviewCount: number }): boolean {
   const rating = Number(provider.rating)
@@ -72,13 +67,14 @@ interface ProviderCardProps {
   provider: ProviderCardData
   featured?: boolean
   layout?: "grid" | "horizontal"
+  market?: MarketId
 }
 
 function isGooglePlacePhotoProxy(src: string): boolean {
   return src.startsWith("/api/place-photo")
 }
 
-export function ProviderCard({ provider, featured = false, layout = "grid" }: ProviderCardProps) {
+export function ProviderCard({ provider, featured = false, layout = "grid", market }: ProviderCardProps) {
   const useUnoptimizedImage = isGooglePlacePhotoProxy(provider.image)
 
   if (layout === "horizontal") {
@@ -157,7 +153,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
                 <div className="flex flex-wrap gap-1.5">
                   {provider.providerTypes.map((type) => (
                     <Badge key={type} variant="outline" className="text-[10px] font-medium">
-                      {formatProviderTypeLabel(type)}
+                      {getPublicProviderTypeLabel(type, market)}
                     </Badge>
                   ))}
                 </div>
@@ -248,7 +244,7 @@ export function ProviderCard({ provider, featured = false, layout = "grid" }: Pr
             <div className="flex flex-wrap gap-1">
               {provider.providerTypes.map((type) => (
                 <Badge key={type} variant="outline" className="text-[10px] font-medium">
-                  {formatProviderTypeLabel(type)}
+                  {getPublicProviderTypeLabel(type, market)}
                 </Badge>
               ))}
             </div>

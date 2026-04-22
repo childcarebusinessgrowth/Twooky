@@ -12,6 +12,7 @@ import {
 import { ProviderCard } from "@/components/provider-card"
 import { SearchResults } from "@/components/search-results"
 import { SearchBarDynamic } from "@/components/search-bar-dynamic"
+import { getPublicProviderTypeLabel } from "@/lib/listing-labels"
 import { cities } from "@/lib/mock-data"
 import {
   buildLocationHref,
@@ -22,6 +23,7 @@ import {
   resolveLegacyCitySlugToCanonical,
 } from "@/lib/locations"
 import { getProviderTypeBySlug, getProviderTypes } from "@/lib/provider-taxonomy"
+import { getMarketFromCookies } from "@/lib/market-server"
 import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
 import { buildFaqPageSchema, stringifyJsonLd } from "@/lib/schema"
 
@@ -117,7 +119,8 @@ export async function generateMetadata({ params }: LocationPageProps) {
     if (!providerType) {
       return { title: "Location Not Found" }
     }
-    const providerTypeLabel = providerType.name
+    const market = await getMarketFromCookies()
+    const providerTypeLabel = getPublicProviderTypeLabel(providerType.name, market)
     const countryCode = parsed.country.toUpperCase()
     const canonicalPath = buildLocationProviderTypeHref(parsed.country, parsed.city, parsed.providerType)
     return {
@@ -193,6 +196,8 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     permanentRedirect(buildLocationHref(canonical.country, canonical.city))
   }
 
+  const market = await getMarketFromCookies()
+
   const countrySegment = segments[0] ?? ""
   const citySegment = segments[1] ?? ""
 
@@ -219,9 +224,8 @@ export default async function LocationPage({ params, searchParams }: LocationPag
 
     const cityName = dbCity.name
     const countryCode = parsed.country.toUpperCase()
-    const providerTypeLabel = providerType.name
+    const providerTypeLabel = getPublicProviderTypeLabel(providerType.name, market)
     const headerTitle = `Best ${providerTypeLabel} in ${cityName}, ${countryCode}`
-    const providerTypes = await getProviderTypes()
     const resolvedSearchParams = searchParams ? (await searchParams) ?? {} : {}
     const { providers, filterOptions } = await getSearchPageData({
       searchParams: resolvedSearchParams,
@@ -238,9 +242,10 @@ export default async function LocationPage({ params, searchParams }: LocationPag
         basePath={buildLocationProviderTypeHref(parsed.country, parsed.city, parsed.providerType)}
         defaultProviderType={parsed.providerType}
         headerTitle={headerTitle}
-        listTitle={`${providerType.label} Providers`}
-        emptyStateTitle={`No ${providerType.label.toLowerCase()} providers found in ${cityName}`}
+        listTitle={`${providerTypeLabel} Providers`}
+        emptyStateTitle={`No ${providerTypeLabel.toLowerCase()} providers found in ${cityName}`}
         emptyStateDescription="Try adjusting filters or explore nearby provider types in this location."
+        market={market}
       />
     )
   }
@@ -310,9 +315,11 @@ export default async function LocationPage({ params, searchParams }: LocationPag
               >
                 <Card className="h-full border-border/60 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                   <CardContent className="p-5">
-                    <p className="font-semibold text-foreground">{type.name}</p>
+                    <p className="font-semibold text-foreground">
+                      {getPublicProviderTypeLabel(type.name, market)}
+                    </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {type.description ?? `See ${type.name.toLowerCase()} options in ${displayName}`}
+                      {type.description ?? `See ${getPublicProviderTypeLabel(type.name, market).toLowerCase()} options in ${displayName}`}
                     </p>
                   </CardContent>
                 </Card>
@@ -340,7 +347,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
           {cityProviders.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {cityProviders.slice(0, 6).map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} />
+                <ProviderCard key={provider.id} provider={provider} market={market} />
               ))}
             </div>
           ) : (

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/accordion"
 import { ProviderCard } from "@/components/provider-card"
 import { getFeaturedProvidersForProgram } from "@/lib/search-providers-db"
+import { getMarketFromCookies } from "@/lib/market-server"
 import {
   getActiveProgramTypes,
   getAgeGroupsById,
@@ -87,6 +88,7 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
     .map((row) => programTypeToCardShape(row, ageGroupsById))
 
   const featuredProviders = await getFeaturedProvidersForProgram(slug, 3, null)
+  const market = await getMarketFromCookies()
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,7 +99,7 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
         />
       ) : null}
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/5 to-background py-12 md:py-16">
+      <section className="bg-linear-to-b from-primary/5 to-background py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -257,6 +259,7 @@ export default async function ProgramDetailPage({ params }: ProgramPageProps) {
                 key={provider.id}
                 provider={provider}
                 featured={provider.featured}
+                market={market}
               />
             ))}
           </div>

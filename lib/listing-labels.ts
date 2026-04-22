@@ -1,4 +1,5 @@
 import { PROVIDER_TYPES } from "@/lib/provider-types"
+import type { MarketId } from "@/lib/market"
 import { AGE_GROUPS, AMENITIES, CURRICULUM_OPTIONS } from "@/lib/listing-options"
 
 export function getProviderTypeLabel(id: string): string {
@@ -8,6 +9,21 @@ export function getProviderTypeLabel(id: string): string {
     .replace(/[_-]+/g, " ")
     .trim()
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function normalizePublicProviderTypeValue(value: string): string {
+  return value.trim().toLowerCase().replace(/[_-]+/g, " ")
+}
+
+export function getPublicProviderTypeLabel(id: string, market?: MarketId): string {
+  const label = getProviderTypeLabel(id)
+  if (market === "us") {
+    const normalized = normalizePublicProviderTypeValue(id)
+    if (normalized === "nursery" || normalized === "nurseries" || label === "Nursery" || label === "Nurseries") {
+      return "Daycare"
+    }
+  }
+  return label
 }
 
 export function getAgeGroupLabel(id: string): string {

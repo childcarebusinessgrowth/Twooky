@@ -8,6 +8,7 @@ import { Menu, X, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { MarketId } from "@/lib/market"
 import type { MarketOption } from "@/lib/market-options"
+import { getPublicProviderTypeLabel } from "@/lib/listing-labels"
 import { MarketSelector } from "@/components/market-selector"
 import { getSupabaseClient } from "@/lib/supabaseClient"
 
@@ -115,6 +116,8 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
     let cancelled = false
 
     async function loadExploreGroups() {
+      setExploreLoading(true)
+      setExploreGroups([])
       try {
         const response = await fetch("/api/search/options", { cache: "no-store" })
         if (!response.ok) return
@@ -137,7 +140,7 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
           if (!name || !slug || !categoryName) continue
           const href = `/${encodeURIComponent(slug)}`
           const current = grouped.get(categoryName) ?? { label: categoryName, links: [] }
-          current.links.push({ name, href })
+          current.links.push({ name: getPublicProviderTypeLabel(name, initialMarket), href })
           grouped.set(categoryName, current)
         }
 
@@ -156,7 +159,7 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialMarket])
 
   const dashboardHref = useMemo(() => resolveDashboardHref(resolvedRole), [resolvedRole])
   const showDashboardAction = resolvedRole !== null

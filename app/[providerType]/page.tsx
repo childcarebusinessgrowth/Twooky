@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
 import { notFound, permanentRedirect } from "next/navigation"
 import { SearchResults } from "@/components/search-results"
+import { getPublicProviderTypeLabel } from "@/lib/listing-labels"
 import { getProviderTypeBySlug, getProviderTypes } from "@/lib/provider-taxonomy"
+import { getMarketFromCookies } from "@/lib/market-server"
 import { getSearchPageData, type SearchPageQueryParams } from "@/lib/search-page-data"
 import { resolveProviderTypeSlug } from "@/lib/provider-type-normalization"
 
@@ -38,9 +40,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
 
+  const market = await getMarketFromCookies()
+  const providerTypeLabel = getPublicProviderTypeLabel(providerType.name, market)
+
   return {
-    title: buildTitle(providerType.name),
-    description: buildDescription(providerType.name, providerType.category_name),
+    title: buildTitle(providerTypeLabel),
+    description: buildDescription(providerTypeLabel, providerType.category_name),
     alternates: {
       canonical: `/${providerType.slug}`,
     },
@@ -59,6 +64,8 @@ export default async function ProviderTypePage({ params, searchParams }: PagePro
 
   const providerType = await getProviderTypeBySlug(resolvedSlug)
   if (!providerType) notFound()
+  const market = await getMarketFromCookies()
+  const providerTypeLabel = getPublicProviderTypeLabel(providerType.name, market)
 
   const resolvedSearchParams = (await searchParams) ?? {}
   const { providers, filterOptions } = await getSearchPageData({
@@ -74,10 +81,10 @@ export default async function ProviderTypePage({ params, searchParams }: PagePro
             {providerType.category_name}
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {providerType.name} Near You
+            {providerTypeLabel} Near You
           </h1>
           <p className="mt-3 max-w-3xl text-base text-muted-foreground">
-            Explore verified {providerType.name.toLowerCase()} providers from our live directory and compare reviews,
+            Explore verified {providerTypeLabel.toLowerCase()} providers from our live directory and compare reviews,
             fees, and availability before you get in touch.
           </p>
         </div>
@@ -88,10 +95,11 @@ export default async function ProviderTypePage({ params, searchParams }: PagePro
         filterOptions={filterOptions}
         basePath={`/${providerType.slug}`}
         defaultProviderType={providerType.slug}
-        headerTitle={`${providerType.name} Near You`}
-        listTitle={`${providerType.name} providers`}
-        emptyStateTitle={`No ${providerType.name.toLowerCase()} providers found`}
+        headerTitle={`${providerTypeLabel} Near You`}
+        listTitle={`${providerTypeLabel} providers`}
+        emptyStateTitle={`No ${providerTypeLabel.toLowerCase()} providers found`}
         emptyStateDescription="Try broadening your search radius or removing a few filters to see more results."
+        market={market}
       />
     </div>
   )

@@ -4,6 +4,7 @@ import {
   getSearchFilterOptions,
   type SearchPageQueryParams,
 } from "@/lib/search-page-data"
+import { getMarketFromCookies } from "@/lib/market-server"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { FindMyPerfectChildcareQuiz } from "./find-my-perfect-childcare-quiz"
 
@@ -152,6 +153,7 @@ export default async function ParentDecisionSupportFindMyPerfectChildcarePage({
     })
     providers = searchData.providers
   }
+  const market = await getMarketFromCookies()
 
   return (
     <div className="space-y-6">
@@ -201,6 +203,7 @@ export default async function ParentDecisionSupportFindMyPerfectChildcarePage({
                   provider={provider}
                   layout="horizontal"
                   featured={provider.featured}
+                  market={market}
                 />
               ))}
             </div>

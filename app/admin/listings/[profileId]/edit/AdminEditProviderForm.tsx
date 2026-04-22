@@ -390,7 +390,7 @@ export function AdminEditProviderForm({
             city={cityDisplayName}
             listingStatus={listingStatus}
             featured={featured}
-            providerTypes={providerTypeOptions}
+            providerTypes={providerTypes}
             selectedProgramTypeIds={selectedProgramTypeIds}
             ageGroupsServed={ageGroupsServed}
             selectedCurriculumTypes={selectedCurriculumTypes}
