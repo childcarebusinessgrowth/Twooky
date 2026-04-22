@@ -11,6 +11,7 @@ import { Footer } from '@/components/layout/footer'
 import { getRandomFooterCitiesForMarket } from '@/lib/locations'
 import { getMarketOptions } from "@/lib/market-options"
 import { getMarketFromCookies } from '@/lib/market-server'
+import { getProviderTypeMenuGroups } from "@/lib/provider-taxonomy"
 import { WebVitalsClient } from '@/components/web-vitals-client'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
@@ -61,6 +62,7 @@ export default async function RootLayout({
   const market = await getMarketFromCookies()
   const marketOptions = await getMarketOptions()
   const footerCities = await getRandomFooterCitiesForMarket(7, market)
+  const initialExploreGroups = await getProviderTypeMenuGroups()
   const enableVercelObservability = process.env.VERCEL === "1"
 
   return (
@@ -92,6 +94,7 @@ export default async function RootLayout({
             footer={<Footer cities={footerCities} market={market} />}
             initialMarket={market}
             marketOptions={marketOptions}
+            initialExploreGroups={initialExploreGroups}
           >
             {children}
           </AppShell>

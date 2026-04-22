@@ -63,7 +63,7 @@ export async function GET() {
       },
       {
         headers: {
-          "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600",
+          "Cache-Control": "private, no-store, max-age=0, must-revalidate",
         },
       },
     )
@@ -74,7 +74,7 @@ export async function GET() {
       {
         status: 200,
         headers: {
-          "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=120",
+          "Cache-Control": "private, no-store, max-age=0, must-revalidate",
         },
       },
     )

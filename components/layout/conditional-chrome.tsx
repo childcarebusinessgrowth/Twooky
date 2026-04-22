@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import type { MarketId } from "@/lib/market"
 import type { MarketOption } from "@/lib/market-options"
+import type { ProviderTaxonomyMenuGroup } from "@/lib/provider-taxonomy"
 
 const DASHBOARD_PREFIXES = ["/dashboard", "/admin", "/parents"] as const
 
@@ -14,6 +15,7 @@ interface ConditionalChromeProps {
   footer?: ReactNode
   initialMarket: MarketId
   marketOptions: MarketOption[]
+  initialExploreGroups: ProviderTaxonomyMenuGroup[]
 }
 
 export function ConditionalChrome({
@@ -21,6 +23,7 @@ export function ConditionalChrome({
   footer,
   initialMarket,
   marketOptions,
+  initialExploreGroups,
 }: ConditionalChromeProps) {
   const pathname = usePathname()
 
@@ -33,7 +36,13 @@ export function ConditionalChrome({
   }
 
   if (position === "top") {
-    return <Header initialMarket={initialMarket} marketOptions={marketOptions} />
+    return (
+      <Header
+        initialMarket={initialMarket}
+        marketOptions={marketOptions}
+        initialExploreGroups={initialExploreGroups}
+      />
+    )
   }
 
   return <>{footer ?? null}</>

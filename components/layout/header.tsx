@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useMemo, useState, useEffect } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -11,6 +11,7 @@ import type { MarketOption } from "@/lib/market-options"
 import { getPublicProviderTypeLabel } from "@/lib/listing-labels"
 import { MarketSelector } from "@/components/market-selector"
 import { getSupabaseClient } from "@/lib/supabaseClient"
+import { subscribeToProviderTaxonomyRefresh } from "@/lib/provider-taxonomy-client"
 
 import {
   DropdownMenu,
@@ -20,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { ProviderTaxonomyMenuGroup } from "@/lib/provider-taxonomy"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -60,16 +62,88 @@ function resolveDashboardHref(role: unknown): string {
 type HeaderProps = {
   initialMarket: MarketId
   marketOptions: MarketOption[]
+  initialExploreGroups: ProviderTaxonomyMenuGroup[]
 }
 
-export function Header({ initialMarket, marketOptions }: HeaderProps) {
+export function Header({ initialMarket, marketOptions, initialExploreGroups }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [aboutMenuOpen, setAboutMenuOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
   const [providerMenuOpen, setProviderMenuOpen] = useState(false)
-  const [exploreGroups, setExploreGroups] = useState<ExploreGroup[]>([])
-  const [exploreLoading, setExploreLoading] = useState(true)
+  const [exploreGroups, setExploreGroups] = useState<ExploreGroup[]>(
+    initialExploreGroups.map((group) => ({
+      label: group.label,
+      links: group.links.map((link) => ({
+        name: getPublicProviderTypeLabel(link.name, initialMarket),
+        href: link.href,
+      })),
+    })),
+  )
   const [resolvedRole, setResolvedRole] = useState<AuthRole | null>(null)
+  const isMountedRef = useRef(true)
+  const providersCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearProvidersCloseTimeout = useCallback(() => {
+    if (providersCloseTimeoutRef.current !== null) {
+      clearTimeout(providersCloseTimeoutRef.current)
+      providersCloseTimeoutRef.current = null
+    }
+  }, [])
+
+  const openProvidersMenu = useCallback(() => {
+    clearProvidersCloseTimeout()
+    setProvidersOpen(true)
+  }, [clearProvidersCloseTimeout])
+
+  const scheduleCloseProvidersMenu = useCallback(() => {
+    clearProvidersCloseTimeout()
+    providersCloseTimeoutRef.current = setTimeout(() => {
+      setProvidersOpen(false)
+      providersCloseTimeoutRef.current = null
+    }, 300)
+  }, [clearProvidersCloseTimeout])
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      clearProvidersCloseTimeout()
+    }
+  }, [clearProvidersCloseTimeout])
+
+  const loadExploreGroups = useCallback(async () => {
+    try {
+      const response = await fetch("/api/search/options", { cache: "no-store" })
+      if (!response.ok) return
+
+      const payload = (await response.json()) as {
+        providerTaxonomy?: {
+          providerTypes?: Array<{
+            name?: string
+            slug?: string
+            category_name?: string
+          }>
+        }
+      }
+
+      const grouped = new Map<string, ExploreGroup>()
+      for (const item of payload.providerTaxonomy?.providerTypes ?? []) {
+        const name = item?.name?.trim()
+        const slug = item?.slug?.trim()
+        const categoryName = item?.category_name?.trim()
+        if (!name || !slug || !categoryName) continue
+        const href = `/${encodeURIComponent(slug)}`
+        const current = grouped.get(categoryName) ?? { label: categoryName, links: [] }
+        current.links.push({ name: getPublicProviderTypeLabel(name, initialMarket), href })
+        grouped.set(categoryName, current)
+      }
+
+      if (isMountedRef.current) {
+        setExploreGroups(Array.from(grouped.values()))
+      }
+    } catch {
+      // Leave the menu empty if taxonomy loading fails.
+    }
+  }, [initialMarket])
 
   useEffect(() => {
     let cancelled = false
@@ -113,53 +187,10 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-
-    async function loadExploreGroups() {
-      setExploreLoading(true)
-      setExploreGroups([])
-      try {
-        const response = await fetch("/api/search/options", { cache: "no-store" })
-        if (!response.ok) return
-
-        const payload = (await response.json()) as {
-          providerTaxonomy?: {
-            providerTypes?: Array<{
-              name?: string
-              slug?: string
-              category_name?: string
-            }>
-          }
-        }
-
-        const grouped = new Map<string, ExploreGroup>()
-        for (const item of payload.providerTaxonomy?.providerTypes ?? []) {
-          const name = item?.name?.trim()
-          const slug = item?.slug?.trim()
-          const categoryName = item?.category_name?.trim()
-          if (!name || !slug || !categoryName) continue
-          const href = `/${encodeURIComponent(slug)}`
-          const current = grouped.get(categoryName) ?? { label: categoryName, links: [] }
-          current.links.push({ name: getPublicProviderTypeLabel(name, initialMarket), href })
-          grouped.set(categoryName, current)
-        }
-
-        if (!cancelled) {
-          setExploreGroups(Array.from(grouped.values()))
-        }
-      } catch {
-        // Leave the menu empty if taxonomy loading fails.
-      } finally {
-        if (!cancelled) setExploreLoading(false)
-      }
-    }
-
-    void loadExploreGroups()
-
-    return () => {
-      cancelled = true
-    }
-  }, [initialMarket])
+    return subscribeToProviderTaxonomyRefresh(() => {
+      void loadExploreGroups()
+    })
+  }, [loadExploreGroups])
 
   const dashboardHref = useMemo(() => resolveDashboardHref(resolvedRole), [resolvedRole])
   const showDashboardAction = resolvedRole !== null
@@ -237,8 +268,8 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
 
           <div
             className="relative"
-            onMouseEnter={() => setProvidersOpen(true)}
-            onMouseLeave={() => setProvidersOpen(false)}
+            onPointerEnter={openProvidersMenu}
+            onPointerLeave={scheduleCloseProvidersMenu}
           >
             <DropdownMenu open={providersOpen} onOpenChange={setProvidersOpen}>
               <DropdownMenuTrigger
@@ -246,6 +277,7 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
                 aria-label="Explore categories menu"
                 onClick={(event) => {
                   event.preventDefault()
+                  clearProvidersCloseTimeout()
                   setProvidersOpen((prev) => !prev)
                 }}
               >
@@ -254,38 +286,39 @@ export function Header({ initialMarket, marketOptions }: HeaderProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="mt-2 w-[min(92vw,760px)] min-w-[280px] rounded-xl border border-border/70 bg-linear-to-b from-background to-muted/70 p-3 shadow-lg"
+                style={{ maxHeight: "none", overflow: "visible" }}
+                className="mt-2 w-[min(92vw,420px)] min-w-[300px] rounded-2xl border border-border/70 bg-background p-5 shadow-xl"
+                onPointerEnter={clearProvidersCloseTimeout}
+                onPointerLeave={scheduleCloseProvidersMenu}
               >
-                {exploreLoading ? (
-                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground/90">
-                    Loading...
-                  </DropdownMenuLabel>
-                ) : exploreGroups.length === 0 ? (
-                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground/90">
-                    No explore categories yet
-                  </DropdownMenuLabel>
-                ) : (
-                  <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {exploreGroups.map((group) => (
-                      <div key={group.label} className="space-y-1.5">
-                        <DropdownMenuLabel className="px-0 text-[11px] uppercase tracking-wide text-muted-foreground/90">
-                          {group.label}
-                        </DropdownMenuLabel>
-                        <div className="space-y-1">
-                          {group.links.map((link) => (
-                            <DropdownMenuItem
-                              key={link.href}
-                              asChild
-                              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                            >
-                              <Link href={link.href}>{link.name}</Link>
-                            </DropdownMenuItem>
-                          ))}
+                <div className="space-y-4">
+                  {exploreGroups.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
+                      No explore categories yet
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      {exploreGroups.map((group) => (
+                        <div key={group.label} className="space-y-2">
+                          <DropdownMenuLabel className="px-0 text-[12px] font-semibold uppercase tracking-[0.2em] text-foreground/80">
+                            {group.label}
+                          </DropdownMenuLabel>
+                          <div className="space-y-0.5">
+                            {group.links.map((link) => (
+                              <DropdownMenuItem
+                                key={link.href}
+                                asChild
+                                className="rounded-lg px-3 py-1.5 text-[15px] font-normal text-foreground transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer"
+                              >
+                                <Link href={link.href}>{link.name}</Link>
+                              </DropdownMenuItem>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

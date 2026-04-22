@@ -28,6 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { dispatchProviderTaxonomyRefresh } from "@/lib/provider-taxonomy-client"
 import {
   createProviderType,
   createProviderTypeCategory,
@@ -163,6 +164,7 @@ export function AdminProviderTypesPageClient({ initialCategories, initialProvide
         setCategoryDialogOpen(false)
         setError(null)
         router.refresh()
+        dispatchProviderTaxonomyRefresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save category.")
       }
@@ -191,6 +193,7 @@ export function AdminProviderTypesPageClient({ initialCategories, initialProvide
         setProviderTypeDialogOpen(false)
         setError(null)
         router.refresh()
+        dispatchProviderTaxonomyRefresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save provider type.")
       }
@@ -211,6 +214,7 @@ export function AdminProviderTypesPageClient({ initialCategories, initialProvide
       setDeleteDialogOpen(false)
       setDeleteTarget(null)
       router.refresh()
+      dispatchProviderTaxonomyRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete item.")
     }
