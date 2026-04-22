@@ -287,20 +287,20 @@ export function Header({ initialMarket, marketOptions, initialExploreGroups }: H
               <DropdownMenuContent
                 align="start"
                 style={{ maxHeight: "none", overflow: "visible" }}
-                className="mt-2 w-[min(90vw,380px)] min-w-[300px] rounded-2xl border border-border/70 bg-background p-5 shadow-xl"
+                className="mt-2 w-[min(88vw,320px)] min-w-[280px] rounded-2xl border border-border/70 bg-background p-4 shadow-xl"
                 onPointerEnter={clearProvidersCloseTimeout}
                 onPointerLeave={scheduleCloseProvidersMenu}
               >
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {exploreGroups.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
                       No explore categories yet
                     </div>
                   ) : (
-                    <div className="space-y-5">
+                    <div className="space-y-4.5">
                       {exploreGroups.map((group) => (
-                        <div key={group.label} className="space-y-2">
-                          <DropdownMenuLabel className="px-0 text-[12px] font-semibold uppercase tracking-[0.2em] text-foreground/80">
+                        <div key={group.label} className="space-y-1.5">
+                          <DropdownMenuLabel className="px-0 text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/75">
                             {group.label}
                           </DropdownMenuLabel>
                           <div className="space-y-0.5">
@@ -308,7 +308,7 @@ export function Header({ initialMarket, marketOptions, initialExploreGroups }: H
                               <DropdownMenuItem
                                 key={link.href}
                                 asChild
-                                className="rounded-lg px-3 py-1.5 text-[15px] font-normal text-foreground transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer"
+                                className="rounded-lg px-2.5 py-1.5 text-[14px] font-normal text-foreground transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer"
                               >
                                 <Link href={link.href}>{link.name}</Link>
                               </DropdownMenuItem>
