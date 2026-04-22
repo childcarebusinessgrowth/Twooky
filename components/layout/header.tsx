@@ -287,7 +287,7 @@ export function Header({ initialMarket, marketOptions, initialExploreGroups }: H
               <DropdownMenuContent
                 align="start"
                 style={{ maxHeight: "none", overflow: "visible" }}
-                className="mt-2 w-[min(92vw,420px)] min-w-[300px] rounded-2xl border border-border/70 bg-background p-5 shadow-xl"
+                className="mt-2 w-[min(90vw,380px)] min-w-[300px] rounded-2xl border border-border/70 bg-background p-5 shadow-xl"
                 onPointerEnter={clearProvidersCloseTimeout}
                 onPointerLeave={scheduleCloseProvidersMenu}
               >
