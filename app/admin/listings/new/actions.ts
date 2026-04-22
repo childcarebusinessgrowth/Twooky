@@ -39,10 +39,8 @@ export type AdminProviderTypeOption = {
   id: string
   name: string
   slug: string
-  href: string
   category_id: string
   category_name: string
-  description: string | null
 }
 
 export type CreateAdminProviderResult =
@@ -292,10 +290,8 @@ export async function getAdminProviderCreateOptions(): Promise<{
       id: row.id,
       name: row.name,
       slug: row.slug,
-      href: row.href,
       category_id: row.category_id,
       category_name: row.category_name,
-      description: row.description,
     })),
   }
 }

@@ -268,6 +268,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
     forcedLocationText: dbCity.name,
   })
   const countryCities = await getActiveCitiesByCountryCode(parsed.country)
+  const providerTypes = await getProviderTypes()
 
   return (
     <div className="min-h-screen bg-background">
@@ -319,7 +320,7 @@ export default async function LocationPage({ params, searchParams }: LocationPag
                       {getPublicProviderTypeLabel(type.name, market)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {type.description ?? `See ${getPublicProviderTypeLabel(type.name, market).toLowerCase()} options in ${displayName}`}
+                      {`See ${getPublicProviderTypeLabel(type.name, market).toLowerCase()} options in ${displayName}`}
                     </p>
                   </CardContent>
                 </Card>

@@ -55,18 +55,18 @@ export function resolveProviderTypeSlug(
   return match?.slug ?? null
 }
 
-export function normalizeProviderTypeSelections(
-  values: string[],
+export function normalizeProviderTypeSelections<T extends string>(
+  values: T[],
   providerTypes: ProviderTypeLookup[],
-): string[] {
-  const resolved: string[] = []
+): T[] {
+  const resolved: T[] = []
   const seen = new Set<string>()
 
   for (const value of values) {
     const slug = resolveProviderTypeSlug(value, providerTypes)
     if (!slug || seen.has(slug)) continue
     seen.add(slug)
-    resolved.push(slug)
+    resolved.push(slug as T)
   }
 
   return resolved

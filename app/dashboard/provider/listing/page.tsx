@@ -90,7 +90,7 @@ type ProgramTypeOption = {
 type ProviderTypeOption = {
   id: string
   name: string
-  slug: string
+  slug: ProviderTypeId
   category_id: string
   category_name: string
 }
@@ -296,7 +296,7 @@ export default function ManageListingPage() {
           nextProviderTypes.set(id, {
             id,
             name,
-            slug,
+            slug: slug as ProviderTypeId,
             category_id: categoryId,
             category_name: categoryName,
           })

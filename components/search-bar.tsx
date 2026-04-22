@@ -265,7 +265,9 @@ function SearchBarContent({
     const element = locationFieldRef.current
     const resizeObserver = typeof ResizeObserver === "undefined" || !element ? null : new ResizeObserver(update)
 
-    resizeObserver?.observe(element)
+    if (resizeObserver && element) {
+      resizeObserver.observe(element)
+    }
     window.addEventListener("resize", update)
     window.addEventListener("scroll", update, true)
 

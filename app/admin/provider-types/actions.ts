@@ -49,13 +49,14 @@ export type ProviderTypeWithCategory = ProviderTypeRecord & {
 export async function createProviderTypeCategory(input: CategoryInput) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const supabaseAny = supabase as any
 
-  const { data: existingRows } = await supabase
+  const { data: existingRows } = await supabaseAny
     .from("provider_type_categories")
     .select("sort_order")
     .order("sort_order", { ascending: true })
 
-  const { error } = await supabase.from("provider_type_categories").insert({
+  const { error } = await supabaseAny.from("provider_type_categories").insert({
     name: input.name.trim(),
     is_active: input.isActive,
     sort_order: nextSortOrder((existingRows ?? []) as Array<{ sort_order: number }>),
@@ -70,8 +71,9 @@ export async function createProviderTypeCategory(input: CategoryInput) {
 export async function updateProviderTypeCategory(id: string, input: CategoryInput) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const supabaseAny = supabase as any
 
-  const { error } = await supabase
+  const { error } = await supabaseAny
     .from("provider_type_categories")
     .update({
       name: input.name.trim(),
@@ -88,7 +90,8 @@ export async function updateProviderTypeCategory(id: string, input: CategoryInpu
 export async function deleteProviderTypeCategory(id: string) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
-  const { count, error: countError } = await supabase
+  const supabaseAny = supabase as any
+  const { count, error: countError } = await supabaseAny
     .from("provider_types")
     .select("id", { head: true, count: "exact" })
     .eq("category_id", id)
@@ -98,7 +101,7 @@ export async function deleteProviderTypeCategory(id: string) {
     throw new Error("Move or delete the provider types in this category first.")
   }
 
-  const { error } = await supabase.from("provider_type_categories").delete().eq("id", id)
+  const { error } = await supabaseAny.from("provider_type_categories").delete().eq("id", id)
   if (error) throw new Error(error.message)
 
   revalidatePath(ADMIN_DIRECTORY_PATH)
@@ -108,15 +111,16 @@ export async function deleteProviderTypeCategory(id: string) {
 export async function createProviderType(input: ProviderTypeInput) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const supabaseAny = supabase as any
   const slug = slugFromName(input.slug ?? input.name)
 
-  const { data: existingRows } = await supabase
+  const { data: existingRows } = await supabaseAny
     .from("provider_types")
     .select("sort_order")
     .eq("category_id", input.categoryId)
     .order("sort_order", { ascending: true })
 
-  const { error } = await supabase.from("provider_types").insert({
+  const { error } = await supabaseAny.from("provider_types").insert({
     category_id: input.categoryId,
     name: input.name.trim(),
     slug,
@@ -133,9 +137,10 @@ export async function createProviderType(input: ProviderTypeInput) {
 export async function updateProviderType(id: string, input: ProviderTypeInput) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const supabaseAny = supabase as any
   const slug = slugFromName(input.slug ?? input.name)
 
-  const { error } = await supabase
+  const { error } = await supabaseAny
     .from("provider_types")
     .update({
       category_id: input.categoryId,
@@ -154,8 +159,9 @@ export async function updateProviderType(id: string, input: ProviderTypeInput) {
 export async function deleteProviderType(id: string) {
   await assertAdminPermission("directory.manage")
   const supabase = getSupabaseAdminClient()
+  const supabaseAny = supabase as any
 
-  const { error } = await supabase.from("provider_types").delete().eq("id", id)
+  const { error } = await supabaseAny.from("provider_types").delete().eq("id", id)
   if (error) throw new Error(error.message)
 
   revalidatePath(ADMIN_DIRECTORY_PATH)

@@ -11,6 +11,15 @@ import {
 
 type TypedSupabase = SupabaseClient
 
+type ProviderTypeRow = {
+  id: string
+  category_id: string
+  name: string
+  slug: string
+  sort_order: number | null
+  provider_type_categories?: { name?: string; slug?: string } | null
+}
+
 export type ProviderTypeCategory = {
   id: string
   name: string
@@ -71,7 +80,8 @@ async function loadProviderTaxonomy() {
 
   const categoryRows = (categories ?? []) as ProviderTypeCategory[]
   const categoryById = new Map(categoryRows.map((row) => [row.id, row]))
-  const typeRows = (providerTypes ?? []).map((row) => {
+  const typeRows = (providerTypes ?? []) as ProviderTypeRow[]
+  const normalizedTypeRows = typeRows.map((row) => {
     const relation = row.provider_type_categories as { name?: string } | null
     const category = categoryById.get(row.category_id)
     return {
@@ -87,7 +97,7 @@ async function loadProviderTaxonomy() {
 
   return {
     categories: categoryRows,
-    providerTypes: typeRows,
+    providerTypes: normalizedTypeRows,
   }
 }
 
@@ -122,14 +132,15 @@ export async function getProviderTypeBySlug(slug: string): Promise<ProviderTypeR
     return null
   }
 
-  const category = data.provider_type_categories as { name?: string } | null
+  const typedData = data as ProviderTypeRow
+  const category = typedData.provider_type_categories as { name?: string } | null
   return {
-    id: data.id,
-    category_id: data.category_id,
+    id: typedData.id,
+    category_id: typedData.category_id,
     category_name: category?.name ?? "Providers",
-    name: data.name,
-    slug: data.slug,
-    sort_order: data.sort_order ?? 0,
+    name: typedData.name,
+    slug: typedData.slug,
+    sort_order: typedData.sort_order ?? 0,
     is_active: true,
   }
 }
@@ -280,14 +291,16 @@ export async function getProviderTypesByProfileIds(
 
   if (typeError || !typeRows?.length) return {}
 
+  const typedTypeRows = typeRows as ProviderTypeRow[]
+
   const categoryLookup = new Map<string, { name?: string; slug?: string }>()
-  for (const row of typeRows) {
+  for (const row of typedTypeRows) {
     const relation = row.provider_type_categories as { name?: string } | null
     categoryLookup.set(row.category_id, relation ?? {})
   }
 
   const typeById = new Map<string, ProviderTypeRecord>(
-    typeRows.map((row) => {
+    typedTypeRows.map((row) => {
       const relation = row.provider_type_categories as { name?: string; slug?: string } | null
       return [
         row.id,
@@ -303,7 +316,7 @@ export async function getProviderTypesByProfileIds(
       ] as const
     }),
   )
-  const orderById = new Map(typeRows.map((row, index) => [row.id, index]))
+  const orderById = new Map(typedTypeRows.map((row, index) => [row.id, index]))
 
   const result: Record<string, ProviderTypeRecord[]> = {}
   for (const profileId of uniqueProfileIds) {
