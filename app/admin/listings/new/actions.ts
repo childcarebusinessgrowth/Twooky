@@ -8,6 +8,7 @@ import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
 import { deriveProviderSlug } from "@/lib/provider-slug"
 import { resolveGooglePlaceIdFromText } from "@/lib/google-place-id"
 import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
+import { syncProviderCoordinates } from "@/lib/provider-coordinates"
 import { parseYouTubeUrl } from "@/lib/youtube"
 import { normalizeProviderWebsiteUrl } from "@/lib/normalize-provider-website-url"
 import { startPerfTimer } from "@/lib/perf-metrics"
@@ -647,6 +648,16 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
       logContext: "admin-create-provider",
     })
     perf.mark("enriched_google_place_cache")
+
+    await syncProviderCoordinates({
+      supabase: supabase as unknown as Parameters<typeof syncProviderCoordinates>[0]["supabase"],
+      providerProfileId: profileId,
+      address,
+      placeId: resolvedGooglePlaceId,
+      businessName,
+      logContext: "admin-create-provider-coords",
+    })
+    perf.mark("synced_provider_coordinates")
   } catch (error) {
     await supabase.from("provider_profiles").delete().eq("profile_id", profileId)
     await cleanupStoragePaths(uploadedPaths)

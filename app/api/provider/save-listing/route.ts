@@ -13,6 +13,7 @@ import {
 } from "@/lib/provider-taxonomy"
 import { revalidateProviderDirectoryCaches } from "@/lib/revalidate-public-directory"
 import { enrichProviderGooglePlaceCache } from "@/lib/google-place-enrichment"
+import { syncProviderCoordinates } from "@/lib/provider-coordinates"
 
 function uniqueTrimmedStrings(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -251,6 +252,15 @@ export async function POST(request: Request) {
         logContext: "provider-save-listing-fallback",
       })
     }
+
+    await syncProviderCoordinates({
+      supabase: admin as unknown as Parameters<typeof syncProviderCoordinates>[0]["supabase"],
+      providerProfileId,
+      address: cachedSummaryRow?.address ?? readOptionalString(body.address),
+      placeId: cachedSummaryRow?.google_place_id ?? readOptionalString(body.googlePlaceId),
+      businessName: cachedSummaryRow?.business_name ?? businessName,
+      logContext: "provider-save-listing-coords",
+    })
 
     revalidatePath("/dashboard/provider/listing")
     revalidatePath("/dashboard/provider")

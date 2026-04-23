@@ -16,6 +16,11 @@ import {
   type GoogleMarkerInstance,
 } from "@/lib/google-maps-loader"
 import { createProviderPinDataUri } from "@/lib/map-pin-utils"
+import {
+  partitionProviderMapPoints,
+  resolveProviderMapPoints,
+  type ProviderMapPoint,
+} from "@/lib/map-provider-points"
 
 type SearchMapModalProps = {
   providers: ProviderCardData[]
@@ -26,37 +31,22 @@ type SearchMapPanelProps = {
   className?: string
 }
 
-function isFiniteNumber(value: number | undefined): value is number {
-  return typeof value === "number" && Number.isFinite(value)
-}
-
-function hasValidCoordinates(latitude: number | undefined, longitude: number | undefined): boolean {
-  if (!isFiniteNumber(latitude) || !isFiniteNumber(longitude)) return false
-  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false
-  // We use 0/0 as "missing coordinate" fallback in some server mappings.
-  if (latitude === 0 && longitude === 0) return false
-  return true
-}
-
-function fallbackCenterFromProviders(providers: ProviderCardData[]): { lat: number; lng: number } {
-  const withCoords = providers.filter(
-    (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
-  )
-  if (withCoords.length === 0) {
+function fallbackCenterFromMapPoints(points: ProviderMapPoint[]): { lat: number; lng: number } {
+  if (points.length === 0) {
     return { lat: 39.8283, lng: -98.5795 }
   }
 
-  const sums = withCoords.reduce(
-    (acc, provider) => ({
-      lat: acc.lat + provider.latitude,
-      lng: acc.lng + provider.longitude,
+  const sums = points.reduce(
+    (acc, point) => ({
+      lat: acc.lat + point.latitude,
+      lng: acc.lng + point.longitude,
     }),
     { lat: 0, lng: 0 },
   )
 
   return {
-    lat: sums.lat / withCoords.length,
-    lng: sums.lng / withCoords.length,
+    lat: sums.lat / points.length,
+    lng: sums.lng / points.length,
   }
 }
 
@@ -75,19 +65,40 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
   const mapRef = useRef<GoogleMapInstance | null>(null)
   const infoWindowRef = useRef<GoogleInfoWindowInstance | null>(null)
   const markerByProviderIdRef = useRef<Map<string, GoogleMarkerInstance>>(new Map())
+  const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map())
   const [isLoadingMap, setIsLoadingMap] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const [userCenter, setUserCenter] = useState<{ lat: number; lng: number } | null>(null)
+  const [resolvedPointsByProviderId, setResolvedPointsByProviderId] = useState<
+    Record<string, ProviderMapPoint>
+  >({})
 
-  const mapProviders = useMemo(
-    () =>
-      providers.filter(
-        (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
-      ),
+  const { directPoints, missingCoordinateProviders } = useMemo(
+    () => partitionProviderMapPoints(providers),
     [providers],
   )
 
-  const defaultCenter = useMemo(() => fallbackCenterFromProviders(mapProviders), [mapProviders])
+  const mapProviders = useMemo<ProviderMapPoint[]>(() => {
+    const seen = new Set<string>()
+    const combined: ProviderMapPoint[] = []
+    for (const point of directPoints) {
+      const key = String(point.provider.id)
+      if (seen.has(key)) continue
+      seen.add(key)
+      combined.push(point)
+    }
+    for (const provider of missingCoordinateProviders) {
+      const key = String(provider.id)
+      if (seen.has(key)) continue
+      const resolved = resolvedPointsByProviderId[key]
+      if (!resolved) continue
+      seen.add(key)
+      combined.push(resolved)
+    }
+    return combined
+  }, [directPoints, missingCoordinateProviders, resolvedPointsByProviderId])
+
+  const defaultCenter = useMemo(() => fallbackCenterFromMapPoints(mapProviders), [mapProviders])
 
   useEffect(() => {
     let isMounted = true
@@ -140,12 +151,12 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
 
         const bounds = new maps.LatLngBounds()
 
-        mapProviders.forEach((provider) => {
+        mapProviders.forEach(({ provider, latitude, longitude }) => {
           const marker = new maps.Marker({
             map,
             position: {
-              lat: provider.latitude,
-              lng: provider.longitude,
+              lat: latitude,
+              lng: longitude,
             },
             title: provider.name,
             icon: {
@@ -157,7 +168,7 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
 
           const providerId = String(provider.id)
           markerByProviderIdRef.current.set(providerId, marker)
-          bounds.extend({ lat: provider.latitude, lng: provider.longitude })
+          bounds.extend({ lat: latitude, lng: longitude })
 
           const locationText = provider.address || provider.location
           marker.addListener("click", () => {
@@ -202,6 +213,45 @@ export function SearchMapPanel({ providers, className = "" }: SearchMapPanelProp
     }
   }, [defaultCenter, mapProviders, mapsApiKey, userCenter])
 
+  useEffect(() => {
+    if (!mapsApiKey) return
+    if (missingCoordinateProviders.length === 0) return
+
+    const unresolvedProviders = missingCoordinateProviders.filter(
+      (provider) => !resolvedPointsByProviderId[String(provider.id)],
+    )
+    if (unresolvedProviders.length === 0) return
+
+    let isCancelled = false
+    void (async () => {
+      try {
+        const maps = await loadGoogleMapsApi(mapsApiKey)
+        if (isCancelled) return
+        await resolveProviderMapPoints(
+          maps,
+          unresolvedProviders,
+          geocodeCacheRef.current,
+          (batch) => {
+            if (isCancelled || batch.length === 0) return
+            setResolvedPointsByProviderId((prev) => {
+              const next = { ...prev }
+              for (const point of batch) {
+                next[String(point.provider.id)] = point
+              }
+              return next
+            })
+          },
+        )
+      } catch {
+        // Swallow client-side geocoding errors; providers without coords simply stay off the map.
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [mapsApiKey, missingCoordinateProviders, resolvedPointsByProviderId])
+
   return (
     <section className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm ${className}`}>
       <div className="relative h-[320px] w-full md:h-[360px] lg:h-[400px]">
@@ -233,6 +283,7 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
   const mapsNamespaceRef = useRef<GoogleMapsNamespace | null>(null)
   const infoWindowRef = useRef<GoogleInfoWindowInstance | null>(null)
   const markerByProviderIdRef = useRef<Map<string, GoogleMarkerInstance>>(new Map())
+  const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map())
   const [isOpen, setIsOpen] = useState(false)
   const [isLoadingMap, setIsLoadingMap] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -240,21 +291,41 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
   const [userCenter, setUserCenter] = useState<{ lat: number; lng: number } | null>(null)
   const [providerQuery, setProviderQuery] = useState("")
   const [isListOpen, setIsListOpen] = useState(false)
+  const [resolvedPointsByProviderId, setResolvedPointsByProviderId] = useState<
+    Record<string, ProviderMapPoint>
+  >({})
 
-  const mapProviders = useMemo(
-    () =>
-      providers.filter(
-        (provider) => hasValidCoordinates(provider.latitude, provider.longitude),
-      ),
+  const { directPoints, missingCoordinateProviders } = useMemo(
+    () => partitionProviderMapPoints(providers),
     [providers],
   )
 
-  const defaultCenter = useMemo(() => fallbackCenterFromProviders(mapProviders), [mapProviders])
+  const mapProviders = useMemo<ProviderMapPoint[]>(() => {
+    const seen = new Set<string>()
+    const combined: ProviderMapPoint[] = []
+    for (const point of directPoints) {
+      const key = String(point.provider.id)
+      if (seen.has(key)) continue
+      seen.add(key)
+      combined.push(point)
+    }
+    for (const provider of missingCoordinateProviders) {
+      const key = String(provider.id)
+      if (seen.has(key)) continue
+      const resolved = resolvedPointsByProviderId[key]
+      if (!resolved) continue
+      seen.add(key)
+      combined.push(resolved)
+    }
+    return combined
+  }, [directPoints, missingCoordinateProviders, resolvedPointsByProviderId])
+
+  const defaultCenter = useMemo(() => fallbackCenterFromMapPoints(mapProviders), [mapProviders])
   const filteredMapProviders = useMemo(() => {
     const query = providerQuery.trim().toLowerCase()
     if (!query) return mapProviders
 
-    return mapProviders.filter((provider) => {
+    return mapProviders.filter(({ provider }) => {
       const searchable = [
         provider.name,
         provider.location,
@@ -325,12 +396,12 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
 
         const bounds = new maps.LatLngBounds()
 
-        filteredMapProviders.forEach((provider) => {
+        filteredMapProviders.forEach(({ provider, latitude, longitude }) => {
           const marker = new maps.Marker({
             map,
             position: {
-              lat: provider.latitude,
-              lng: provider.longitude,
+              lat: latitude,
+              lng: longitude,
             },
             title: provider.name,
             icon: {
@@ -342,7 +413,7 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
 
           const providerId = String(provider.id)
           markerByProviderIdRef.current.set(providerId, marker)
-          bounds.extend({ lat: provider.latitude, lng: provider.longitude })
+          bounds.extend({ lat: latitude, lng: longitude })
 
           const locationText = provider.address || provider.location
           marker.addListener("click", () => {
@@ -387,6 +458,46 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
       isCancelled = true
     }
   }, [defaultCenter, filteredMapProviders, isOpen, mapsApiKey, userCenter])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (!mapsApiKey) return
+    if (missingCoordinateProviders.length === 0) return
+
+    const unresolvedProviders = missingCoordinateProviders.filter(
+      (provider) => !resolvedPointsByProviderId[String(provider.id)],
+    )
+    if (unresolvedProviders.length === 0) return
+
+    let isCancelled = false
+    void (async () => {
+      try {
+        const maps = await loadGoogleMapsApi(mapsApiKey)
+        if (isCancelled) return
+        await resolveProviderMapPoints(
+          maps,
+          unresolvedProviders,
+          geocodeCacheRef.current,
+          (batch) => {
+            if (isCancelled || batch.length === 0) return
+            setResolvedPointsByProviderId((prev) => {
+              const next = { ...prev }
+              for (const point of batch) {
+                next[String(point.provider.id)] = point
+              }
+              return next
+            })
+          },
+        )
+      } catch {
+        // Swallow client-side geocoding errors; providers without coords simply stay off the map.
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isOpen, mapsApiKey, missingCoordinateProviders, resolvedPointsByProviderId])
 
   const focusProvider = (providerId: string) => {
     const maps = mapsNamespaceRef.current
@@ -479,7 +590,7 @@ export function SearchMapModal({ providers }: SearchMapModalProps) {
                 </div>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5 [scrollbar-width:thin]">
-                {filteredMapProviders.map((provider) => {
+                {filteredMapProviders.map(({ provider }) => {
                   const providerId = String(provider.id)
                   const isSelected = selectedProviderId === providerId
                   return (

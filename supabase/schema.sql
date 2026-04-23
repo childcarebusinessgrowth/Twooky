@@ -530,6 +530,10 @@
   alter table if exists public.provider_profiles
     add column if not exists address text;
   alter table if exists public.provider_profiles
+    add column if not exists latitude double precision;
+  alter table if exists public.provider_profiles
+    add column if not exists longitude double precision;
+  alter table if exists public.provider_profiles
     add column if not exists google_place_id text;
   alter table if exists public.provider_profiles
     add column if not exists google_photo_reference_cached text;

@@ -12,18 +12,20 @@ import {
   type GoogleMarkerInstance,
 } from "@/lib/google-maps-loader"
 import { createProviderPinDataUri } from "@/lib/map-pin-utils"
+import {
+  hasValidCoordinates,
+  partitionProviderMapPoints,
+  resolveProviderMapPoints,
+  toCoordinate,
+  toMapPoint,
+  type ProviderMapPoint,
+} from "@/lib/map-provider-points"
 
 type SearchMapPanelProps = {
   providers: ProviderCardData[]
   className?: string
   /** When set (e.g. from URL), geocode and frame the map on this place instead of fitting all pins worldwide. */
   searchLocation?: string
-}
-
-type ProviderMapPoint = {
-  provider: ProviderCardData
-  latitude: number
-  longitude: number
 }
 
 type SearchAreaResult =
@@ -59,24 +61,6 @@ async function geocodeSearchAddress(
   })
 }
 
-function toCoordinate(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value
-  if (typeof value === "string") {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return null
-}
-
-function hasValidCoordinates(latitude: unknown, longitude: unknown): boolean {
-  const lat = toCoordinate(latitude)
-  const lng = toCoordinate(longitude)
-  if (lat === null || lng === null) return false
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false
-  if (lat === 0 && lng === 0) return false
-  return true
-}
-
 function parseCoordinateSearchLocation(value?: string): { lat: number; lng: number } | null {
   if (!value) return null
   const [rawLat, rawLng] = value.split(",")
@@ -87,129 +71,6 @@ function parseCoordinateSearchLocation(value?: string): { lat: number; lng: numb
   if (!hasValidCoordinates(lat, lng)) return null
 
   return { lat: lat as number, lng: lng as number }
-}
-
-function toMapPoint(provider: ProviderCardData): ProviderMapPoint | null {
-  const lat = toCoordinate(provider.latitude)
-  const lng = toCoordinate(provider.longitude)
-  if (lat === null || lng === null) return null
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
-  if (lat === 0 && lng === 0) return null
-  return { provider, latitude: lat, longitude: lng }
-}
-
-async function geocodeProviderAddress(
-  maps: GoogleMapsNamespace,
-  address: string,
-): Promise<{ lat: number; lng: number } | null> {
-  const geocoder = new maps.Geocoder()
-  return new Promise((resolve) => {
-    geocoder.geocode({ address }, (results, status) => {
-      if (status !== "OK" || !results?.length) {
-        resolve(null)
-        return
-      }
-      const location = results[0].geometry?.location
-      if (!location) {
-        resolve(null)
-        return
-      }
-      const lat = location.lat()
-      const lng = location.lng()
-      if (!hasValidCoordinates(lat, lng)) {
-        resolve(null)
-        return
-      }
-      resolve({ lat, lng })
-    })
-  })
-}
-
-async function resolveProviderMapPoints(
-  maps: GoogleMapsNamespace,
-  providers: ProviderCardData[],
-  geocodeCache: Map<string, { lat: number; lng: number } | null>,
-  onBatchResolved: (points: ProviderMapPoint[]) => void,
-): Promise<void> {
-  const MAX_GEOCODE_LOOKUPS = 40
-  const GEOCODE_CONCURRENCY = 4
-  const cachedPoints: ProviderMapPoint[] = []
-  const providersByAddress = new Map<string, ProviderCardData[]>()
-  let geocodeLookups = 0
-
-  for (const provider of providers) {
-    const directPoint = toMapPoint(provider)
-    if (directPoint) {
-      cachedPoints.push(directPoint)
-      continue
-    }
-
-    const address = (provider.address || provider.location || "").trim()
-    if (!address) continue
-
-    const cachedCoords = geocodeCache.get(address)
-    if (cachedCoords !== undefined) {
-      if (cachedCoords && hasValidCoordinates(cachedCoords.lat, cachedCoords.lng)) {
-        cachedPoints.push({ provider, latitude: cachedCoords.lat, longitude: cachedCoords.lng })
-      }
-      continue
-    }
-
-    const existingProviders = providersByAddress.get(address)
-    if (existingProviders) {
-      existingProviders.push(provider)
-      continue
-    }
-
-    if (geocodeLookups >= MAX_GEOCODE_LOOKUPS) continue
-    geocodeLookups += 1
-    providersByAddress.set(address, [provider])
-  }
-
-  if (cachedPoints.length > 0) {
-    onBatchResolved(cachedPoints)
-  }
-
-  const pendingAddresses = Array.from(providersByAddress.entries())
-  for (let index = 0; index < pendingAddresses.length; index += GEOCODE_CONCURRENCY) {
-    const chunk = pendingAddresses.slice(index, index + GEOCODE_CONCURRENCY)
-    const resolvedPointsGroups = await Promise.all(
-      chunk.map(async ([address, providersForAddress]) => {
-        const coords = await geocodeProviderAddress(maps, address)
-        geocodeCache.set(address, coords)
-        if (!coords || !hasValidCoordinates(coords.lat, coords.lng)) return []
-        return providersForAddress.map((provider) => ({
-          provider,
-          latitude: coords.lat,
-          longitude: coords.lng,
-        }))
-      }),
-    )
-
-    const batchPoints = resolvedPointsGroups.flat()
-    if (batchPoints.length > 0) {
-      onBatchResolved(batchPoints)
-    }
-  }
-}
-
-function partitionProviderMapPoints(providers: ProviderCardData[]): {
-  directPoints: ProviderMapPoint[]
-  missingCoordinateProviders: ProviderCardData[]
-} {
-  const directPoints: ProviderMapPoint[] = []
-  const missingCoordinateProviders: ProviderCardData[] = []
-
-  for (const provider of providers) {
-    const directPoint = toMapPoint(provider)
-    if (directPoint) {
-      directPoints.push(directPoint)
-      continue
-    }
-    missingCoordinateProviders.push(provider)
-  }
-
-  return { directPoints, missingCoordinateProviders }
 }
 
 function addMarkersToMap(

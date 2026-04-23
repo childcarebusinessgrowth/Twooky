@@ -31,6 +31,8 @@ export async function persistGooglePlaceSummaryCache(
     google_review_count_cached?: number
     google_reviews_url_cached?: string
     google_reviews_cached_at?: string
+    latitude?: number
+    longitude?: number
   } = {}
 
   const placeId = input.placeId?.trim() ?? ""
@@ -55,6 +57,20 @@ export async function persistGooglePlaceSummaryCache(
     updates.google_reviews_url_cached = reviewsUrl
   }
 
+  const { latitude, longitude } = input.summary
+  const hasValidCoordinates =
+    typeof latitude === "number" &&
+    Number.isFinite(latitude) &&
+    typeof longitude === "number" &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180 &&
+    !(latitude === 0 && longitude === 0)
+  if (hasValidCoordinates) {
+    updates.latitude = latitude
+    updates.longitude = longitude
+  }
+
   if (
     updates.google_rating_cached !== undefined ||
     updates.google_review_count_cached !== undefined ||
@@ -66,7 +82,29 @@ export async function persistGooglePlaceSummaryCache(
   if (Object.keys(updates).length === 0) return false
 
   const admin = getSupabaseAdminClient()
-  const { error } = await admin.from("provider_profiles").update(updates).eq("profile_id", providerProfileId)
+  let { error } = await admin.from("provider_profiles").update(updates).eq("profile_id", providerProfileId)
+
+  // Environments that haven't applied the latitude/longitude migration yet should still
+  // persist the Google summary fields. Retry without the geo columns on "column does not exist".
+  if (
+    error &&
+    (updates.latitude !== undefined || updates.longitude !== undefined) &&
+    error.message?.toLowerCase().includes("column")
+  ) {
+    const { latitude: _latOmitted, longitude: _lngOmitted, ...updatesWithoutCoords } = updates
+    void _latOmitted
+    void _lngOmitted
+    if (Object.keys(updatesWithoutCoords).length > 0) {
+      const retry = await admin
+        .from("provider_profiles")
+        .update(updatesWithoutCoords)
+        .eq("profile_id", providerProfileId)
+      error = retry.error
+    } else {
+      error = null
+    }
+  }
+
   return !error
 }
 
