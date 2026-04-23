@@ -19,7 +19,7 @@
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only admin access for auth, admin routes, and writes. |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Canonical site origin used for metadata, sitemaps, and email links. |
 | `NEXT_PUBLIC_SITE_ROOT_DOMAIN` | Yes | Apex domain used for microsite subdomain rewrites. |
-| `PASSWORD_RESET_REDIRECT_URL` | Recommended | Explicit password reset redirect if it differs from `NEXT_PUBLIC_SITE_URL/update-password`. |
+| `PASSWORD_RESET_REDIRECT_URL` | Optional | Legacy Supabase `redirect_to` value. Recovery links now use the server-side `/auth/confirm` route so this is only a fallback for older emails still in flight. |
 | `GOOGLE_MAPS_API_KEY` | Recommended | Server-side geocoding, Places enrichment, and photo proxying. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Yes | Client-side Google Maps loading. |
 | `CRON_SECRET` | Yes | Bearer secret required by `/api/cron/google-place-refresh`. |
@@ -47,7 +47,10 @@
 ## Supabase setup
 
 1. Add the production site origin to Supabase Authentication Site URL.
-2. Add the production password reset URL to Supabase Redirect URLs.
+2. Add these entries to Supabase Authentication → URL Configuration → Redirect URLs:
+   - `https://<production-origin>/auth/confirm`
+   - `https://<production-origin>/update-password`
+   - `https://<production-origin>/update-password?error=invalid`
 3. Confirm production migrations are applied before switching traffic.
 4. Verify service-role access is only used in server-only code paths.
 

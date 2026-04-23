@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getPasswordResetRedirectUrl } from "@/lib/email/brand"
+import { buildRecoveryConfirmUrl, getPasswordResetRedirectUrl } from "@/lib/email/brand"
 import { sendPasswordResetEmail } from "@/lib/email/passwordReset"
 import { enforceRateLimit, enforceTrustedOrigin } from "@/lib/request-guards"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
@@ -50,14 +50,15 @@ export async function POST(request: Request) {
       options: { redirectTo },
     })
 
-    if (error || !data?.properties?.action_link) {
+    const hashedToken = data?.properties?.hashed_token
+    if (error || !hashedToken) {
       if (error) {
         console.warn("[auth] Password reset generateLink:", error.message)
       }
       return NextResponse.json({ ok: true, message: GENERIC_SUCCESS_MESSAGE })
     }
 
-    const actionLink = data.properties.action_link
+    const actionLink = buildRecoveryConfirmUrl(hashedToken, "/update-password")
     const sendResult = await sendPasswordResetEmail(email, actionLink)
 
     if (!sendResult.ok) {

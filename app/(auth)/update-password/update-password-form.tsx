@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -115,8 +115,10 @@ function urlHasRecoverySignals(): boolean {
 
 export function UpdatePasswordForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const errorParam = searchParams.get("error")
   const initialUrlHadRecoverySignals = useRef(false)
-  const [phase, setPhase] = useState<Phase>("loading")
+  const [phase, setPhase] = useState<Phase>(errorParam === "invalid" ? "invalid" : "loading")
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -124,6 +126,7 @@ export function UpdatePasswordForm() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (errorParam === "invalid") return
     initialUrlHadRecoverySignals.current = urlHasRecoverySignals()
     const supabase = getSupabaseClient()
     let cancelled = false
@@ -142,6 +145,18 @@ export function UpdatePasswordForm() {
     })
 
     void (async () => {
+      // Primary path: the `/auth/confirm` route already verified the token and set the
+      // session cookie, so we just need to confirm a session exists.
+      const {
+        data: { session: existingSession },
+      } = await supabase.auth.getSession()
+      if (cancelled) return
+      if (existingSession) {
+        setPhase("form")
+        return
+      }
+
+      // Fallback for legacy emails still in flight or redirected implicit tokens.
       const established = await establishRecoverySessionFromUrl(supabase)
       if (cancelled) return
 
@@ -167,7 +182,7 @@ export function UpdatePasswordForm() {
         if (cancelled) return
         setPhase((current) => {
           if (current !== "loading") return current
-          if (session && initialUrlHadRecoverySignals.current) return "form"
+          if (session) return "form"
           return "invalid"
         })
       })
@@ -178,7 +193,7 @@ export function UpdatePasswordForm() {
       subscription.unsubscribe()
       window.clearTimeout(timeoutId)
     }
-  }, [])
+  }, [errorParam])
 
   const resolveRoleRedirect = async (): Promise<{ redirectPath: string } | { unresolvedRole: true }> => {
     const response = await fetch("/api/auth/role", { cache: "no-store" })

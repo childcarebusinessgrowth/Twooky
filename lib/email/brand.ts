@@ -42,3 +42,16 @@ export function getPasswordResetRedirectUrl(): string {
   }
   return `${getSiteOrigin().replace(/\/$/, "")}/update-password`
 }
+
+/**
+ * Build a link to our own `/auth/confirm` route using a Supabase `hashed_token`.
+ * Our route verifies the OTP server-side and sets the session cookie, which avoids
+ * the "link expired on submit" class of bug caused by email scanners / previews
+ * hitting Supabase's single-use `/auth/v1/verify?token=...` URL before the user.
+ */
+export function buildRecoveryConfirmUrl(hashedToken: string, next = "/update-password"): string {
+  const base = getSiteOrigin().replace(/\/$/, "")
+  const safeNext = next.startsWith("/") ? next : `/${next}`
+  const qs = new URLSearchParams({ token_hash: hashedToken, type: "recovery", next: safeNext })
+  return `${base}/auth/confirm?${qs.toString()}`
+}

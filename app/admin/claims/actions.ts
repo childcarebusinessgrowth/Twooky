@@ -2,7 +2,7 @@
 
 import { randomBytes } from "crypto"
 import { revalidatePath } from "next/cache"
-import { getPasswordResetRedirectUrl } from "@/lib/email/brand"
+import { buildRecoveryConfirmUrl, getPasswordResetRedirectUrl } from "@/lib/email/brand"
 import { sendClaimApprovedOnboardingEmail } from "@/lib/email/claimApprovedOnboarding"
 import { sendClaimRejectedEmail } from "@/lib/email/claimRejected"
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin"
@@ -272,13 +272,15 @@ export async function approveClaim(claimId: string, notes?: string): Promise<Rev
     email: accountResult.email,
     options: { redirectTo: getPasswordResetRedirectUrl() },
   })
-  if (linkError || !linkData?.properties?.action_link) {
+  const hashedToken = linkData?.properties?.hashed_token
+  if (linkError || !hashedToken) {
     console.error("[claims] Could not create onboarding link for approved claim", {
       claimId,
       error: linkError?.message,
     })
     return { success: false, error: "Could not generate the onboarding link for this claimant." }
   }
+  const setPasswordLink = buildRecoveryConfirmUrl(hashedToken, "/update-password")
 
   const { error: ownerAssignError } = await supabase
     .from("provider_profiles" as never)
@@ -303,7 +305,7 @@ export async function approveClaim(claimId: string, notes?: string): Promise<Rev
     to: accountResult.email,
     claimantName: claim.claimant_name,
     businessName: claim.business_name,
-    setPasswordLink: linkData.properties.action_link,
+    setPasswordLink,
   })
   if (!approvalEmailSent) {
     console.warn("[claims] Claim approved but onboarding email was not sent.", { claimId })
