@@ -228,7 +228,6 @@ function SearchBarContent({
     setLocationSuggestions([])
     setActiveLocationSuggestionIndex(-1)
     setIsLocationFocused(false)
-    handleSearch(suggestion.description)
   }
 
   const locationQuery = location.trim()
@@ -366,9 +365,8 @@ function SearchBarContent({
       event.preventDefault()
       if (activeLocationSuggestionIndex >= 0 && activeLocationSuggestionIndex < locationSuggestions.length) {
         applyLocationSuggestion(locationSuggestions[activeLocationSuggestionIndex])
-        return
       }
-      handleSearch()
+      return
     }
   }
 

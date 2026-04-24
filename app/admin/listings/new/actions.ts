@@ -46,7 +46,7 @@ export type AdminProviderTypeOption = {
 
 export type CreateAdminProviderResult =
   | { ok: true; profileId: string; slug: string }
-  | { ok: false; error: string }
+  | { ok: false; error: string; profileId?: string }
 
 function sanitizeFilename(name: string): string {
   return name
@@ -659,11 +659,11 @@ export async function createAdminProvider(formData: FormData): Promise<CreateAdm
     })
     perf.mark("synced_provider_coordinates")
   } catch (error) {
-    await supabase.from("provider_profiles").delete().eq("profile_id", profileId)
     await cleanupStoragePaths(uploadedPaths)
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Failed to create provider.",
+      profileId,
     }
   }
 

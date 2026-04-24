@@ -380,6 +380,11 @@ export function Header({ initialMarket, marketOptions, initialExploreGroups }: H
         {/* Mobile Menu Button */}
         <div className="flex items-center gap-1 lg:hidden">
           <MarketSelector initialMarket={initialMarket} marketOptions={marketOptions} />
+          {!showDashboardAction ? (
+            <Button variant="ghost" size="sm" asChild className="px-3">
+              <Link href="/login">Sign In</Link>
+            </Button>
+          ) : null}
           <button
             type="button"
             className="rounded-lg p-2 text-muted-foreground hover:bg-accent"

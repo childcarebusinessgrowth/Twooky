@@ -435,7 +435,7 @@ export function AdminEditProviderForm({
         canProceed={canProceed}
         isPending={isPending}
         onCancel={handleCancel}
-        submitLabel="Edit"
+        submitLabel="Save"
       />
     </div>
   )

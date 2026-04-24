@@ -39,7 +39,7 @@ export default function ForProvidersPage() {
             <div className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-primary/15 bg-card/80 py-2 pl-3 pr-4 shadow-sm backdrop-blur-sm">
               <EmojiIcon emoji="✨" label="Sparkles" className="text-xl leading-none" />
               <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Childcare &amp; early learning providers
+                List Your Business on Twooky
               </span>
             </div>
             <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
@@ -58,7 +58,7 @@ export default function ForProvidersPage() {
                 <EmojiIcon emoji="🛡️" label="Shield" className="block text-5xl leading-none md:text-[3.25rem]" />
                 <div>
                   <CardTitle className="text-xl font-bold tracking-tight md:text-2xl">
-                    We already list your center
+                    We already list your business
                   </CardTitle>
                   <CardDescription className="mt-2 text-base leading-relaxed text-muted-foreground">
                     Claim your free profile to manage photos, hours, and inquiries.

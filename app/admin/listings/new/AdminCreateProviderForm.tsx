@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import type {
@@ -13,7 +13,7 @@ import type {
   AdminProviderProgramTypeOption,
   AdminProviderTypeOption,
 } from "./actions"
-import { createAdminProvider } from "./actions"
+import { createAdminProvider, updateAdminProvider } from "./actions"
 import { WIZARD_STEPS, type WizardStepId } from "./types"
 import { WizardProgress } from "./_components/WizardProgress"
 import { WizardFooter } from "./_components/WizardFooter"
@@ -25,6 +25,70 @@ import { Step5ReviewSubmit } from "./steps/Step5ReviewSubmit"
 
 function toFileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`
+}
+
+const CREATE_DRAFT_STORAGE_KEY = "eld:admin-listing-create-draft"
+
+type CreateDraftSnapshot = {
+  currentStep: WizardStepId
+  businessName: string
+  phone: string
+  website: string
+  description: string
+  address: string
+  countryId: string
+  cityId: string
+  listingStatus: string
+  featured: boolean
+  openingTime: string
+  closingTime: string
+  dailyFeeFrom: string
+  dailyFeeTo: string
+  registrationFee: string
+  depositFee: string
+  mealsFee: string
+  serviceTransport: boolean
+  serviceExtendedHours: boolean
+  servicePickupDropoff: boolean
+  serviceExtracurriculars: boolean
+  currencyId: string
+  totalCapacity: string
+  virtualTourUrls: string[]
+  faqs: Array<{ id: string; question: string; answer: string }>
+  providerTypes: string[]
+  selectedProgramTypeIds: string[]
+  ageGroupsServed: string[]
+  selectedCurriculumTypes: string[]
+  selectedLanguages: string[]
+  amenities: string[]
+  primaryPhotoIndex: number
+  resumeProfileId: string | null
+}
+
+function saveDraftToStorage(snapshot: CreateDraftSnapshot) {
+  try {
+    window.sessionStorage.setItem(CREATE_DRAFT_STORAGE_KEY, JSON.stringify(snapshot))
+  } catch {
+    // Ignore storage failures such as quota exhaustion or private mode.
+  }
+}
+
+function loadDraftFromStorage(): CreateDraftSnapshot | null {
+  try {
+    const raw = window.sessionStorage.getItem(CREATE_DRAFT_STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as CreateDraftSnapshot
+  } catch {
+    return null
+  }
+}
+
+function clearDraftFromStorage() {
+  try {
+    window.sessionStorage.removeItem(CREATE_DRAFT_STORAGE_KEY)
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 export function AdminCreateProviderForm({
@@ -51,6 +115,8 @@ export function AdminCreateProviderForm({
   const [isPending, startTransition] = useTransition()
   const [currentStep, setCurrentStep] = useState<WizardStepId>(1)
   const [error, setError] = useState<string | null>(null)
+  const [resumeProfileId, setResumeProfileId] = useState<string | null>(null)
+  const [isHydratedDraft, setIsHydratedDraft] = useState(false)
 
   const [businessName, setBusinessName] = useState("")
   const [phone, setPhone] = useState("")
@@ -84,6 +150,53 @@ export function AdminCreateProviderForm({
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [amenities, setAmenities] = useState<string[]>([])
   const [primaryPhotoIndex, setPrimaryPhotoIndex] = useState(0)
+
+  useEffect(() => {
+    const stored = loadDraftFromStorage()
+    if (!stored) {
+      setIsHydratedDraft(true)
+      return
+    }
+
+    setCurrentStep(
+      stored.currentStep >= 1 && stored.currentStep <= WIZARD_STEPS.length
+        ? stored.currentStep
+        : 1
+    )
+    setBusinessName(stored.businessName ?? "")
+    setPhone(stored.phone ?? "")
+    setWebsite(stored.website ?? "")
+    setDescription(stored.description ?? "")
+    setAddress(stored.address ?? "")
+    setCountryIdState(stored.countryId ?? "")
+    setCityId(stored.cityId ?? "")
+    setListingStatus(stored.listingStatus ?? "active")
+    setFeatured(Boolean(stored.featured))
+    setOpeningTime(stored.openingTime ?? "")
+    setClosingTime(stored.closingTime ?? "")
+    setDailyFeeFrom(stored.dailyFeeFrom ?? "")
+    setDailyFeeTo(stored.dailyFeeTo ?? "")
+    setRegistrationFee(stored.registrationFee ?? "")
+    setDepositFee(stored.depositFee ?? "")
+    setMealsFee(stored.mealsFee ?? "")
+    setServiceTransport(Boolean(stored.serviceTransport))
+    setServiceExtendedHours(Boolean(stored.serviceExtendedHours))
+    setServicePickupDropoff(Boolean(stored.servicePickupDropoff))
+    setServiceExtracurriculars(Boolean(stored.serviceExtracurriculars))
+    setCurrencyId(stored.currencyId ?? "")
+    setTotalCapacity(stored.totalCapacity ?? "")
+    setVirtualTourUrls(stored.virtualTourUrls?.length ? stored.virtualTourUrls : [""])
+    setFaqs(stored.faqs ?? [])
+    setProviderTypes(stored.providerTypes ?? [])
+    setSelectedProgramTypeIds(stored.selectedProgramTypeIds ?? [])
+    setAgeGroupsServed(stored.ageGroupsServed ?? [])
+    setSelectedCurriculumTypes(stored.selectedCurriculumTypes ?? [])
+    setSelectedLanguages(stored.selectedLanguages ?? [])
+    setAmenities(stored.amenities ?? [])
+    setPrimaryPhotoIndex(typeof stored.primaryPhotoIndex === "number" ? stored.primaryPhotoIndex : 0)
+    setResumeProfileId(stored.resumeProfileId ?? null)
+    setIsHydratedDraft(true)
+  }, [])
 
   const setCountryId = (value: string) => {
     setCountryIdState(value)
@@ -179,6 +292,143 @@ export function AdminCreateProviderForm({
   }
   const handleCancel = () => router.push("/admin/listings")
 
+  const draftSnapshot: CreateDraftSnapshot = useMemo(
+    () => ({
+      currentStep,
+      businessName,
+      phone,
+      website,
+      description,
+      address,
+      countryId,
+      cityId,
+      listingStatus,
+      featured,
+      openingTime,
+      closingTime,
+      dailyFeeFrom,
+      dailyFeeTo,
+      registrationFee,
+      depositFee,
+      mealsFee,
+      serviceTransport,
+      serviceExtendedHours,
+      servicePickupDropoff,
+      serviceExtracurriculars,
+      currencyId,
+      totalCapacity,
+      virtualTourUrls,
+      faqs,
+      providerTypes,
+      selectedProgramTypeIds,
+      ageGroupsServed,
+      selectedCurriculumTypes,
+      selectedLanguages,
+      amenities,
+      primaryPhotoIndex,
+      resumeProfileId,
+    }),
+    [
+      currentStep,
+      businessName,
+      phone,
+      website,
+      description,
+      address,
+      countryId,
+      cityId,
+      listingStatus,
+      featured,
+      openingTime,
+      closingTime,
+      dailyFeeFrom,
+      dailyFeeTo,
+      registrationFee,
+      depositFee,
+      mealsFee,
+      serviceTransport,
+      serviceExtendedHours,
+      servicePickupDropoff,
+      serviceExtracurriculars,
+      currencyId,
+      totalCapacity,
+      virtualTourUrls,
+      faqs,
+      providerTypes,
+      selectedProgramTypeIds,
+      ageGroupsServed,
+      selectedCurriculumTypes,
+      selectedLanguages,
+      amenities,
+      primaryPhotoIndex,
+      resumeProfileId,
+    ],
+  )
+
+  useEffect(() => {
+    if (!isHydratedDraft) return
+    const hasContent =
+      currentStep !== 1 ||
+      !!businessName.trim() ||
+      !!phone.trim() ||
+      !!website.trim() ||
+      !!description.trim() ||
+      !!address.trim() ||
+      !!countryId.trim() ||
+      !!cityId.trim() ||
+      listingStatus !== "active" ||
+      featured ||
+      !!openingTime.trim() ||
+      !!closingTime.trim() ||
+      !!dailyFeeFrom.trim() ||
+      !!dailyFeeTo.trim() ||
+      !!registrationFee.trim() ||
+      !!depositFee.trim() ||
+      !!mealsFee.trim() ||
+      serviceTransport ||
+      serviceExtendedHours ||
+      servicePickupDropoff ||
+      serviceExtracurriculars ||
+      !!currencyId.trim() ||
+      !!totalCapacity.trim() ||
+      virtualTourUrls.some((url) => url.trim().length > 0) ||
+      faqs.some((faq) => faq.question.trim() || faq.answer.trim()) ||
+      providerTypes.length > 0 ||
+      selectedProgramTypeIds.length > 0 ||
+      ageGroupsServed.length > 0 ||
+      selectedCurriculumTypes.length > 0 ||
+      selectedLanguages.length > 0 ||
+      amenities.length > 0 ||
+      resumeProfileId != null
+
+    if (!hasContent) {
+      clearDraftFromStorage()
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      saveDraftToStorage(draftSnapshot)
+    }, 400)
+
+    return () => window.clearTimeout(timeout)
+  }, [draftSnapshot, isHydratedDraft, currentStep, businessName, phone, website, description, address, countryId, cityId, listingStatus, featured, openingTime, closingTime, dailyFeeFrom, dailyFeeTo, registrationFee, depositFee, mealsFee, serviceTransport, serviceExtendedHours, servicePickupDropoff, serviceExtracurriculars, currencyId, totalCapacity, virtualTourUrls, faqs, providerTypes.length, selectedProgramTypeIds.length, ageGroupsServed.length, selectedCurriculumTypes.length, selectedLanguages.length, amenities.length, resumeProfileId])
+
+  useEffect(() => {
+    if (!isHydratedDraft) return
+    const onHide = () => {
+      saveDraftToStorage(draftSnapshot)
+    }
+    document.addEventListener("visibilitychange", onHide)
+    return () => document.removeEventListener("visibilitychange", onHide)
+  }, [draftSnapshot, isHydratedDraft])
+
+  useEffect(() => {
+    if (!isHydratedDraft) return
+    return () => {
+      saveDraftToStorage(draftSnapshot)
+    }
+  }, [draftSnapshot, isHydratedDraft])
+
   const handleSubmit = () => {
     setError(null)
     const formData = new FormData()
@@ -220,15 +470,32 @@ export function AdminCreateProviderForm({
     for (const item of photoItems) formData.append("photos", item.file)
 
     startTransition(async () => {
-      const result = await createAdminProvider(formData)
+      const result = resumeProfileId
+        ? await updateAdminProvider(resumeProfileId, formData)
+        : await createAdminProvider(formData)
       if (!result.ok) {
+        if ("profileId" in result && result.profileId) {
+          setResumeProfileId(result.profileId)
+          saveDraftToStorage({
+            ...draftSnapshot,
+            resumeProfileId: result.profileId,
+          })
+        }
         setError(result.error)
-        toast({ title: "Could not create provider", description: result.error, variant: "destructive" })
+        toast({
+          title: resumeProfileId ? "Could not update provider" : "Could not create provider",
+          description: result.error,
+          variant: "destructive",
+        })
         return
       }
+      setResumeProfileId(null)
+      clearDraftFromStorage()
       toast({
-        title: "Provider created",
-        description: "The provider listing has been added successfully.",
+        title: resumeProfileId ? "Provider updated" : "Provider created",
+        description: resumeProfileId
+          ? "The provider listing has been updated successfully."
+          : "The provider listing has been added successfully.",
         variant: "success",
       })
       router.push(`/admin/listings/${result.profileId}`)
@@ -390,6 +657,7 @@ export function AdminCreateProviderForm({
         canProceed={canProceed}
         isPending={isPending}
         onCancel={handleCancel}
+        submitLabel={resumeProfileId ? "Save Changes" : "Create Provider"}
       />
     </div>
   )
